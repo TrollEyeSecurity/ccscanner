@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
+	"github.com/getsentry/sentry-go"
 	"io/ioutil"
 	"log"
 	"net"
@@ -16,16 +16,15 @@ import (
 	"syscall"
 )
 
-
 func GetUuid() *string {
 	uuid := getLinuxUuid("/etc/machine-id")
 	return &uuid
 }
 
-func GetCpuStatus() (*[]float64, error){
+func GetCpuStatus() (*[]float64, error) {
 	var cpuStats []float64
 	CommandMpstatStats, CommandMpstatError := CommandMpstat()
-	if CommandMpstatError != nil{
+	if CommandMpstatError != nil {
 		return nil, CommandMpstatError
 	}
 	cpuStats = *CommandMpstatStats
@@ -51,37 +50,37 @@ func GetScannerData() (*ScannerData, error) {
 		return nil, syscall2Err
 	}
 	sd := ScannerData{
-		Version:          0.1,
-		Uuid:             *uuid,
-		Load:             *cpuStatus,
-		Hostname:         *GetFqdn(),
-		CpuCors:          runtime.NumCPU(),
-		Ram:              m.TotalAlloc,
-		Disk:             s,
-		IpData:           *getIpData(),
-		IpAddr:           *GetOutboundIP(),
-		Tasks:            *database.GetCurrentTasks(),
+		Version:  0.1,
+		Uuid:     *uuid,
+		Load:     *cpuStatus,
+		Hostname: *GetFqdn(),
+		CpuCors:  runtime.NumCPU(),
+		Ram:      m.TotalAlloc,
+		Disk:     s,
+		IpData:   *getIpData(),
+		IpAddr:   *GetOutboundIP(),
+		Tasks:    *database.GetCurrentTasks(),
 	}
 	return &sd, nil
 }
 
 type ScannerData struct {
-	Version          float64          `json:"version"`
-	Uuid             string           `json:"uuid"`
-	Load             []float64        `json:"load"`
-	Hostname         string           `json:"hostname"`
-	CpuCors          int              `json:"cores"`
-	Ram              uint64           `json:"ram"`
-	Disk             syscall.Statfs_t `json:"disk"`
-	IpData           []IpData         `json:"ip_data"`
-	IpAddr           net.IP           `json:"ip_addr"`
-	Tasks            []database.Task  `json:"tasks"`
+	Version  float64          `json:"version"`
+	Uuid     string           `json:"uuid"`
+	Load     []float64        `json:"load"`
+	Hostname string           `json:"hostname"`
+	CpuCors  int              `json:"cores"`
+	Ram      uint64           `json:"ram"`
+	Disk     syscall.Statfs_t `json:"disk"`
+	IpData   []IpData         `json:"ip_data"`
+	IpAddr   net.IP           `json:"ip_addr"`
+	Tasks    []database.Task  `json:"tasks"`
 }
 
 type LinkData struct {
-	Token		string	`json:"token"`
-	Uuid   		string  `json:"uuid"`
-	Hostname	string  `json:"hostname"`
+	Token    string `json:"token"`
+	Uuid     string `json:"uuid"`
+	Hostname string `json:"hostname"`
 }
 
 func getLinuxUuid(productUuidFile string) string {
@@ -90,18 +89,22 @@ func getLinuxUuid(productUuidFile string) string {
 }
 
 func GetOutboundIP() *net.IP {
-	conn, err := net.Dial("udp", "255.255.255.255:80")
-	if err != nil {
-		errors.HandleError(err, "GetOutboundIP net.Dial Error")
+	conn, netDialErr := net.Dial("udp", "255.255.255.255:80")
+	if netDialErr != nil {
+		err := fmt.Errorf("common get-outbound-ip error %v", netDialErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 	}
-	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	conn.Close()
 	return &localAddr.IP
 }
 
 func CommandMpstat() (*[]float64, error) {
 	cmd := exec.Command("mpstat")
-	out, CommandErr:= cmd.Output()
+	out, CommandErr := cmd.Output()
 	if CommandErr != nil {
 		err := fmt.Errorf("command-mpstat error %v: %v", CommandErr, string(out))
 		return nil, err
@@ -141,31 +144,37 @@ func GetFqdn() *string {
 			}
 			fqdn := hosts[0]
 			hostname := strings.TrimSuffix(fqdn, ".")
-			return  &hostname
+			return &hostname
 		}
 	}
 	return &hostname
 }
 
 type IpData struct {
-	IDX			 int			  `json:"idx"`
-	IP           net.IP           `json:"ip"`
-	IntName      string           `json:"int_name"`
-	HardwareAddr string 		  `json:"hardware_addr"`
+	IDX          int    `json:"idx"`
+	IP           net.IP `json:"ip"`
+	IntName      string `json:"int_name"`
+	HardwareAddr string `json:"hardware_addr"`
 }
 
 func getIpData() *[]IpData {
 	var IntList []IpData
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		errors.HandleError(err, "getIpData Error")
-		log.Fatalf("Interfaces Error 1: %s", err)
+	ifaces, InterfacesErr := net.Interfaces()
+	if InterfacesErr != nil {
+		err := fmt.Errorf("common get-ip-data error %v: %v", InterfacesErr, ifaces)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Interfaces Error 1: %s", InterfacesErr)
 	}
 	for _, i := range ifaces {
-		addrs, err := i.Addrs()
-		if err != nil {
-			errors.HandleError(err, "getIpData Error")
-			log.Fatalf("Interfaces Error 2: %s", err)
+		addrs, InterfacesErr2 := i.Addrs()
+		if InterfacesErr2 != nil {
+			err := fmt.Errorf("common get-ip-data error %v: %v", InterfacesErr2, addrs)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Fatalf("Interfaces Error 2: %s", InterfacesErr2)
 		}
 		for _, addr := range addrs {
 			var ip net.IP
@@ -176,7 +185,7 @@ func getIpData() *[]IpData {
 				ip = v.IP
 			}
 			ipdata := IpData{
-				IDX:		  i.Index,
+				IDX:          i.Index,
 				IP:           ip,
 				IntName:      i.Name,
 				HardwareAddr: i.HardwareAddr.String(),
