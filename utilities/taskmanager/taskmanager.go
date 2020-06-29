@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/config"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/pkg/dns"
 	"github.com/CriticalSecurity/cc-scanner/pkg/nmap"
 	"github.com/CriticalSecurity/cc-scanner/pkg/openvas"
@@ -37,11 +36,15 @@ func main() {
 	TaskManagerMain()
 }
 
-func TaskManagerMain()  {
+func TaskManagerMain() {
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "TaskManagerMain MongoClient Error")
+		err := fmt.Errorf("taskmanager error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -63,7 +66,11 @@ func TaskManagerMain()  {
 			var task database.Task
 			NewlyAssignedTasksErr := NewlyAssignedTasks.Decode(&task)
 			if NewlyAssignedTasksErr != nil {
-				errors.HandleError(NewlyAssignedTasksErr, "TaskManagerMain NewlyAssignedTasks Error")
+				err := fmt.Errorf("taskmanager error %v", NewlyAssignedTasksErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				continue
 			}
 			switch {
@@ -87,4 +94,3 @@ func TaskManagerMain()  {
 		time.Sleep(15 * time.Second)
 	}
 }
-

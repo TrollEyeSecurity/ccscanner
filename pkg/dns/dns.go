@@ -5,15 +5,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
+	"log"
 	"net"
 	"regexp"
 	"strconv"
@@ -26,41 +28,53 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
-		errors.HandleError(NewEnvClientErr, "AnalyzeDomainNames NewEnvClient Error")
+		err := fmt.Errorf("dns analyze-domain-names error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	imageName := "docker.io/criticalsec/dnsrecon:latest"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "AnalyzeDomainNames MongoClient Error")
+		err := fmt.Errorf("dns analyze-domain-names error %v: %v", MongoClientError, MongoClient)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	filePath := "/dnsrecon.json"
 	var result []database.DnsResults
-	for _, dnsname := range *dnsnames{
+	for _, dnsname := range *dnsnames {
 		results := database.DnsResults{}
 		now := time.Now()
 		cmd := "-d " + dnsname + " --disable_check_bindversion --j " + filePath + " -t std,srv,axfr,crt " + "-D namelist.txt"
 		cmdS := strings.Split(cmd, " ")
 		config := &container.Config{
-			Image: imageName,
-			Cmd:   cmdS,
-			Tty:   true,
+			Image:        imageName,
+			Cmd:          cmdS,
+			Tty:          true,
 			AttachStdout: true,
 			AttachStderr: true,
 		}
 		resources := &container.Resources{
-			Memory:5.12e+8,
+			Memory: 5.12e+8,
 		}
 		hostConfig := &container.HostConfig{
-			Resources: *resources,
+			Resources:   *resources,
 			NetworkMode: "host",
 		}
 		containerName := "dnsrecon-" + strconv.FormatInt(now.Unix(), 10)
 		DnsreconContainer, DnsreconContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
 		if DnsreconContainerErr != nil {
-			errors.HandleError(DnsreconContainerErr, "AnalyzeDomainNames DnsreconContainer Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v: %v", DnsreconContainerErr, DnsreconContainer)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		idArray = append(idArray, DnsreconContainer.ID)
@@ -69,24 +83,40 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			bson.D{{"$set", bson.D{{"container_id", DnsreconContainer.ID}, {"status", "PROGRESS"}}}},
 		)
 		if taskUpdateError != nil {
-			errors.HandleError(taskUpdateError, "AnalyzeDomainNames taskUpdateError Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v", taskUpdateError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		_, errCh := cli.ContainerWait(ctx, DnsreconContainer.ID)
 		if errCh != nil {
-			errors.HandleError(errCh, "AnalyzeDomainNames errCh Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v", errCh)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, DnsreconContainer.ID, filePath)
 		if fileReaderErr != nil {
-			errors.HandleError(fileReaderErr, "AnalyzeDomainNames File Reader Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v: %v", fileReaderErr, fileReader)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
-		defer fileReader.Close()
 		tr := tar.NewReader(fileReader)
+		fileReader.Close()
 		_, tarErr := tr.Next()
 		if tarErr != nil {
-			errors.HandleError(tarErr, "AnalyzeDomainNames Tar File Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v", tarErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		buf := new(bytes.Buffer)
@@ -100,13 +130,13 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		digImageName := "docker.io/criticalsec/scanner:latest"
 		digConfig := &container.Config{
 			Image: digImageName,
-			Cmd:   []string{
+			Cmd: []string{
 				"dig",
 				"+dnssec",
 				dnsname,
 				"@8.8.8.8",
-				},
-			Tty:   true,
+			},
+			Tty:          true,
 			AttachStdout: true,
 			AttachStderr: true,
 		}
@@ -114,19 +144,27 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			//Memory:1e+9,
 		}
 		digHostConfig := &container.HostConfig{
-			Resources: *digResources,
+			Resources:   *digResources,
 			NetworkMode: "host",
 		}
 		digContainerName := "dig-" + strconv.FormatInt(now.Unix(), 10)
 		DigContainer, DigContainerErr := docker.StartContainer(&imageName, &digContainerName, digConfig, digHostConfig)
 		if DigContainerErr != nil {
-			errors.HandleError(DigContainerErr, "AnalyzeDomainNames DigContainer Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v: %v", DigContainerErr, DigContainer)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		idArray = append(idArray, DigContainer.ID)
 		_, dirErrCh := cli.ContainerWait(ctx, DigContainer.ID)
 		if dirErrCh != nil {
-			errors.HandleError(dirErrCh, "AnalyzeDomainNames DigContainer ContainerWait Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v", dirErrCh)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
 		reader, ContainerLogsErr := cli.ContainerLogs(ctx, DigContainer.ID, types.ContainerLogsOptions{
@@ -134,15 +172,19 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			Follow:     true,
 		})
 		if ContainerLogsErr != nil {
-			errors.HandleError(ContainerLogsErr, "AnalyzeDomainNames ContainerLogs Error")
+			err := fmt.Errorf("dns analyze-domain-names error %v: %v", ContainerLogsErr, reader)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			continue
 		}
-		defer reader.Close()
 		byteValue, _ := ioutil.ReadAll(reader)
+		reader.Close()
 		re := regexp.MustCompile(`^(;; flags:)(.*);`)
-		for _, m := range strings.Split(string(byteValue),"\n") {
-			if re.MatchString(m){
-				if strings.Contains(m, "ad"){
+		for _, m := range strings.Split(string(byteValue), "\n") {
+			if re.MatchString(m) {
+				if strings.Contains(m, "ad") {
 					results.DnsSec = true
 					break
 				}
@@ -154,16 +196,21 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		results.DnsReconList = b64Result
 		result = append(result, results)
 	}
+	cli.Close()
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"dns_result",result},
+			{"dns_result", result},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
 	docker.RemoveContainers(idArray)
 	if update2Error != nil {
-		errors.HandleError(update2Error, "AnalyzeDomainNames update2 Error")
+		err := fmt.Errorf("dns analyze-domain-names error %v", update2Error)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	MongoClient.Disconnect(context.TODO())

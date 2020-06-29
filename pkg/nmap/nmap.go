@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
 	"github.com/CriticalSecurity/cc-scanner/pkg/names"
 	"github.com/CriticalSecurity/cc-scanner/pkg/screenShots"
@@ -24,42 +23,54 @@ import (
 	"time"
 )
 
-func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodanKey *string)  {
+func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodanKey *string) {
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
-		errors.HandleError(NewEnvClientErr, "Nmap NewEnvClient Error")
+		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	cmd := "nmap --stats-every 30s " + *nmap_params + " " + *hosts + " -oX -"
 	cmdS := strings.Split(cmd, " ")
 	imageName := "docker.io/criticalsec/scanner:latest"
 	config := &container.Config{
-		Image: imageName,
-		Cmd:   cmdS,
-		Tty:   true,
+		Image:        imageName,
+		Cmd:          cmdS,
+		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 	resources := &container.Resources{
-		Memory:5.12e+8,
+		Memory: 5.12e+8,
 	}
 	hostConfig := &container.HostConfig{
-		Resources: *resources,
+		Resources:   *resources,
 		NetworkMode: "host",
 	}
 	now := time.Now()
 	containerName := "nmap-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
 	NmapContainer, StartContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
 	if StartContainerErr != nil {
-		errors.HandleError(StartContainerErr, "Nmap StartContainer Error")
+		err := fmt.Errorf("nmap scan error %v: %v", StartContainerErr, NmapContainer)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	idArray = append(idArray, NmapContainer.ID)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "Nmap MongoClient Error")
+		err := fmt.Errorf("nmap scan error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		docker.RemoveContainers(idArray)
 		return
 	}
@@ -67,15 +78,23 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"container_id", NmapContainer.ID}, {"status", "PROGRESS"}}}},
-		)
+	)
 	if updateError != nil {
-		errors.HandleError(updateError, "Nmap updateError Error")
+		err := fmt.Errorf("nmap scan error %v", updateError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		docker.RemoveContainers(idArray)
 		return
 	}
 	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
 	if errCh != nil {
-		errors.HandleError(errCh, "Nmap errCh Error")
+		err := fmt.Errorf("nmap scan error %v", errCh)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		docker.RemoveContainers(idArray)
 		return
 	}
@@ -84,22 +103,25 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 		Follow:     true,
 	})
 	if ContainerLogsErr != nil {
-		errors.HandleError(ContainerLogsErr, "Nmap ContainerLogs Error")
+		err := fmt.Errorf("nmap scan error %v: %v", ContainerLogsErr, reader)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		docker.RemoveContainers(idArray)
 		return
 	}
-	defer reader.Close()
 	byteValue, _ := ioutil.ReadAll(reader)
+	reader.Close()
 	data := &Nmaprun{}
 	XmlUnmarshalErr := xml.Unmarshal(byteValue, data)
-	if XmlUnmarshalErr != nil{
+	if XmlUnmarshalErr != nil {
 		// do I really want to know about all of these?
 		err := fmt.Errorf("nmap scan xml-unmarshal error %v: %v", XmlUnmarshalErr, string(byteValue))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		//errors.HandleError(XmlUnmarshalErr, "Nmap XmlUnmarshal Error - " + string(byteValue))
 		docker.RemoveContainers(idArray)
 		return
 	}
@@ -110,7 +132,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	for _, host := range data.Host {
 		ip := ""
 		for _, addr := range host.Address {
-			if addr.Addrtype == "ipv4" || addr.Addrtype == "ipv6"{
+			if addr.Addrtype == "ipv4" || addr.Addrtype == "ipv6" {
 				ip = addr.Addr
 				break
 			} else {
@@ -125,7 +147,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 			var list_maps []map[string]string
 			url_map := make(map[string]string)
 			var urls []string
-			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == 	"unicall" || port.Service.Name == "snet-sensor-mgmt" {
+			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == "unicall" || port.Service.Name == "snet-sensor-mgmt" {
 				protocol := "http://"
 				if port.Service.Tunnel != "" {
 					protocol = "https://"
@@ -137,10 +159,14 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 					urls = append(urls, url)
 				}
 			}
-			for _, u := range urls{
+			for _, u := range urls {
 				screenShot, ssIdArray, screenShotError := screenShots.GetScreenShot(&u, taskId)
 				if screenShotError != nil {
-					errors.HandleError(screenShotError, "screenShot Error")
+					err := fmt.Errorf("nmap scan error %v: %v", screenShotError, screenShot)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err)
+					}
+					log.Println(err)
 					idArray = append(idArray, *ssIdArray...)
 					continue
 				}
@@ -158,15 +184,20 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-		{"nmap_result",result},
-		{"name_info",nameInfo},
-		{"service_screen_shot_data",serviceScreenShotDataInfo},
-		{"status", "SUCCESS"},
-		{"percent", 100}}}},
+			{"nmap_result", result},
+			{"name_info", nameInfo},
+			{"service_screen_shot_data", serviceScreenShotDataInfo},
+			{"status", "SUCCESS"},
+			{"percent", 100}}}},
 	)
 	docker.RemoveContainers(idArray)
+	cli.Close()
 	if update2Error != nil {
-		errors.HandleError(update2Error, "Nmap Scan update2 Error")
+		err := fmt.Errorf("nmap scan error %v", update2Error)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	MongoClient.Disconnect(context.TODO())

@@ -2,21 +2,31 @@ package docker
 
 import (
 	"context"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/getsentry/sentry-go"
+	"log"
 )
 
 func RemoveContainers(idArray []string) {
 	ctx := context.Background()
-	cli, err := client.NewEnvClient()
-	if err != nil {
-		errors.HandleError(err, "RemoveContainers NewEnvClient Error")
+	cli, NewEnvClientErr := client.NewEnvClient()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("docker remove-containers error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 	}
 	for _, id := range idArray {
-		if err := cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{}); err != nil {
-			errors.HandleError(err, "RemoveContainers ContainerRemove Error")
+		if ContainerRemovErr := cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{}); ContainerRemovErr != nil {
+			err := fmt.Errorf("docker remove-containers error %v", ContainerRemovErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 		}
 	}
 }
@@ -25,7 +35,7 @@ func StartContainer(
 	imageName *string,
 	containerName *string,
 	config *container.Config,
-	hostConfig *container.HostConfig) (*container.ContainerCreateCreatedBody, error){
+	hostConfig *container.HostConfig) (*container.ContainerCreateCreatedBody, error) {
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
@@ -40,10 +50,10 @@ func StartContainer(
 		return nil, ContainerListErr
 	}
 	for _, c := range ContainerList {
-		if c.Names[0] == "/" + *containerName && c.State == "running" {
+		if c.Names[0] == "/"+*containerName && c.State == "running" {
 			return nil, nil
 		}
-		if c.Names[0] == "/" + *containerName && c.State == "exited" {
+		if c.Names[0] == "/"+*containerName && c.State == "exited" {
 			if err := cli.ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
 				return nil, err
 			}
@@ -63,5 +73,6 @@ func StartContainer(
 	if err := cli.ContainerStart(ctx, Container.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, err
 	}
+	cli.Close()
 	return &Container, nil
 }

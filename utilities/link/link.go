@@ -6,22 +6,25 @@ import (
 	"flag"
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/internal/phonehome"
+	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
 )
 
-func main()  {
+func main() {
 	baseUrl := flag.String("url", "", "Enter the base url for your instance of Command Center.")
 	linkingToken := flag.String("token", "", "The linking token can be found in the Scanner Group you are trying to join.")
 	flag.Parse()
 	database.StartDatabase()
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "Link main MongoClient Error")
+		err := fmt.Errorf("link error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
 		log.Fatalf("MongoClient Error: %s", MongoClientError)
 	}
 	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
@@ -41,7 +44,7 @@ func main()  {
 			if string(char) == "Y" {
 				fmt.Println("Continuing on to re-link to Command Center.\n")
 				break
-			} else if string(char) == "N"{
+			} else if string(char) == "N" {
 				fmt.Println("Good by.")
 				return
 			}
@@ -49,7 +52,10 @@ func main()  {
 	}
 	lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
 	if lrError != nil {
-		errors.HandleError(lrError, "Link main lr Error")
+		err := fmt.Errorf("link error %v", lrError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
 		log.Fatalf("Link Error: %s", lrError)
 	}
 	if len(results) > 0 {
@@ -58,7 +64,10 @@ func main()  {
 			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", &lr.Token}, {"shodan", &lr.Shodan}}}},
 		)
 		if ConfigurationError != nil {
-			errors.HandleError(ConfigurationError, "Link Configuration Error")
+			err := fmt.Errorf("link error %v", ConfigurationError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
 			log.Fatalf("Configuration Error: %s", ConfigurationError)
 		}
 
@@ -69,9 +78,13 @@ func main()  {
 			{"token", &lr.Token}},
 		)
 		if ConfigurationError != nil {
-			errors.HandleError(ConfigurationError, "Link Configuration Error")
+			err := fmt.Errorf("link error %v", ConfigurationError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
 			log.Fatalf("Configuration Error: %s", ConfigurationError)
 		}
 	}
+	MongoClient.Disconnect(context.TODO())
 	fmt.Println("\nLink to Command Center was successful.\n")
 }

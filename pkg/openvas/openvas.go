@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -24,11 +23,14 @@ import (
 	"time"
 )
 
-
-func StopVulnerabilityScan(ScanTaskId int64){
+func StopVulnerabilityScan(ScanTaskId int64) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "StopVulnerabilityScan MongoClient Error")
+		err := fmt.Errorf("openvas error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -52,18 +54,30 @@ func StopVulnerabilityScan(ScanTaskId int64){
 	sshDest := host + ":" + VulnerabilityScanTask.SshPort
 	sshClient, sshClientErr := ssh.Dial("tcp", sshDest, sshConfig)
 	if sshClientErr != nil {
-		errors.HandleError(sshClientErr, "StopVulnerabilityScan sshClient Error")
+		err := fmt.Errorf("openvas error %v: %v", sshClientErr, sshClient)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	stopTaskSshSession, stopTaskSshSessionErr := sshClient.NewSession()
 	if stopTaskSshSessionErr != nil {
-		errors.HandleError(stopTaskSshSessionErr, "StopVulnerabilityScan stopTaskSshSession Error")
+		err := fmt.Errorf("openvas error %v: %v", stopTaskSshSessionErr, stopTaskSshSession)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
-	stopTaskXml := "<stop_task task_id='"+ VulnerabilityScanTask.OpenvasTaskId +"'/>"
-	stopTaskOutPut, stopTaskOutErr := stopTaskSshSession.CombinedOutput(baseCmd+"\""+stopTaskXml+"\"")
+	stopTaskXml := "<stop_task task_id='" + VulnerabilityScanTask.OpenvasTaskId + "'/>"
+	stopTaskOutPut, stopTaskOutErr := stopTaskSshSession.CombinedOutput(baseCmd + "\"" + stopTaskXml + "\"")
 	if stopTaskOutErr != nil {
-		errors.HandleError(stopTaskOutErr, "StopVulnerabilityScan stopTaskOutErr Error - " + string(stopTaskOutPut))
+		err := fmt.Errorf("openvas error %v: %v", stopTaskOutErr, stopTaskOutPut)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
@@ -72,17 +86,21 @@ func StopVulnerabilityScan(ScanTaskId int64){
 			{"status", "STOPPED"}}}},
 	)
 	if updateError != nil {
-		errors.HandleError(updateError, "StopVulnerabilityScan update Error")
+		err := fmt.Errorf("openvas error %v", updateError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
+	MongoClient.Disconnect(context.TODO())
 }
-
 
 func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
 	imageName := "docker.io/criticalsec/openvas:latest"
 	config := &container.Config{
-		Image: imageName,
-		Tty:   true,
+		Image:        imageName,
+		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		ExposedPorts: nat.PortSet{
@@ -97,7 +115,7 @@ func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) 
 		PortBindings: nat.PortMap{
 			"22/tcp": []nat.PortBinding{
 				{
-					HostIP: "127.0.0.1",
+					HostIP:   "127.0.0.1",
 					HostPort: *sshPort,
 				},
 			},
@@ -112,17 +130,25 @@ func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) 
 	return &OpenVasContainer.ID, nil
 }
 
-func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string){
+func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "VulnerabilityScan MongoClient Error")
+		err := fmt.Errorf("openvas error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
-		errors.HandleError(NewEnvClientErr, "VulnerabilityScan NewEnvClient Error")
+		err := fmt.Errorf("openvas error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	var sshPort string
@@ -131,16 +157,20 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		rand.Seed(time.Now().UnixNano())
 		min := 2222
 		max := 2232
-		sshPort = strconv.Itoa(rand.Intn(max - min + 1) + min)
-		listenPort, listenPortErr := net.Listen("tcp", ":" + sshPort)
+		sshPort = strconv.Itoa(rand.Intn(max-min+1) + min)
+		listenPort, listenPortErr := net.Listen("tcp", ":"+sshPort)
 		if listenPortErr != nil {
 			attempts++
 			if attempts > 9 {
-				errors.HandleError(listenPortErr, "VulnerabilityScan listenPortErr - Cannot find an open port for ssh")
+				err := fmt.Errorf("openvas error %v: %v", listenPortErr, "VulnerabilityScan listenPortErr - Cannot find an open port for ssh")
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				return
 			}
 		}
-		if listenPort != nil{
+		if listenPort != nil {
 			listenPort.Close()
 			break
 		}
@@ -153,7 +183,11 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	if StartOpenVasErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(StartOpenVasErr, "VulnerabilityScan StartOpenVas Error")
+		err := fmt.Errorf("openvas error %v: %v", StartOpenVasErr, OpenVasContainer)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		_, updateError := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", *taskId}},
 			bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "FAILED"}}}},
@@ -161,7 +195,11 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		if updateError != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(updateError, "VulnerabilityScan update Error")
+			err := fmt.Errorf("openvas error %v", updateError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
 		return
@@ -169,14 +207,18 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{
-		{"container_id", OpenVasContainer},
-		{"status", "INITIALIZING"},
-		{"ssh_port", &sshPort}}}},
+			{"container_id", OpenVasContainer},
+			{"status", "INITIALIZING"},
+			{"ssh_port", &sshPort}}}},
 	)
 	if updateError != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(updateError, "VulnerabilityScan update Error")
+		err := fmt.Errorf("openvas error %v", updateError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	// check if the OpenVas Container is ready to scan
@@ -189,11 +231,15 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		if OpenVasContainerLogStreamErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(OpenVasContainerLogStreamErr, "VulnerabilityScan OpenVasContainerLogStream Error")
+			err := fmt.Errorf("openvas error %v: %v", OpenVasContainerLogStreamErr, OpenVasContainerLogReader)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
-		defer OpenVasContainerLogReader.Close()
 		byteValue, _ := ioutil.ReadAll(OpenVasContainerLogReader)
+		OpenVasContainerLogReader.Close()
 		if strings.Contains(string(byteValue), "sync_cert: Updating CERT info succeeded.") {
 			_, updateError1 := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", *taskId}},
@@ -202,7 +248,11 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			if updateError1 != nil {
 				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				errors.HandleError(updateError1, "VulnerabilityScan updateError1 Error")
+				err := fmt.Errorf("openvas error %v", updateError1)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				return
 			}
 			break
@@ -211,7 +261,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	}
 	// Start scanning
 	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/tmp/gvmd.sock --xml "
-	createTargetXml := "<create_target><name>newtarget</name><hosts>"+*hosts+"</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>"+*excludedHosts+"</exclude_hosts></create_target>"
+	createTargetXml := "<create_target><name>newtarget</name><hosts>" + *hosts + "</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>" + *excludedHosts + "</exclude_hosts></create_target>"
 	sshConfig := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{ssh.Password(pass)},
@@ -222,29 +272,45 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	if sshClientErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(sshClientErr, "VulnerabilityScan sshClient Error")
+		err := fmt.Errorf("openvas error %v", sshClientErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	createTargetSshSession, createTargetSshSessionErr := sshClient.NewSession()
 	if createTargetSshSessionErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(createTargetSshSessionErr, "VulnerabilityScan createTargetSshSession Error")
+		err := fmt.Errorf("openvas error %v", createTargetSshSessionErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
-	createTargetOutPut, createTargetOutPutErr := createTargetSshSession.CombinedOutput(baseCmd+"\""+createTargetXml+"\"")
+	createTargetOutPut, createTargetOutPutErr := createTargetSshSession.CombinedOutput(baseCmd + "\"" + createTargetXml + "\"")
 	if createTargetOutPutErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(createTargetOutPutErr, "VulnerabilityScan createTargetOutPut Error - " + string(createTargetOutPut))
+		err := fmt.Errorf("openvas error %v: %v", createTargetOutPutErr, createTargetOutPut)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	CreateTargetResponseData := &CreateTargetResponse{}
 	CreateTargetResponseDataErr := xml.Unmarshal(createTargetOutPut, CreateTargetResponseData)
-	if CreateTargetResponseDataErr != nil{
+	if CreateTargetResponseDataErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(CreateTargetResponseDataErr, "VulnerabilityScan CreateTargetResponseData Error")
+		err := fmt.Errorf("openvas error %v", CreateTargetResponseDataErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	defer createTargetSshSession.Close()
@@ -253,13 +319,17 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	if createTaskSshSessionErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(createTaskSshSessionErr, "VulnerabilityScan createTaskSshSession Error")
+		err := fmt.Errorf("openvas error %v", createTaskSshSessionErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	var config string
 	if len(*disabledNvts) > 0 {
 		createConfigSshSession, createConfigSshSessionErr := sshClient.NewSession()
-		createConfigXml := "<create_config><copy>"+ *configuration +"</copy><name>newconfig</name></create_config>"
+		createConfigXml := "<create_config><copy>" + *configuration + "</copy><name>newconfig</name></create_config>"
 		if createConfigSshSessionErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
@@ -270,7 +340,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			log.Println(err)
 			return
 		}
-		createConfigOutPut, createConfigXmlOutPutErr := createConfigSshSession.CombinedOutput(baseCmd+"\""+createConfigXml+"\"")
+		createConfigOutPut, createConfigXmlOutPutErr := createConfigSshSession.CombinedOutput(baseCmd + "\"" + createConfigXml + "\"")
 		if createConfigXmlOutPutErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
@@ -283,39 +353,55 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		}
 		CreateConfigResponseData := &CreateConfigResponse{}
 		CreateConfigResponseDataErr := xml.Unmarshal(createConfigOutPut, CreateConfigResponseData)
-		if CreateConfigResponseDataErr != nil{
+		if CreateConfigResponseDataErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(CreateConfigResponseDataErr, "VulnerabilityScan CreateConfigResponseData Error - " + string(createConfigOutPut))
+			err := fmt.Errorf("openvas error %v: %v", CreateConfigResponseDataErr, createConfigOutPut)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
 		defer createConfigSshSession.Close()
 		for k, v := range *disabledNvts {
 			var nvts string
 			for _, nvt := range v {
-				nvts += "<nvt oid='"+nvt+"'/>"
+				nvts += "<nvt oid='" + nvt + "'/>"
 			}
 			ModifyConfigSshSession, ModifyConfigSshSessionErr := sshClient.NewSession()
-			modifyConfigXml := "<modify_config config_id='"+ CreateConfigResponseData.ID +"'><nvt_selection><family>"+k+"</family>"+nvts+"</nvt_selection></modify_config>"
+			modifyConfigXml := "<modify_config config_id='" + CreateConfigResponseData.ID + "'><nvt_selection><family>" + k + "</family>" + nvts + "</nvt_selection></modify_config>"
 			if ModifyConfigSshSessionErr != nil {
 				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				errors.HandleError(ModifyConfigSshSessionErr, "VulnerabilityScan ModifyConfigSshSession Error")
+				err := fmt.Errorf("openvas error %v", ModifyConfigSshSessionErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				return
 			}
-			modifyConfigOutPut, modifyConfigXmlOutPutErr := ModifyConfigSshSession.CombinedOutput(baseCmd+"\""+modifyConfigXml+"\"")
+			modifyConfigOutPut, modifyConfigXmlOutPutErr := ModifyConfigSshSession.CombinedOutput(baseCmd + "\"" + modifyConfigXml + "\"")
 			if modifyConfigXmlOutPutErr != nil {
 				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				errors.HandleError(modifyConfigXmlOutPutErr, "VulnerabilityScan modifyConfigXmlOutPut Error - " + string(modifyConfigOutPut))
+				err := fmt.Errorf("openvas error %v: %v", modifyConfigXmlOutPutErr, modifyConfigOutPut)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				return
 			}
 			ModifyConfigResponseData := &ModifyConfigResponse{}
 			ModifyConfigResponseDataErr := xml.Unmarshal(modifyConfigOutPut, ModifyConfigResponseData)
-			if ModifyConfigResponseDataErr != nil{
+			if ModifyConfigResponseDataErr != nil {
 				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				errors.HandleError(ModifyConfigResponseDataErr, "VulnerabilityScan ModifyConfigResponseData Error")
+				err := fmt.Errorf("openvas error %v", ModifyConfigResponseDataErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				return
 			}
 			defer ModifyConfigSshSession.Close()
@@ -324,17 +410,21 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	} else {
 		config = *configuration
 	}
-	createTaskXml := "<create_task><name>newtask</name><comment></comment><config id='"+ config +"'/><target id='"+ CreateTargetResponseData.ID +"'/></create_task>"
-	createTaskOutPut, createTaskOutPutErr := createTaskSshSession.CombinedOutput(baseCmd+"\""+createTaskXml+"\"")
+	createTaskXml := "<create_task><name>newtask</name><comment></comment><config id='" + config + "'/><target id='" + CreateTargetResponseData.ID + "'/></create_task>"
+	createTaskOutPut, createTaskOutPutErr := createTaskSshSession.CombinedOutput(baseCmd + "\"" + createTaskXml + "\"")
 	if createTaskOutPutErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(createTaskOutPutErr, "VulnerabilityScan createTaskOutPut Error - " + string(createTaskOutPut))
+		err := fmt.Errorf("openvas error %v: %v", createTaskOutPutErr, createTaskOutPut)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	CreateTaskResponseData := &CreateTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	CreateTaskResponseDataErr := xml.Unmarshal(createTaskOutPut, CreateTaskResponseData)
-	if CreateTaskResponseDataErr != nil{
+	if CreateTaskResponseDataErr != nil {
 		return
 	}
 	defer createTaskSshSession.Close()
@@ -347,23 +437,35 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	if startTaskSshSessionErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(startTaskSshSessionErr, "VulnerabilityScan startTaskSshSession Error")
+		err := fmt.Errorf("openvas error %v", startTaskSshSessionErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
-	startTaskXml := "<start_task task_id='"+ CreateTaskResponseData.ID +"'/>"
-	startTaskOutPut, startTaskOutErr := startTaskSshSession.CombinedOutput(baseCmd+"\""+startTaskXml+"\"")
+	startTaskXml := "<start_task task_id='" + CreateTaskResponseData.ID + "'/>"
+	startTaskOutPut, startTaskOutErr := startTaskSshSession.CombinedOutput(baseCmd + "\"" + startTaskXml + "\"")
 	if startTaskOutErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(startTaskOutErr, "VulnerabilityScan startTaskOut Error - " + string(startTaskOutPut))
+		err := fmt.Errorf("openvas error %v: %v", startTaskOutErr, startTaskOutPut)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	StartTaskResponseData := &StartTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(startTaskOutPut, StartTaskResponseData)
-	if StartTaskResponseDataErr != nil{
+	if StartTaskResponseDataErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(StartTaskResponseDataErr, "VulnerabilityScan StartTaskResponseData Error")
+		err := fmt.Errorf("openvas error %v", StartTaskResponseDataErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	defer startTaskSshSession.Close()
@@ -372,24 +474,36 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		if getTaskSshSessionErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(getTaskSshSessionErr, "VulnerabilityScan getTaskSshSession Error")
+			err := fmt.Errorf("openvas error %v", getTaskSshSessionErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
-		getTaskXml := "<get_tasks task_id='"+ CreateTaskResponseData.ID +"'/>"
-		getTaskOutPut, getTaskOutPutErr := getTaskSshSession.CombinedOutput(baseCmd+"\""+getTaskXml+"\"")
+		getTaskXml := "<get_tasks task_id='" + CreateTaskResponseData.ID + "'/>"
+		getTaskOutPut, getTaskOutPutErr := getTaskSshSession.CombinedOutput(baseCmd + "\"" + getTaskXml + "\"")
 		if getTaskOutPutErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(getTaskOutPutErr, "VulnerabilityScan getTaskOutPut Error - " + string(getTaskOutPut))
+			err := fmt.Errorf("openvas error %v: %v", getTaskOutPutErr, getTaskOutPut)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
 		GetTasksResponseData := &GetTasksResponse{} // Create and initialise a data variablgo as a PostData struct
 		GetTaskResponseDataErr := xml.Unmarshal(getTaskOutPut, GetTasksResponseData)
 		defer getTaskSshSession.Close()
-		if GetTaskResponseDataErr != nil{
+		if GetTaskResponseDataErr != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			errors.HandleError(GetTaskResponseDataErr, "VulnerabilityScan GetTaskResponseData Error")
+			err := fmt.Errorf("openvas error %v", GetTaskResponseDataErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			return
 		}
 		if GetTasksResponseData.Task.Status == "Done" || GetTasksResponseData.Task.Status == "Stopped" {
@@ -401,7 +515,11 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			bson.D{{"$set", bson.D{{"percent", percent}}}},
 		)
 		if updateError2 != nil {
-			errors.HandleError(updateError2, "VulnerabilityScan updateError2 Error")
+			err := fmt.Errorf("openvas error %v", updateError2)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
 			return
@@ -410,21 +528,29 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	}
 	getReportsSshSession, getReportsSshSessionErr := sshClient.NewSession()
 	if getReportsSshSessionErr != nil {
-		errors.HandleError(getReportsSshSessionErr, "VulnerabilityScan getReportsSshSession Error")
+		err := fmt.Errorf("openvas error %v", getReportsSshSessionErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
 		return
 	}
-	getReportsXml := "<get_reports report_id='"+ StartTaskResponseData.ReportID +"' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
-	getReportsOutPut, getReportsOutPutErr := getReportsSshSession.CombinedOutput(baseCmd+"\""+getReportsXml+"\"")
+	getReportsXml := "<get_reports report_id='" + StartTaskResponseData.ReportID + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
+	getReportsOutPut, getReportsOutPutErr := getReportsSshSession.CombinedOutput(baseCmd + "\"" + getReportsXml + "\"")
 	if getReportsOutPutErr != nil {
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		errors.HandleError(getReportsOutPutErr, "VulnerabilityScan getReportsOutPut Error - " + string(getReportsOutPut))
+		err := fmt.Errorf("openvas error %v: %v", getReportsOutPutErr, getReportsOutPut)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 	}
 	GetReportsResponseData := &GetReportsResponse{} // Create and initialise a data variablgo as a PostData struct
 	GetReportsResponseDataErr := xml.Unmarshal(getReportsOutPut, GetReportsResponseData)
-	if GetReportsResponseDataErr != nil{
+	if GetReportsResponseDataErr != nil {
 		return
 	}
 	defer getReportsSshSession.Close()
@@ -432,18 +558,23 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{
-		{"openvas_result", GetReportsResponseData.Report.Text},
-		{"status", "SUCCESS"},
-		{"percent", 100}}}},
+			{"openvas_result", GetReportsResponseData.Report.Text},
+			{"status", "SUCCESS"},
+			{"percent", 100}}}},
 	)
 	if updateError2 != nil {
-		errors.HandleError(updateError2, "VulnerabilityScan updateError2 Error")
+		err := fmt.Errorf("openvas error %v", updateError2)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
 		return
 	}
 	cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
 	cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+	cli.Close()
 	MongoClient.Disconnect(context.TODO())
 	return
 }

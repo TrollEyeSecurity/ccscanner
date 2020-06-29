@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/CriticalSecurity/cc-scanner/internal/config"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/errors"
 	"github.com/CriticalSecurity/cc-scanner/internal/phonehome"
 	"github.com/CriticalSecurity/cc-scanner/pkg/openvas"
 	"github.com/getsentry/sentry-go"
@@ -35,11 +34,15 @@ func main() {
 	ScannerMain()
 }
 
-func ScannerMain()  {
+func ScannerMain() {
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		errors.HandleError(MongoClientError, "ScannerMain MongoClient Error")
+		err := fmt.Errorf("cc-scanner error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 		return
 	}
 	for {
@@ -99,7 +102,11 @@ func ScannerMain()  {
 				{"ssh_port", nil},
 			})
 			if TasksError != nil {
-				errors.HandleError(TasksError, "Tasks Error")
+				err := fmt.Errorf("cc-scanner error %v", TasksError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
 				time.Sleep(30 * time.Second)
 				continue
 			}
