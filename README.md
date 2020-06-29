@@ -1,0 +1,1 @@
+ link: link.go --url=BASEURL --token=LINKING_TOKEN
