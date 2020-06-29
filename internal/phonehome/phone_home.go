@@ -13,8 +13,8 @@ import (
 
 func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	ld := common.LinkData{
-		Token: linkToken,
-		Uuid: *common.GetUuid(),
+		Token:    linkToken,
+		Uuid:     *common.GetUuid(),
 		Hostname: *common.GetFqdn(),
 	}
 	lr := LinkResp{}
@@ -30,7 +30,6 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 		os.Exit(1)
 	}
 	if response.Status == "403 Forbidden" {
-		response.Body.Close()
 		fmt.Println("403 Forbidden, likely a bad key.")
 		os.Exit(1)
 	} else if response.Status == "500 Internal Server Error" {
@@ -51,7 +50,7 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	return &lr, nil
 }
 
-func Communicate(baseUrl string, token string)  (*CommunicateResp, error) {
+func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	cr := CommunicateResp{}
 	ScannerData, ScannerDataErr := common.GetScannerData()
 	if ScannerDataErr != nil {
@@ -91,7 +90,7 @@ func Communicate(baseUrl string, token string)  (*CommunicateResp, error) {
 	return &cr, nil
 }
 
-func HttpClientRequest(baseURL *string, path *string, data []byte, method *string, token *string) (*http.Response, error)  {
+func HttpClientRequest(baseURL *string, path *string, data []byte, method *string, token *string) (*http.Response, error) {
 	/*proxyStr := "http://localhost:8080"
 	proxyURL, ProxyURLErr := url.Parse(proxyStr)
 	if ProxyURLErr != nil {
@@ -110,7 +109,7 @@ func HttpClientRequest(baseURL *string, path *string, data []byte, method *strin
 	//adding the Transport object to the http Client
 	client := &http.Client{
 		Transport: transport,
-		Timeout: time.Second * 20,
+		Timeout:   time.Second * 20,
 	}
 	//generating the HTTP GET request
 	request, RequestErr := http.NewRequest(
@@ -124,6 +123,8 @@ func HttpClientRequest(baseURL *string, path *string, data []byte, method *strin
 	if *token != "" {
 		var authToken = "Token " + *token
 		request.Header.Add("Authorization", authToken)
+		request.Header.Set("Connection", "close")
+		request.Close = true
 	}
 	response, ClientErr := client.Do(request)
 	if ClientErr != nil {

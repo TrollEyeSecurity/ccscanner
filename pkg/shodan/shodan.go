@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error)  {
+func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error) {
 	/*proxyStr := "http://localhost:8080"
 	proxyURL, ProxyURLErr := url.Parse(proxyStr)
 	if ProxyURLErr != nil {
@@ -27,7 +27,7 @@ func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error)  {
 	//adding the Transport object to the http Client
 	client := &http.Client{
 		Transport: transport,
-		Timeout: time.Second * 10,
+		Timeout:   time.Second * 10,
 	}
 	//generating the HTTP GET request
 	var data []byte
@@ -35,10 +35,12 @@ func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error)  {
 		"GET",
 		scannersUrl.String(),
 		bytes.NewBuffer(data),
-		)
+	)
 	if RequestErr != nil {
 		return nil, RequestErr
 	}
+	request.Header.Set("Connection", "close")
+	request.Close = true
 	response, ClientErr := client.Do(request)
 	if ClientErr != nil {
 		return nil, ClientErr

@@ -24,7 +24,7 @@ func GetScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string,
 	filePath := "url_screen_shot"
 	config := &container.Config{
 		Image: imageName,
-		Cmd:   []string{
+		Cmd: []string{
 			"google-chrome",
 			"--ignore-certificate-errors",
 			"--enable-features=NetworkService",
@@ -36,12 +36,12 @@ func GetScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string,
 			"--window-size=1280,768",
 			*url,
 		},
-		Tty:   true,
+		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
 	resources := &container.Resources{
-		Memory:7.68e+8,
+		Memory: 7.68e+8,
 	}
 	hostConfig := &container.HostConfig{
 		Resources: *resources,
@@ -60,8 +60,9 @@ func GetScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string,
 	if fileReaderErr != nil {
 		return nil, &idArray, fileReaderErr
 	}
-	defer fileReader.Close()
 	img, imgError := ioutil.ReadAll(fileReader)
+	fileReader.Close()
+	cli.Close()
 	if imgError != nil {
 		return nil, &idArray, imgError
 	}

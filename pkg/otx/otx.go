@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func GetIpReputation(ip *string, otxKey *string) (*http.Response, error){
+func GetIpReputation(ip *string, otxKey *string) (*http.Response, error) {
 	/*proxyStr := "http://localhost:8080"
 	proxyURL, ProxyURLErr := url.Parse(proxyStr)
 	if ProxyURLErr != nil {
@@ -17,12 +17,12 @@ func GetIpReputation(ip *string, otxKey *string) (*http.Response, error){
 	//creating the URL to be loaded through the proxy
 	IPAddress := net.ParseIP(*ip)
 	var version string
-	if IPAddress.To4() != nil{
+	if IPAddress.To4() != nil {
 		version = "4"
 	} else {
 		version = "6"
 	}
-	urlStr := "https://otx.alienvault.com/api/v1/indicators/IPv" + version + "/" + *ip + "/" +"reputation"
+	urlStr := "https://otx.alienvault.com/api/v1/indicators/IPv" + version + "/" + *ip + "/" + "reputation"
 	scannersUrl, ScannersUrlErr := url.Parse(urlStr)
 	if ScannersUrlErr != nil {
 		return nil, ScannersUrlErr
@@ -35,7 +35,7 @@ func GetIpReputation(ip *string, otxKey *string) (*http.Response, error){
 	//adding the Transport object to the http Client
 	client := &http.Client{
 		Transport: transport,
-		Timeout: time.Second * 10,
+		Timeout:   time.Second * 10,
 	}
 	//generating the HTTP GET request
 	var data []byte
@@ -48,6 +48,8 @@ func GetIpReputation(ip *string, otxKey *string) (*http.Response, error){
 		return nil, RequestErr
 	}
 	request.Header.Add("X-OTX-API-KEY", *otxKey)
+	request.Header.Set("Connection", "close")
+	request.Close = true
 	response, ClientErr := client.Do(request)
 	if ClientErr != nil {
 		return nil, ClientErr

@@ -14,9 +14,9 @@ func LoadConfiguration(file string) Config {
 			fmt.Println(err.Error())
 		}
 		if configFile != nil {
-			defer configFile.Close()
 			jsonParser := json.NewDecoder(configFile)
 			jsonParser.Decode(&config)
+			configFile.Close()
 		}
 	}
 	return config
