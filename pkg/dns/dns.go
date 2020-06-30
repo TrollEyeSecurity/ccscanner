@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"github.com/CriticalSecurity/cc-scanner/internal/common"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
 	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
 	"github.com/docker/docker/api/types"
@@ -35,7 +36,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		log.Println(err)
 		return
 	}
-	imageName := "docker.io/criticalsec/dnsrecon:latest"
+	imageName := docker.DnsReconImage
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
 		err := fmt.Errorf("dns analyze-domain-names error %v: %v", MongoClientError, MongoClient)
@@ -127,7 +128,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		dmarcTXT, _ := net.LookupTXT("_dmarc." + dnsname)
 		spf := ExtractSPF(dnsTXT)
 		dmarc := ExtractDMARC(dmarcTXT)
-		digImageName := "docker.io/criticalsec/scanner:latest"
+		digImageName := common.NmapDocker
 		digConfig := &container.Config{
 			Image: digImageName,
 			Cmd: []string{

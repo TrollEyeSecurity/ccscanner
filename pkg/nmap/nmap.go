@@ -37,7 +37,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	}
 	cmd := "nmap --stats-every 30s " + *nmap_params + " " + *hosts + " -oX -"
 	cmdS := strings.Split(cmd, " ")
-	imageName := "docker.io/criticalsec/scanner:latest"
+	imageName := docker.NmapDockerImage
 	config := &container.Config{
 		Image:        imageName,
 		Cmd:          cmdS,

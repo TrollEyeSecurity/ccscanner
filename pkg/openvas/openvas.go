@@ -97,7 +97,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 }
 
 func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
-	imageName := "docker.io/criticalsec/openvas:latest"
+	imageName := docker.OpenVasImage
 	config := &container.Config{
 		Image:        imageName,
 		Tty:          true,

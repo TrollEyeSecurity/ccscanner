@@ -21,7 +21,7 @@ import (
 )
 
 func StartDatabase() {
-	imageName := "docker.io/library/mongo:latest"
+	imageName := docker.MongoDbDockerImage
 	containerName := "mongoDB"
 	config := &container.Config{
 		ExposedPorts: nat.PortSet{"27017/tcp": struct{}{}},

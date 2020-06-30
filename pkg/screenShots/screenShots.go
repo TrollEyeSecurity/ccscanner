@@ -20,7 +20,7 @@ func GetScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string,
 		return nil, nil, NewEnvClientErr
 	}
 	now := time.Now()
-	imageName := "docker.io/criticalsec/scanner:latest"
+	imageName := docker.NmapDockerImage
 	filePath := "url_screen_shot"
 	config := &container.Config{
 		Image: imageName,
