@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/CriticalSecurity/cc-scanner/internal/common"
 	"github.com/CriticalSecurity/cc-scanner/internal/config"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
 	"github.com/CriticalSecurity/cc-scanner/internal/phonehome"
@@ -18,7 +19,12 @@ import (
 
 func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
+	versionBool := flag.Bool("version", true, "Show the cc-scanner version.")
 	flag.Parse()
+	if *versionBool {
+		fmt.Printf("cc-scanner version: %.1f\n", common.Version)
+		return
+	}
 	os.Setenv("CONFIGFILE", *configFile)
 	appConfiguration := config.LoadConfiguration(*configFile)
 	if appConfiguration.SentryIoDsn != "" {
