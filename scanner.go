@@ -19,7 +19,7 @@ import (
 
 func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
-	versionBool := flag.Bool("version", true, "Show the cc-scanner version.")
+	versionBool := flag.Bool("version", false, "Show the cc-scanner version.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("cc-scanner version: %.1f\n", common.Version)
