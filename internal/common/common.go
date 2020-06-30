@@ -50,7 +50,7 @@ func GetScannerData() (*ScannerData, error) {
 		return nil, syscall2Err
 	}
 	sd := ScannerData{
-		Version:  0.1,
+		Version:  Version,
 		Uuid:     *uuid,
 		Load:     *cpuStatus,
 		Hostname: *GetFqdn(),
