@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/CriticalSecurity/cc-scanner/internal/common"
 	"github.com/CriticalSecurity/cc-scanner/internal/database"
 	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
 	"github.com/docker/docker/api/types"
@@ -128,7 +127,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		dmarcTXT, _ := net.LookupTXT("_dmarc." + dnsname)
 		spf := ExtractSPF(dnsTXT)
 		dmarc := ExtractDMARC(dmarcTXT)
-		digImageName := common.NmapDocker
+		digImageName := docker.NmapDockerImage
 		digConfig := &container.Config{
 			Image: digImageName,
 			Cmd: []string{
