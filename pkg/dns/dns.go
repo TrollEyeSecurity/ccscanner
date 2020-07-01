@@ -109,7 +109,6 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			continue
 		}
 		tr := tar.NewReader(fileReader)
-		fileReader.Close()
 		_, tarErr := tr.Next()
 		if tarErr != nil {
 			err := fmt.Errorf("dns analyze-domain-names error %v", tarErr)
@@ -121,6 +120,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		}
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
+		fileReader.Close()
 		wholeContent := buf.String()
 		b64Result := base64.StdEncoding.EncodeToString([]byte(wholeContent))
 		dnsTXT, _ := net.LookupTXT(dnsname)
