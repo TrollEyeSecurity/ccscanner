@@ -65,7 +65,7 @@ func GetScannerData() (*ScannerData, error) {
 }
 
 type ScannerData struct {
-	Version  float64          `json:"version"`
+	Version  string           `json:"version"`
 	Uuid     string           `json:"uuid"`
 	Load     []float64        `json:"load"`
 	Hostname string           `json:"hostname"`
