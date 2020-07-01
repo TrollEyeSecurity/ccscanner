@@ -7,6 +7,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
+	"io"
+	"io/ioutil"
 	"log"
 )
 
@@ -41,10 +43,17 @@ func StartContainer(
 	if NewEnvClientErr != nil {
 		return nil, NewEnvClientErr
 	}
-	_, ImagePullErr := cli.ImagePull(ctx, *imageName, types.ImagePullOptions{})
+	options := &types.ImagePullOptions{}
+	out, ImagePullErr := cli.ImagePull(ctx, *imageName, *options)
 	if ImagePullErr != nil {
+		err := fmt.Errorf("docker image-pull error %v", ImagePullErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
 		return nil, ImagePullErr
 	}
+	io.Copy(ioutil.Discard, out)
+	out.Close()
 	ContainerList, ContainerListErr := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if ContainerListErr != nil {
 		return nil, ContainerListErr

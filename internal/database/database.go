@@ -14,6 +14,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"io"
 	"io/ioutil"
 	"log"
 	"strconv"
@@ -41,6 +42,26 @@ func StartDatabase() {
 		},
 		Resources: *resources,
 	}
+	ctx := context.Background()
+	cli, NewEnvClientErr := client.NewEnvClient()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("database new-client error %v", NewEnvClientErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Start Database Error: %s", err)
+	}
+	imagePullOptions := &types.ImagePullOptions{}
+	out, ImagePullErr := cli.ImagePull(ctx, imageName, *imagePullOptions)
+	if ImagePullErr != nil {
+		err := fmt.Errorf("database image-pull error %v", ImagePullErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Start Database Error: %s", err)
+	}
+	io.Copy(ioutil.Discard, out)
+	out.Close()
 	_, StartContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
 	if StartContainerErr != nil {
 		err := fmt.Errorf("database start-container error %v", StartContainerErr)
