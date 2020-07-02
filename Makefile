@@ -1,18 +1,18 @@
-VERSION=1.0.1
+VERSION=1.0.2
 GOCMD=go
 GOBUILD=$(GOCMD) build
-SCANNER=scanner.go
-CCSCANNER_BIN=cc-scanner
-CCSCANNER_TASKMANAGER_BIN=$(CCSCANNER_BIN)-taskmanager
-CCSCANNER_LINK_BIN=$(CCSCANNER_BIN)-link
+SCANNER=ccscanner.go
+TASKMANAGER=cctaskmanager/cctaskmanager.go
+LINK=cclink/cclink.go
+CCSCANNER_BIN=ccscanner
+CCTASKMANAGER_BIN=cctaskmanager
+CCLINK_BIN=cclink
 UTILITIES=utilities/
-TASKMANAGER=taskmanager/taskmanager.go
-LINK=link/link.go
 
 clean:
 	rm -rf bin/*
 
 build:
 	$(GOBUILD) -o bin/$(CCSCANNER_BIN) -i $(SCANNER)
-	$(GOBUILD) -o bin/$(CCSCANNER_TASKMANAGER_BIN) -i $(UTILITIES)$(TASKMANAGER)
-	$(GOBUILD) -o bin/$(CCSCANNER_LINK_BIN) -i $(UTILITIES)$(LINK)
+	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) -i $(UTILITIES)$(TASKMANAGER)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) -i $(UTILITIES)$(LINK)
