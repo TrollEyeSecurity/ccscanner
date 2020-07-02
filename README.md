@@ -1,5 +1,5 @@
 # Command Center Scanner #
-[Command Center](https://www.critical-sec.com/command-center/) Scanner is a client application designed to perform tasks during penetration tests and security audits using
+[Command Center](https://www.critical-sec.com/command-center/) is a full featured vulnerability management platform for penetration testing teams. Command Center Scanner is the client application designed to perform tasks during penetration tests and security audits using
 Docker containers.
 
 
