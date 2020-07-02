@@ -4,8 +4,8 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/CriticalSecurity/cc-scanner/pkg/certificates"
-	"github.com/CriticalSecurity/cc-scanner/pkg/shodan"
+	"github.com/CriticalSecurity/ccscanner/pkg/certificates"
+	"github.com/CriticalSecurity/ccscanner/pkg/shodan"
 	"net"
 )
 
@@ -21,12 +21,12 @@ func DoLookup(ip *string, shodanKey *string) *NameData {
 			return nil
 		}
 		for _, service := range shodanResponse.Services {
-			if service.SSL !=nil {
+			if service.SSL != nil {
 				potentialNames, certErr := certificates.AnalyzeCertsForNames(ip, &service.Port)
 				if certErr != nil {
 					continue
 				}
-				for _, name := range *potentialNames{
+				for _, name := range *potentialNames {
 					ipaddr, ipErr := net.LookupIP(name)
 					if ipErr != nil {
 						continue
@@ -80,5 +80,5 @@ func IsPrivateIP(ip net.IP) bool {
 }
 
 type ConnectionState struct {
-	PeerCertificates            []*x509.Certificate   // certificate chain presented by remote peer
+	PeerCertificates []*x509.Certificate // certificate chain presented by remote peer
 }

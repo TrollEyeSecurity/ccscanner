@@ -4,11 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/CriticalSecurity/cc-scanner/internal/common"
-	"github.com/CriticalSecurity/cc-scanner/internal/config"
-	"github.com/CriticalSecurity/cc-scanner/internal/database"
-	"github.com/CriticalSecurity/cc-scanner/internal/phonehome"
-	"github.com/CriticalSecurity/cc-scanner/pkg/openvas"
+	"github.com/CriticalSecurity/ccscanner/internal/common"
+	"github.com/CriticalSecurity/ccscanner/internal/config"
+	"github.com/CriticalSecurity/ccscanner/internal/database"
+	"github.com/CriticalSecurity/ccscanner/internal/phonehome"
+	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -19,10 +19,10 @@ import (
 
 func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
-	versionBool := flag.Bool("version", false, "Show the cc-scanner version.")
+	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	flag.Parse()
 	if *versionBool {
-		fmt.Printf("cc-scanner version: %.1f\n", common.Version)
+		fmt.Printf("command center scanner version: %.1f\n", common.Version)
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)
@@ -44,7 +44,7 @@ func ScannerMain() {
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		err := fmt.Errorf("cc-scanner error %v", MongoClientError)
+		err := fmt.Errorf("ccscanner error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -108,7 +108,7 @@ func ScannerMain() {
 				{"ssh_port", nil},
 			})
 			if TasksError != nil {
-				err := fmt.Errorf("cc-scanner error %v", TasksError)
+				err := fmt.Errorf("ccscanner error %v", TasksError)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}

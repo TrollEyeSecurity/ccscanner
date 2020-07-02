@@ -3,7 +3,7 @@ package screenShots
 import (
 	"context"
 	"encoding/base64"
-	"github.com/CriticalSecurity/cc-scanner/pkg/docker"
+	"github.com/CriticalSecurity/ccscanner/pkg/docker"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"go.mongodb.org/mongo-driver/bson/primitive"
