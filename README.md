@@ -39,8 +39,8 @@ After linking the scanner to [Command Center](https://www.critical-sec.com/comma
 
 Three binary files will be put in the `bin` directory.
 
-`ccscanner` - ccscanner is main program file that will contact Command Center or your own centralized scan manager developed to use ccscanner.
+`ccscanner` - ccscanner is main program file that will contact [Command Center](https://www.critical-sec.com/command-center/) or your own centralized scan manager developed to use ccscanner.
 
 `cctaskmanager` - cctaskmanager handles the tasks stored in the mongo database.
 
-`cclink` -  cclink links the scanner to Command Center.
+`cclink` -  cclink links the scanner to [Command Center](https://www.critical-sec.com/command-center/).
