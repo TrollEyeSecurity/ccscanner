@@ -1,5 +1,5 @@
 # Command Center Scanner #
-*Command Center Scanner* is a client application designed to perform tasks during penetration tests and security audits using
+[Command Center Scanner](https://www.critical-sec.com/command-center/) is a client application designed to perform tasks during penetration tests and security audits using
 Docker containers.
 
 
@@ -23,7 +23,7 @@ Assuming a minimal base server install was successful, do the following.
 
 `cclink --url=BASEURL --token=LINKING_TOKEN`
 
-After linking the scanner to Command Center or your own centralized scan manager you can manage the two services with `systemd`.
+After linking the scanner to [Command Center Scanner](https://www.critical-sec.com/command-center/) or your own centralized scan manager you can manage the two services with `systemd`.
 
 `systemctl enable ccscanner.service && systemctl start ccscanner.service`
 
