@@ -9,7 +9,6 @@ import (
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/CriticalSecurity/ccscanner/pkg/docker"
 	"github.com/CriticalSecurity/ccscanner/pkg/names"
-	"github.com/CriticalSecurity/ccscanner/pkg/screenShots"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -18,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -128,7 +128,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	jsonData, _ := json.Marshal(data)
 	result := base64.StdEncoding.EncodeToString(jsonData)
 	nameInfoMap := make(map[string]names.NameData)
-	screenShotInfoMap := make(map[string][]map[string]string)
+	WebAppInfoMap := make(map[string]*UrlData)
 	for _, host := range data.Host {
 		ip := ""
 		for _, addr := range host.Address {
@@ -144,8 +144,6 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 			nameInfoMap[ip] = *NameData
 		}
 		for _, port := range host.Ports.Port {
-			var list_maps []map[string]string
-			url_map := make(map[string]string)
 			var urls []string
 			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == "unicall" || port.Service.Name == "snet-sensor-mgmt" {
 				protocol := "http://"
@@ -159,34 +157,31 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 					urls = append(urls, url)
 				}
 			}
+			var RespBody []string
+			var Urls []string
 			for _, u := range urls {
-				screenShot, ssIdArray, screenShotError := screenShots.GetScreenShot(&u, taskId)
-				if screenShotError != nil {
-					err := fmt.Errorf("nmap scan error %v: %v", screenShotError, screenShot)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					idArray = append(idArray, *ssIdArray...)
-					continue
+				UrlData, _ := InspectUrl(&u)
+				if UrlData != nil {
+					RespBody = append(RespBody, UrlData.Body)
+					Urls = append(Urls, UrlData.FinalLocation)
 				}
-				idArray = append(idArray, *ssIdArray...)
-				url_map[u] = *screenShot
-				list_maps = append(list_maps, url_map)
 			}
-			screenShotInfoMap[ip+":"+port.Portid] = list_maps
+			urlData := UrlData{}
+			urlData.UrlList = uniqueNonEmptyElementsOf(Urls)
+			urlData.BodyList = uniqueNonEmptyElementsOf(RespBody)
+			WebAppInfoMap[ip+":"+port.Portid] = &urlData
 		}
 	}
 	jsonNameInfoData, _ := json.Marshal(nameInfoMap)
-	jsonServiceScreenShotDataInfo, _ := json.Marshal(screenShotInfoMap)
+	jsonServiceWebAppDataInfo, _ := json.Marshal(WebAppInfoMap)
 	nameInfo := base64.StdEncoding.EncodeToString(jsonNameInfoData)
-	serviceScreenShotDataInfo := base64.StdEncoding.EncodeToString(jsonServiceScreenShotDataInfo)
+	serviceWebAppDataInfo := base64.StdEncoding.EncodeToString(jsonServiceWebAppDataInfo)
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
 			{"nmap_result", result},
 			{"name_info", nameInfo},
-			{"service_screen_shot_data", serviceScreenShotDataInfo},
+			{"service_web_app_data", serviceWebAppDataInfo},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
@@ -198,8 +193,191 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	MongoClient.Disconnect(context.TODO())
 	return
+}
+
+func InspectUrl(url *string) (*ServiceUrlData, error) {
+	SuccessCodes := map[int]bool{
+		200: true,
+		201: true,
+		202: true,
+		203: true,
+		204: true,
+		205: true,
+		206: true,
+		207: true,
+		208: true,
+		226: true,
+		// unoffical
+		218: true,
+	}
+	RedirectCodes := map[int]bool{
+		300: true,
+		301: true,
+		302: true,
+		303: true,
+		304: true,
+		305: true,
+		306: true,
+		307: true,
+		308: true,
+	}
+	ClientErrorCodes := map[int]bool{
+		400: true,
+		401: true,
+		402: true,
+		403: true,
+		404: true,
+		405: true,
+		406: true,
+		407: true,
+		408: true,
+		409: true,
+		410: true,
+		411: true,
+		412: true,
+		413: true,
+		414: true,
+		415: true,
+		416: true,
+		417: true,
+		418: true,
+		421: true,
+		422: true,
+		423: true,
+		424: true,
+		425: true,
+		426: true,
+		428: true,
+		429: true,
+		431: true,
+		451: true,
+		// unoffical
+		419: true,
+		420: true,
+		430: true,
+		450: true,
+		498: true,
+		499: true,
+		440: true,
+		449: true,
+		444: true,
+		494: true,
+		495: true,
+		496: true,
+		497: true,
+		460: true,
+		463: true,
+	}
+	ServerErrorCodes := map[int]bool{
+		500: true,
+		501: true,
+		502: true,
+		503: true,
+		504: true,
+		505: true,
+		506: true,
+		507: true,
+		508: true,
+		509: true,
+		510: true,
+		511: true,
+		// unoffical
+		526: true,
+		529: true,
+		530: true,
+		598: true,
+		520: true,
+		521: true,
+		522: true,
+		523: true,
+		525: true,
+		527: true,
+	}
+	resp, err := http.Get(*url)
+	if err != nil {
+		return nil, err
+	}
+	data := ServiceUrlData{}
+	var urlList []string
+	var finalLocation string
+	var respBody string
+	for {
+		index := 0
+		if RedirectCodes[resp.StatusCode] {
+			index += 1
+			newUrl := resp.Header.Get("Location")
+			urlList = append(urlList, newUrl)
+			resp, err = http.Get(newUrl)
+			if err != nil {
+				return nil, err
+			}
+		}
+		if SuccessCodes[resp.StatusCode] {
+			newUrl := resp.Header.Get("Location")
+			if newUrl != "" {
+				urlList = append(urlList, newUrl)
+				index += 1
+				resp, err = http.Get(newUrl)
+				if err != nil {
+					return nil, err
+				}
+				RespBody, _ := ioutil.ReadAll(resp.Body)
+				respBody = string(RespBody)
+				finalLocation = resp.Request.URL.String()
+				resp.Body.Close()
+				data.FinalLocation = finalLocation
+
+				break
+			} else {
+				RespBody, _ := ioutil.ReadAll(resp.Body)
+				respBody = string(RespBody)
+				finalLocation = resp.Request.URL.String()
+				resp.Body.Close()
+				data.FinalLocation = finalLocation
+				break
+			}
+		}
+		if ClientErrorCodes[resp.StatusCode] {
+			resp.Body.Close()
+			break
+		}
+		if ServerErrorCodes[resp.StatusCode] {
+			resp.Body.Close()
+			break
+		}
+	}
+	b64Encoded := base64.StdEncoding.EncodeToString([]byte(respBody))
+	data.UrlList = urlList
+	data.Body = b64Encoded
+	return &data, nil
+}
+
+type ServiceUrlData struct {
+	FinalLocation string   `bson:"final_location" json:"final_location"`
+	UrlList       []string `bson:"url_list" json:"url_list"`
+	Body          string   `bson:"body" json:"body"`
+}
+
+type UrlData struct {
+	UrlList  []string `bson:"url_list" json:"url_list"`
+	BodyList []string `bson:"body_list" json:"body_list"`
+}
+
+func uniqueNonEmptyElementsOf(s []string) []string {
+	unique := make(map[string]bool, len(s))
+	us := make([]string, len(unique))
+	for _, elem := range s {
+		if len(elem) != 0 {
+			if !unique[elem] {
+				us = append(us, elem)
+				unique[elem] = true
+			}
+		}
+	}
+	return us
 }
