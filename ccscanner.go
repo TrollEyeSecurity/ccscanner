@@ -103,7 +103,7 @@ func ScannerMain() {
 				{"dns_result", nil},
 				{"osint_result", nil},
 				{"container_id", nil},
-				{"service_web_app_data", nil},
+				{"service_url_data", nil},
 				{"name_info", nil},
 				{"ssh_port", nil},
 			})

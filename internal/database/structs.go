@@ -20,22 +20,22 @@ type ConfigFields struct {
 */
 
 type Task struct {
-	ID                primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	Name              string             `json:"name"`
-	TaskId            int64              `bson:"task_id" json:"task_id"`
-	Status            string             `json:"status"`
-	ContainerId       string             `bson:"container_id" json:"container_id"`
-	Content           TaskContent        `json:"content"`
-	SecretData        TaskSecret         `bson:"secret_data" json:"secret_data"`
-	NmapResult        string             `bson:"nmap_result" json:"nmap_result"`
-	OpenvasResult     string             `bson:"openvas_result" json:"openvas_result"`
-	OpenvasTaskId     string             `bson:"openvas_task_id" json:"openvas_task_id"`
-	DnsResult         []DnsResults       `bson:"dns_result" json:"dns_result"`
-	OsintResult       []OsintResults     `bson:"osint_result" json:"osint_result"`
-	NameInfo          string             `bson:"name_info" json:"name_info"`
-	ServiceWebAppData string             `bson:"service_web_app_data" json:"service_web_app_data"`
-	Percent           int                `json:"percent"`
-	SshPort           string             `bson:"ssh_port" json:"ssh_port"`
+	ID             primitive.ObjectID `bson:"_id" json:"id,omitempty"`
+	Name           string             `json:"name"`
+	TaskId         int64              `bson:"task_id" json:"task_id"`
+	Status         string             `json:"status"`
+	ContainerId    string             `bson:"container_id" json:"container_id"`
+	Content        TaskContent        `json:"content"`
+	SecretData     TaskSecret         `bson:"secret_data" json:"secret_data"`
+	NmapResult     string             `bson:"nmap_result" json:"nmap_result"`
+	OpenvasResult  string             `bson:"openvas_result" json:"openvas_result"`
+	OpenvasTaskId  string             `bson:"openvas_task_id" json:"openvas_task_id"`
+	DnsResult      []DnsResults       `bson:"dns_result" json:"dns_result"`
+	OsintResult    []OsintResults     `bson:"osint_result" json:"osint_result"`
+	NameInfo       string             `bson:"name_info" json:"name_info"`
+	ServiceUrlData string             `bson:"service_url_data" json:"service_url_data"`
+	Percent        int                `json:"percent"`
+	SshPort        string             `bson:"ssh_port" json:"ssh_port"`
 }
 
 /*
