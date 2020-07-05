@@ -128,7 +128,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 	jsonData, _ := json.Marshal(data)
 	result := base64.StdEncoding.EncodeToString(jsonData)
 	nameInfoMap := make(map[string]names.NameData)
-	WebAppInfoMap := make(map[string]*UrlData)
+	UrlInfoMap := make(map[string][]string)
 	for _, host := range data.Host {
 		ip := ""
 		for _, addr := range host.Address {
@@ -145,7 +145,7 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 		}
 		for _, port := range host.Ports.Port {
 			var urls []string
-			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == "unicall" || port.Service.Name == "snet-sensor-mgmt" {
+			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "https-alt" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == "unicall" || port.Service.Name == "snet-sensor-mgmt" {
 				protocol := "http://"
 				if port.Service.Tunnel != "" {
 					protocol = "https://"
@@ -157,31 +157,19 @@ func Scan(nmap_params *string, hosts *string, taskId *primitive.ObjectID, shodan
 					urls = append(urls, url)
 				}
 			}
-			var RespBody []string
-			var Urls []string
-			for _, u := range urls {
-				UrlData, _ := InspectUrl(&u)
-				if UrlData != nil {
-					RespBody = append(RespBody, UrlData.Body)
-					Urls = append(Urls, UrlData.FinalLocation)
-				}
-			}
-			urlData := UrlData{}
-			urlData.UrlList = uniqueNonEmptyElementsOf(Urls)
-			urlData.BodyList = uniqueNonEmptyElementsOf(RespBody)
-			WebAppInfoMap[ip+":"+port.Portid] = &urlData
+			UrlInfoMap[ip+":"+port.Portid] = urls
 		}
 	}
 	jsonNameInfoData, _ := json.Marshal(nameInfoMap)
-	jsonServiceWebAppDataInfo, _ := json.Marshal(WebAppInfoMap)
+	jsonServiceUrlDataInfo, _ := json.Marshal(UrlInfoMap)
 	nameInfo := base64.StdEncoding.EncodeToString(jsonNameInfoData)
-	serviceWebAppDataInfo := base64.StdEncoding.EncodeToString(jsonServiceWebAppDataInfo)
+	serviceUrlDataInfo := base64.StdEncoding.EncodeToString(jsonServiceUrlDataInfo)
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
 			{"nmap_result", result},
 			{"name_info", nameInfo},
-			{"service_web_app_data", serviceWebAppDataInfo},
+			{"service_url_data", serviceUrlDataInfo},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
