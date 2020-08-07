@@ -43,7 +43,16 @@ func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otx
 		shodanResp, _ := shodan.LoopkupIp(&host, shodanKey)
 		shodanRespBody, _ := ioutil.ReadAll(shodanResp.Body)
 		shodanData := base64.StdEncoding.EncodeToString(shodanRespBody)
-		otxResp, _ := otx.GetIpReputation(&host, otxKey)
+		otxResp, GetIpReputationErr := otx.GetIpReputation(&host, otxKey)
+		if GetIpReputationErr != nil {
+			err := fmt.Errorf("osint error %v", GetIpReputationErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			MongoClient.Disconnect(context.TODO())
+			return
+		}
 		otxRespBody, _ := ioutil.ReadAll(otxResp.Body)
 		otxData := base64.StdEncoding.EncodeToString(otxRespBody)
 		results.ShodanData = shodanData
@@ -66,6 +75,7 @@ func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otx
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	MongoClient.Disconnect(context.TODO())
