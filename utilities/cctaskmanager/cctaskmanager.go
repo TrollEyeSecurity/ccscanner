@@ -10,6 +10,9 @@ import (
 	"github.com/CriticalSecurity/ccscanner/pkg/nmap"
 	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
 	"github.com/CriticalSecurity/ccscanner/pkg/osint"
+	"github.com/CriticalSecurity/ccscanner/pkg/owaspzap"
+	"github.com/CriticalSecurity/ccscanner/pkg/screenshots"
+	"github.com/CriticalSecurity/ccscanner/pkg/urlinspection"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -74,6 +77,15 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
+			case task.Content.Function == "dast":
+				owaspzap.Scan(&task.Content.Args.DastConfigList, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				break
+			case task.Content.Function == "get_screen_shot":
+				screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID)
+				break
+			case task.Content.Function == "url_inspection":
+				urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID)
+				break
 			case task.Content.Function == "dns_check":
 				go dns.AnalyzeDomainNames(&task.Content.Args.Dns, &task.ID)
 				break
@@ -81,13 +93,13 @@ func TaskManagerMain() {
 				osint.Discovery(&task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan, &task.SecretData.Osint.Otx)
 				break
 			case task.Content.Function == "nmap_host_discovery":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
 				go openvas.VulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
 				break
 			case task.Content.Function == "nmap_port_scan":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
 				break
 			}
 		}

@@ -1,0 +1,195 @@
+package screenshots
+
+import (
+	"archive/tar"
+	"context"
+	"crypto/tls"
+	"encoding/base64"
+	"fmt"
+	"github.com/CriticalSecurity/ccscanner/internal/database"
+	"github.com/CriticalSecurity/ccscanner/pkg/docker"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/getsentry/sentry-go"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"io"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+)
+
+func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
+	var ScreenShotDataList []string
+	var uniqueRespBody map[string]string
+	var idArray []string
+	cli, NewEnvClientErr := client.NewEnvClient()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return
+	}
+	MongoClient, MongoClientError := database.GetMongoClient()
+	if MongoClientError != nil {
+		err := fmt.Errorf("screenshots run-inspection error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		cli.Close()
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	_, updateError := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", *taskId}},
+		bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
+	)
+	if updateError != nil {
+		err := fmt.Errorf("screenshots run-inspection error %v", updateError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		cli.Close()
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	for _, u := range urls.UrlList {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		resp, GetErr := http.Get(u)
+		if GetErr != nil {
+			err := fmt.Errorf("screenshots get error %v:", GetErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
+		}
+		RespBody, _ := ioutil.ReadAll(resp.Body)
+		respBody := string(RespBody)
+		resp.Body.Close()
+		b64Encoded := base64.StdEncoding.EncodeToString([]byte(respBody))
+		uniqueRespBody = make(map[string]string)
+		uniqueRespBody[b64Encoded] = u
+	}
+	for _, v := range uniqueRespBody {
+		ScreenShotData, ScreenShotDataIdArray, InspectUrlError := CaptureScreenShot(&v, taskId)
+		if InspectUrlError != nil {
+			err := fmt.Errorf("screenshots run-inspection error %v: %v", InspectUrlError, v)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
+		}
+		idArray = append(idArray, *ScreenShotDataIdArray...)
+		ScreenShotDataList = append(ScreenShotDataList, *ScreenShotData)
+	}
+	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", taskId}},
+		bson.D{{"$set", bson.D{
+			{"screen_shot_result", ScreenShotDataList},
+			{"status", "SUCCESS"},
+			{"percent", 100}}}},
+	)
+	if update2Error != nil {
+		err := fmt.Errorf("nmap scan error %v", update2Error)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		cli.Close()
+		MongoClient.Disconnect(context.TODO())
+		docker.RemoveContainers(idArray)
+		return
+	}
+	cli.Close()
+	MongoClient.Disconnect(context.TODO())
+	docker.RemoveContainers(idArray)
+	return
+}
+
+func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string, error) {
+	var idArray []string
+	ctx := context.Background()
+	cli, NewEnvClientErr := client.NewEnvClient()
+	if NewEnvClientErr != nil {
+		return nil, nil, NewEnvClientErr
+	}
+	now := time.Now()
+	imageName := docker.NmapDockerImage
+	filePath := "url_screen_shot"
+	config := &container.Config{
+		Image: imageName,
+		Cmd: []string{
+			"google-chrome",
+			"--ignore-certificate-errors",
+			"--enable-features=NetworkService",
+			"--hide-scrollbars",
+			"--headless",
+			"--disable-gpu",
+			"--screenshot=url_screen_shot",
+			"--no-sandbox",
+			"--window-size=1280,768",
+			*url,
+		},
+		Tty:          true,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+	resources := &container.Resources{
+		Memory: 7.68e+8,
+	}
+	hostConfig := &container.HostConfig{
+		Resources: *resources,
+	}
+	containerName := "screen_shot-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
+	screenShotContainer, StartContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
+	if StartContainerErr != nil {
+		cli.Close()
+		return nil, nil, StartContainerErr
+	}
+	idArray = append(idArray, screenShotContainer.ID)
+	_, errCh := cli.ContainerWait(ctx, screenShotContainer.ID)
+	if errCh != nil {
+		cli.Close()
+		return nil, &idArray, errCh
+	}
+	fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, screenShotContainer.ID, filePath)
+	if fileReaderErr != nil {
+		cli.Close()
+		if fileReader != nil {
+			fileReader.Close()
+		}
+		return nil, &idArray, fileReaderErr
+	}
+	tr := tar.NewReader(fileReader)
+	var img []byte
+	for {
+		_, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
+		}
+		if err != nil {
+			fileReader.Close()
+			cli.Close()
+			return nil, &idArray, err
+		}
+		img, err = ioutil.ReadAll(tr)
+		if err != nil {
+			fileReader.Close()
+			cli.Close()
+			return nil, &idArray, err
+		}
+	}
+	fileReader.Close()
+	cli.Close()
+	b64img := base64.StdEncoding.EncodeToString(img)
+	return &b64img, &idArray, nil
+}
