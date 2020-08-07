@@ -16,6 +16,7 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 		Token:    linkToken,
 		Uuid:     *common.GetUuid(),
 		Hostname: *common.GetFqdn(),
+		Version:  common.Version,
 	}
 	lr := LinkResp{}
 	bytesRepresentation, BytesRepresentationErr := json.Marshal(&ld)
@@ -91,11 +92,11 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 }
 
 func HttpClientRequest(baseURL *string, path *string, data []byte, method *string, token *string) (*http.Response, error) {
-	/*proxyStr := "http://localhost:8080"
-	proxyURL, ProxyURLErr := url.Parse(proxyStr)
-	if ProxyURLErr != nil {
-		return &http.Response{}, ProxyURLErr
-	}*/
+	//proxyStr := "http://127.0.0.1:8080"
+	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
+	//if ProxyURLErr != nil {
+	//	return &http.Response{}, ProxyURLErr
+	//}
 	//creating the URL to be loaded through the proxy
 	urlStr := *baseURL + *path
 	scannersUrl, ScannersUrlErr := url.Parse(urlStr)
@@ -104,7 +105,7 @@ func HttpClientRequest(baseURL *string, path *string, data []byte, method *strin
 	}
 	//adding the proxy settings to the Transport object
 	transport := &http.Transport{
-		// Proxy: http.ProxyURL(proxyURL),
+		//Proxy: http.ProxyURL(proxyURL),
 	}
 	//adding the Transport object to the http Client
 	client := &http.Client{
