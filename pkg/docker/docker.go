@@ -33,6 +33,33 @@ func RemoveContainers(idArray []string) {
 	}
 }
 
+func GetImages() {
+	images := []string{NmapDockerImage, DnsReconImage, OpenVasImage, MongoDbDockerImage, OwaspZapImage}
+	ctx := context.Background()
+	cli, NewEnvClientErr := client.NewEnvClient()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("docker image-pull error %v", NewEnvClientErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+	}
+	options := &types.ImagePullOptions{}
+	for _, image := range images {
+		out, ImagePullErr := cli.ImagePull(ctx, image, *options)
+		if ImagePullErr != nil {
+			err := fmt.Errorf("docker image-pull error %v", ImagePullErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
+		}
+		io.Copy(ioutil.Discard, out)
+		out.Close()
+	}
+}
+
 func StartContainer(
 	imageName *string,
 	containerName *string,
@@ -43,17 +70,7 @@ func StartContainer(
 	if NewEnvClientErr != nil {
 		return nil, NewEnvClientErr
 	}
-	options := &types.ImagePullOptions{}
-	out, ImagePullErr := cli.ImagePull(ctx, *imageName, *options)
-	if ImagePullErr != nil {
-		err := fmt.Errorf("docker image-pull error %v", ImagePullErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		return nil, ImagePullErr
-	}
-	io.Copy(ioutil.Discard, out)
-	out.Close()
+	config.Image = *imageName
 	ContainerList, ContainerListErr := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if ContainerListErr != nil {
 		return nil, ContainerListErr
