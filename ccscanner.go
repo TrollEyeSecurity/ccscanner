@@ -8,6 +8,7 @@ import (
 	"github.com/CriticalSecurity/ccscanner/internal/config"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/CriticalSecurity/ccscanner/internal/phonehome"
+	"github.com/CriticalSecurity/ccscanner/pkg/docker"
 	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -22,7 +23,7 @@ func main() {
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	flag.Parse()
 	if *versionBool {
-		fmt.Printf("command center scanner version: %.1f\n", common.Version)
+		fmt.Printf("command center scanner version: %s", common.Version)
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)
@@ -36,6 +37,7 @@ func main() {
 		}
 		defer sentry.Flush(2 * time.Second)
 	}
+	docker.GetImages()
 	database.StartDatabase()
 	ScannerMain()
 }
@@ -100,12 +102,15 @@ func ScannerMain() {
 				{"nmap_result", nil},
 				{"openvas_result", nil},
 				{"openvas_result", nil},
+				{"owasp_zap_result", nil},
 				{"dns_result", nil},
 				{"osint_result", nil},
 				{"container_id", nil},
 				{"service_url_data", nil},
 				{"name_info", nil},
 				{"ssh_port", nil},
+				{"url_ins_result", nil},
+				{"screen_shot_result", nil},
 			})
 			if TasksError != nil {
 				err := fmt.Errorf("ccscanner error %v", TasksError)
