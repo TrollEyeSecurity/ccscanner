@@ -81,6 +81,7 @@ type LinkData struct {
 	Token    string `json:"token"`
 	Uuid     string `json:"uuid"`
 	Hostname string `json:"hostname"`
+	Version  string `json:"version"`
 }
 
 func getLinuxUuid(productUuidFile string) string {
