@@ -1,17 +1,21 @@
 package urlinspection
 
 import (
+	"bytes"
 	"context"
 	"crypto/md5"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/net/html"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -19,11 +23,21 @@ import (
 )
 
 func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
-	var results []database.FinalLocationUrlData
-	var RespBody []string
-	var Urls []string
-	var uniqueRespBody []string
-	var uniqueUrls []string
+	SuccessCodes := map[int]bool{
+		200: true,
+		201: true,
+		202: true,
+		203: true,
+		204: true,
+		205: true,
+		206: true,
+		207: true,
+		208: true,
+		226: true,
+		// unoffical
+		218: true,
+	}
+	var results []database.UrlData
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
 		err := fmt.Errorf("urlinspection run-inspection error %v", MongoClientError)
@@ -49,29 +63,18 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		return
 	}
 	for _, u := range urls.UrlList {
-		UrlData, InspectUrlError := InspectUrl(&u)
+		InspectionResults, InspectUrlError := InspectUrl(&u)
 		if InspectUrlError != nil {
 			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
+			//if sentry.CurrentHub().Client() != nil {
+			//	sentry.CaptureException(err)
+			//}
 			log.Println(err)
 			continue
 		}
-		RespBody = append(RespBody, UrlData.Body)
-		Urls = append(Urls, UrlData.FinalLocation)
-	}
-	idx := 0
-	uniqueUrls = uniqueNonEmptyElementsOf(Urls)
-	uniqueRespBody = uniqueNonEmptyElementsOf(RespBody)
-	for _, rawHtml := range uniqueRespBody {
-		title := getParts(rawHtml, "title")
-		head := getParts(rawHtml, "head")
-		b64 := base64.StdEncoding.EncodeToString([]byte(head))
-		uniqueId := md5.Sum([]byte(b64))
-		uniqueIdString := hex.EncodeToString(uniqueId[:])
-		results = append(results, database.FinalLocationUrlData{Title: title, Url: uniqueUrls[idx], UniqueId: uniqueIdString})
-		idx += 1
+		if SuccessCodes[InspectionResults.StatusCode] {
+			results = append(results, *InspectionResults)
+		}
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
@@ -199,7 +202,7 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 		}
 		return nil, err
 	}
-	data := database.UrlData{}
+	urlData := database.UrlData{}
 	var urlList []string
 	var finalLocation string
 	var respBody string
@@ -232,51 +235,106 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 				RespBody, _ := ioutil.ReadAll(resp.Body)
 				respBody = string(RespBody)
 				finalLocation = resp.Request.URL.String()
-				data.StatusCode = resp.StatusCode
+				urlData.Data.Server = resp.Header.Get("Server")
+				urlData.Data.XPoweredBy = resp.Header.Get("X-Powered-By")
+				urlData.Data.ContentType = resp.Header.Get("Content-Type")
+				urlData.StatusCode = resp.StatusCode
+				if strings.Contains(urlData.Data.ContentType, "json") {
+					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
+					if jsonError != nil {
+						if resp != nil {
+							resp.Body.Close()
+						}
+						return nil, jsonError
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(*jsonUniqueText))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = *jsonTitle
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				} else if strings.Contains(urlData.Data.ContentType, "xml") {
+					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
+					if xmlError != nil {
+						if resp != nil {
+							resp.Body.Close()
+						}
+						return nil, xmlError
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(*xmlUniqueText))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = *xmlTitle
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				} else {
+					title := getTitle(respBody)
+					head, _ := getHead(respBody)
+					b64 := base64.StdEncoding.EncodeToString([]byte(*head))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = title
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				}
 				resp.Body.Close()
-				data.FinalLocation = finalLocation
-
+				urlData.FinalLocation = finalLocation
 				break
 			} else {
 				RespBody, _ := ioutil.ReadAll(resp.Body)
 				respBody = string(RespBody)
 				finalLocation = resp.Request.URL.String()
-				data.StatusCode = resp.StatusCode
+				urlData.Data.Server = resp.Header.Get("Server")
+				urlData.Data.XPoweredBy = resp.Header.Get("X-Powered-By")
+				urlData.Data.ContentType = resp.Header.Get("Content-Type")
+				urlData.StatusCode = resp.StatusCode
+				if strings.Contains(urlData.Data.ContentType, "json") {
+					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
+					if jsonError != nil {
+						if resp != nil {
+							resp.Body.Close()
+						}
+						return nil, jsonError
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(*jsonUniqueText))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = *jsonTitle
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				} else if strings.Contains(urlData.Data.ContentType, "xml") {
+					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
+					if xmlError != nil {
+						if resp != nil {
+							resp.Body.Close()
+						}
+						return nil, xmlError
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(*xmlUniqueText))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = *xmlTitle
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				} else {
+					title := getTitle(respBody)
+					head, _ := getHead(respBody)
+					b64 := base64.StdEncoding.EncodeToString([]byte(*head))
+					uniqueId := md5.Sum([]byte(b64))
+					urlData.Data.Title = title
+					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				}
 				resp.Body.Close()
-				data.FinalLocation = finalLocation
+				urlData.FinalLocation = finalLocation
 				break
 			}
 		}
 		if ClientErrorCodes[resp.StatusCode] {
-			data.StatusCode = resp.StatusCode
+			urlData.StatusCode = resp.StatusCode
 			resp.Body.Close()
 			break
 		}
 		if ServerErrorCodes[resp.StatusCode] {
-			data.StatusCode = resp.StatusCode
+			urlData.StatusCode = resp.StatusCode
 			resp.Body.Close()
 			break
 		}
 	}
-	data.Body = respBody
-	return &data, nil
+	//urlData.Body = respBody
+	return &urlData, nil
 }
 
-func uniqueNonEmptyElementsOf(s []string) []string {
-	unique := make(map[string]bool, len(s))
-	us := make([]string, len(unique))
-	for _, elem := range s {
-		if len(elem) != 0 {
-			if !unique[elem] {
-				us = append(us, elem)
-				unique[elem] = true
-			}
-		}
-	}
-	return us
-}
-
-func getParts(HTMLString string, part string) (title string) {
+func getTitle(HTMLString string) (title string) {
 	r := strings.NewReader(HTMLString)
 	z := html.NewTokenizer(r)
 	var i int
@@ -293,7 +351,7 @@ func getParts(HTMLString string, part string) (title string) {
 		case tt == html.StartTagToken:
 			t := z.Token()
 			// Check if the token is an <title> tag
-			if t.Data != part {
+			if t.Data != "title" {
 				continue
 			}
 			// fmt.Printf("%+v\n%v\n%v\n%v\n", t, t, t.Type.String(), t.Attr)
@@ -306,4 +364,85 @@ func getParts(HTMLString string, part string) (title string) {
 			}
 		}
 	}
+}
+
+func Head(doc *html.Node) (*html.Node, error) {
+	var head *html.Node
+	var crawler func(*html.Node)
+	crawler = func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "head" {
+			head = node
+			return
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			crawler(child)
+		}
+	}
+	crawler(doc)
+	if head != nil {
+		return head, nil
+	}
+	return nil, errors.New("Missing <head> in the node tree")
+}
+
+func renderNode(n *html.Node) string {
+	var buf bytes.Buffer
+	w := io.Writer(&buf)
+	html.Render(w, n)
+	return buf.String()
+}
+
+func getHead(htm string) (*string, error) {
+	doc, _ := html.Parse(strings.NewReader(htm))
+	bn, err := Head(doc)
+	if err != nil {
+		return nil, err
+	}
+	head := renderNode(bn)
+	return &head, nil
+}
+
+func parseJson(jsonBody *string) (title *string, uniqueText *string, err error) {
+	var es ES
+	jsonError := json.Unmarshal([]byte(*jsonBody), &es)
+	if jsonError != nil {
+		return nil, nil, jsonError
+	}
+	if es.Tagline == "You Know, for Search" {
+		esTitle := "Elasticsearch " + es.Version.Number
+		unique := es.Version.BuildHash
+		uniqueText = &unique
+		title = &esTitle
+	} else {
+		defaultTitle := "A RESTFul API"
+		title = &defaultTitle
+		unique := *jsonBody
+		uniqueText = &unique
+	}
+	return title, uniqueText, nil
+}
+
+func parseXML(xmlBody *string) (title *string, uniqueText *string, err error) {
+	/*var es ES
+	jsonError := xml.Unmarshal([]byte(*xmlBody), &es)
+	if jsonError != nil {
+		return nil, nil, jsonError
+	}
+	if es.Tagline == "You know, for Search" {
+		esTitle := "Elasticsearch " + es.Version.Number
+		unique := es.Version.BuildHash
+		uniqueText = &unique
+		title = &esTitle
+	} else {
+		defaultTitle := "A SOAP API"
+		title = &defaultTitle
+		unique := *xmlBody
+		uniqueText = &unique
+	}
+	*/
+	defaultTitle := "A SOAP API"
+	title = &defaultTitle
+	unique := *xmlBody
+	uniqueText = &unique
+	return title, uniqueText, nil
 }
