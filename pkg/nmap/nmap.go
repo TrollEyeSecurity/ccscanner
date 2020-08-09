@@ -36,9 +36,9 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 	}
 	var cmd string
 	if *excludes == "" {
-		cmd = "nmap --stats-every 30s " + *nmap_params + " " + *hosts + " -oX -"
+		cmd = "nmap -oX - --stats-every 30s " + *nmap_params + " " + *hosts
 	} else {
-		cmd = "nmap --stats-every 30s " + *nmap_params + " " + *hosts + " --exclude " + *excludes + " -oX -"
+		cmd = "nmap -oX - --stats-every 30s " + *nmap_params + " " + *hosts + " --exclude " + *excludes
 	}
 	cmdS := strings.Split(cmd, " ")
 	imageName := docker.NmapDockerImage
