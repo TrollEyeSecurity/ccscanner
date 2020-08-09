@@ -264,9 +264,18 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.Title = *xmlTitle
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				} else {
+					uniqueTxt := ""
 					title := getTitle(respBody)
-					head, _ := getHead(respBody)
-					b64 := base64.StdEncoding.EncodeToString([]byte(*head))
+					head, getHeadError := getHead(respBody)
+					if getHeadError != nil {
+						log.Println(getHeadError)
+					}
+					if *head == "<head></head>" && title != "" {
+						uniqueTxt = title
+					} else {
+						uniqueTxt = *head
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
 					uniqueId := md5.Sum([]byte(b64))
 					urlData.Data.Title = title
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
@@ -307,9 +316,18 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.Title = *xmlTitle
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				} else {
+					uniqueTxt := ""
 					title := getTitle(respBody)
-					head, _ := getHead(respBody)
-					b64 := base64.StdEncoding.EncodeToString([]byte(*head))
+					head, getHeadError := getHead(respBody)
+					if getHeadError != nil {
+						log.Println(getHeadError)
+					}
+					if *head == "<head></head>" && title != "" {
+						uniqueTxt = title
+					} else {
+						uniqueTxt = *head
+					}
+					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
 					uniqueId := md5.Sum([]byte(b64))
 					urlData.Data.Title = title
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
@@ -385,11 +403,14 @@ func Head(doc *html.Node) (*html.Node, error) {
 	return nil, errors.New("Missing <head> in the node tree")
 }
 
-func renderNode(n *html.Node) string {
+func renderNode(n *html.Node) (string, error) {
 	var buf bytes.Buffer
 	w := io.Writer(&buf)
-	html.Render(w, n)
-	return buf.String()
+	rederError := html.Render(w, n)
+	if rederError != nil {
+		return "", rederError
+	}
+	return buf.String(), nil
 }
 
 func getHead(htm string) (*string, error) {
@@ -398,7 +419,10 @@ func getHead(htm string) (*string, error) {
 	if err != nil {
 		return nil, err
 	}
-	head := renderNode(bn)
+	head, renderNodeErr := renderNode(bn)
+	if renderNodeErr != nil {
+		return nil, renderNodeErr
+	}
 	return &head, nil
 }
 
