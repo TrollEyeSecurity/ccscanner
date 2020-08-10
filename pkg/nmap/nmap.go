@@ -90,6 +90,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
@@ -100,6 +101,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	reader, ContainerLogsErr := cli.ContainerLogs(ctx, NmapContainer.ID, types.ContainerLogsOptions{
@@ -113,9 +115,20 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	byteValue, _ := ioutil.ReadAll(reader)
+	byteValue, ioutilReadAllError := ioutil.ReadAll(reader)
+	if ioutilReadAllError != nil {
+		err := fmt.Errorf("nmap scan ioutil error %v", ioutilReadAllError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
 	reader.Close()
 	data := &Nmaprun{}
 	XmlUnmarshalErr := xml.Unmarshal(byteValue, data)
@@ -127,9 +140,21 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	jsonData, _ := json.Marshal(data)
+	jsonData, jsonDataError := json.Marshal(data)
+	if jsonDataError != nil {
+		// do I really want to know about all of these?
+		err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
 	result := base64.StdEncoding.EncodeToString(jsonData)
 	nameInfoMap := make(map[string]names.NameData)
 	UrlInfoMap := make(map[string][]string)
@@ -164,8 +189,28 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 			UrlInfoMap[ip+":"+port.Portid] = urls
 		}
 	}
-	jsonNameInfoData, _ := json.Marshal(nameInfoMap)
-	jsonServiceUrlDataInfo, _ := json.Marshal(UrlInfoMap)
+	jsonNameInfoData, jsonNameInfoDataError := json.Marshal(nameInfoMap)
+	if jsonNameInfoDataError != nil {
+		err := fmt.Errorf("nmap scan json-marshal error %v", jsonNameInfoDataError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	jsonServiceUrlDataInfo, jsonServiceUrlDataInfoError := json.Marshal(UrlInfoMap)
+	if jsonServiceUrlDataInfoError != nil {
+		err := fmt.Errorf("nmap scan json-marshal error %v", jsonServiceUrlDataInfoError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
 	nameInfo := base64.StdEncoding.EncodeToString(jsonNameInfoData)
 	serviceUrlDataInfo := base64.StdEncoding.EncodeToString(jsonServiceUrlDataInfo)
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
