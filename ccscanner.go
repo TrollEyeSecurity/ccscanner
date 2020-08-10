@@ -101,7 +101,6 @@ func ScannerMain() {
 				{"percent", 0},
 				{"nmap_result", nil},
 				{"openvas_result", nil},
-				{"openvas_result", nil},
 				{"owasp_zap_result", nil},
 				{"dns_result", nil},
 				{"osint_result", nil},
