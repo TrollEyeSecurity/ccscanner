@@ -195,10 +195,10 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 		527: true,
 	}
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	resp, err := http.Get(*url)
+	originalResp, err := http.Get(*url)
 	if err != nil {
-		if resp != nil {
-			resp.Body.Close()
+		if originalResp != nil {
+			originalResp.Body.Close()
 		}
 		return nil, err
 	}
@@ -207,43 +207,42 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 	var finalLocation string
 	var respBody string
 	for {
-		index := 0
-		if RedirectCodes[resp.StatusCode] {
-			index += 1
-			newUrl := resp.Header.Get("Location")
+		if RedirectCodes[originalResp.StatusCode] {
+			newUrl := originalResp.Header.Get("Location")
+			originalResp.Body.Close()
 			urlList = append(urlList, newUrl)
-			resp, err = http.Get(newUrl)
+			RedirectResp, err := http.Get(newUrl)
 			if err != nil {
-				if resp != nil {
-					resp.Body.Close()
+				if RedirectResp != nil {
+					RedirectResp.Body.Close()
 				}
 				return nil, err
 			}
 		}
-		if SuccessCodes[resp.StatusCode] {
-			newUrl := resp.Header.Get("Location")
+		if SuccessCodes[originalResp.StatusCode] {
+			newUrl := originalResp.Header.Get("Location")
 			if newUrl != "" {
+				originalResp.Body.Close()
 				urlList = append(urlList, newUrl)
-				index += 1
-				resp, err = http.Get(newUrl)
+				successRedirectResp, err := http.Get(newUrl)
 				if err != nil {
-					if resp != nil {
-						resp.Body.Close()
+					if successRedirectResp != nil {
+						successRedirectResp.Body.Close()
 					}
 					return nil, err
 				}
-				RespBody, _ := ioutil.ReadAll(resp.Body)
+				RespBody, _ := ioutil.ReadAll(successRedirectResp.Body)
 				respBody = string(RespBody)
-				finalLocation = resp.Request.URL.String()
-				urlData.Data.Server = resp.Header.Get("Server")
-				urlData.Data.XPoweredBy = resp.Header.Get("X-Powered-By")
-				urlData.Data.ContentType = resp.Header.Get("Content-Type")
-				urlData.StatusCode = resp.StatusCode
+				finalLocation = successRedirectResp.Request.URL.String()
+				urlData.Data.Server = successRedirectResp.Header.Get("Server")
+				urlData.Data.XPoweredBy = successRedirectResp.Header.Get("X-Powered-By")
+				urlData.Data.ContentType = successRedirectResp.Header.Get("Content-Type")
+				urlData.StatusCode = successRedirectResp.StatusCode
 				if strings.Contains(urlData.Data.ContentType, "json") {
 					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
 					if jsonError != nil {
-						if resp != nil {
-							resp.Body.Close()
+						if successRedirectResp != nil {
+							successRedirectResp.Body.Close()
 						}
 						return nil, jsonError
 					}
@@ -254,8 +253,8 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 				} else if strings.Contains(urlData.Data.ContentType, "xml") {
 					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
 					if xmlError != nil {
-						if resp != nil {
-							resp.Body.Close()
+						if successRedirectResp != nil {
+							successRedirectResp.Body.Close()
 						}
 						return nil, xmlError
 					}
@@ -280,22 +279,22 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.Title = title
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				}
-				resp.Body.Close()
+				successRedirectResp.Body.Close()
 				urlData.FinalLocation = finalLocation
 				break
 			} else {
-				RespBody, _ := ioutil.ReadAll(resp.Body)
+				RespBody, _ := ioutil.ReadAll(originalResp.Body)
 				respBody = string(RespBody)
-				finalLocation = resp.Request.URL.String()
-				urlData.Data.Server = resp.Header.Get("Server")
-				urlData.Data.XPoweredBy = resp.Header.Get("X-Powered-By")
-				urlData.Data.ContentType = resp.Header.Get("Content-Type")
-				urlData.StatusCode = resp.StatusCode
+				finalLocation = originalResp.Request.URL.String()
+				urlData.Data.Server = originalResp.Header.Get("Server")
+				urlData.Data.XPoweredBy = originalResp.Header.Get("X-Powered-By")
+				urlData.Data.ContentType = originalResp.Header.Get("Content-Type")
+				urlData.StatusCode = originalResp.StatusCode
 				if strings.Contains(urlData.Data.ContentType, "json") {
 					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
 					if jsonError != nil {
-						if resp != nil {
-							resp.Body.Close()
+						if originalResp != nil {
+							originalResp.Body.Close()
 						}
 						return nil, jsonError
 					}
@@ -306,8 +305,8 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 				} else if strings.Contains(urlData.Data.ContentType, "xml") {
 					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
 					if xmlError != nil {
-						if resp != nil {
-							resp.Body.Close()
+						if originalResp != nil {
+							originalResp.Body.Close()
 						}
 						return nil, xmlError
 					}
@@ -332,19 +331,19 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.Title = title
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				}
-				resp.Body.Close()
+				originalResp.Body.Close()
 				urlData.FinalLocation = finalLocation
 				break
 			}
 		}
-		if ClientErrorCodes[resp.StatusCode] {
-			urlData.StatusCode = resp.StatusCode
-			resp.Body.Close()
+		if ClientErrorCodes[originalResp.StatusCode] {
+			urlData.StatusCode = originalResp.StatusCode
+			originalResp.Body.Close()
 			break
 		}
-		if ServerErrorCodes[resp.StatusCode] {
-			urlData.StatusCode = resp.StatusCode
-			resp.Body.Close()
+		if ServerErrorCodes[originalResp.StatusCode] {
+			urlData.StatusCode = originalResp.StatusCode
+			originalResp.Body.Close()
 			break
 		}
 	}
