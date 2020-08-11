@@ -117,7 +117,7 @@ func GetCurrentTasks() *[]Task {
 			log.Println(err)
 			continue
 		}
-		if task.Status == "PROGRESS" {
+		if task.Status == "PROGRESS" && dontReassign(task.Content.Function) {
 			ContainerFilter := filters.NewArgs()
 			ContainerFilter.Add("id", task.ContainerId)
 			TaskContainer, TaskContainerErr := cli.ContainerList(context.Background(), types.ContainerListOptions{
@@ -281,4 +281,14 @@ func UpdateTaskById(taskId int64, status string) {
 		log.Fatalf("Update Error: %s", updateError)
 	}
 	MongoClient.Disconnect(context.TODO())
+}
+
+func dontReassign(category string) bool {
+	switch category {
+	case
+		"get_screen_shot",
+		"url_inspection":
+		return false
+	}
+	return true
 }
