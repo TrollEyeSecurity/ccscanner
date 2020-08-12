@@ -20,6 +20,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
@@ -194,13 +195,26 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 		525: true,
 		527: true,
 	}
-	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	originalResp, err := http.Get(*url)
+	timeout := 2 * time.Second
+	transport := &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+	}
+	client := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
+	originalRrq, err := http.NewRequest("GET", *url, nil)
 	if err != nil {
+		return nil, err
+	}
+	originalRrq.Header.Set("Connection", "close")
+	originalResp, originalRespErr := client.Do(originalRrq)
+	if originalRespErr != nil {
 		if originalResp != nil {
 			originalResp.Body.Close()
 		}
-		return nil, err
+		return nil, originalRespErr
 	}
 	urlData := database.UrlData{}
 	var urlList []string
@@ -210,28 +224,57 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 		if RedirectCodes[originalResp.StatusCode] {
 			newUrl := originalResp.Header.Get("Location")
 			originalResp.Body.Close()
+			_, DiscardErr := io.Copy(ioutil.Discard, originalResp.Body) // WE READ THE BODY
+			if DiscardErr != nil {
+				return nil, DiscardErr
+			}
 			urlList = append(urlList, newUrl)
-			RedirectResp, err := http.Get(newUrl)
-			if err != nil {
+			RedirectRrq, RedirectRrqErr := http.NewRequest("GET", newUrl, nil)
+			if RedirectRrqErr != nil {
+				return nil, RedirectRrqErr
+			}
+			RedirectRrq.Header.Set("Connection", "close")
+			RedirectResp, RedirectRespErr := client.Do(RedirectRrq)
+			if RedirectRespErr != nil {
 				if RedirectResp != nil {
+					_, DiscardErr := io.Copy(ioutil.Discard, RedirectResp.Body) // WE READ THE BODY
+					if DiscardErr != nil {
+						return nil, DiscardErr
+					}
 					RedirectResp.Body.Close()
 				}
-				return nil, err
+				return nil, RedirectRespErr
 			}
 		}
 		if SuccessCodes[originalResp.StatusCode] {
 			newUrl := originalResp.Header.Get("Location")
 			if newUrl != "" {
 				originalResp.Body.Close()
+				_, DiscardErr := io.Copy(ioutil.Discard, originalResp.Body) // WE READ THE BODY
+				if DiscardErr != nil {
+					return nil, DiscardErr
+				}
 				urlList = append(urlList, newUrl)
-				successRedirectResp, err := http.Get(newUrl)
-				if err != nil {
+				successRedirectRrq, successRedirectRrqErr := http.NewRequest("GET", newUrl, nil)
+				if successRedirectRrqErr != nil {
+					return nil, successRedirectRrqErr
+				}
+				successRedirectRrq.Header.Set("Connection", "close")
+				successRedirectResp, successRedirectRespErr := client.Do(successRedirectRrq)
+				if successRedirectRespErr != nil {
 					if successRedirectResp != nil {
+						_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
+						if DiscardErr != nil {
+							return nil, DiscardErr
+						}
 						successRedirectResp.Body.Close()
 					}
-					return nil, err
+					return nil, successRedirectRespErr
 				}
-				RespBody, _ := ioutil.ReadAll(successRedirectResp.Body)
+				RespBody, RespBodyError := ioutil.ReadAll(successRedirectResp.Body)
+				if RespBodyError != nil {
+					return nil, RespBodyError
+				}
 				respBody = string(RespBody)
 				finalLocation = successRedirectResp.Request.URL.String()
 				urlData.Data.Server = successRedirectResp.Header.Get("Server")
@@ -242,6 +285,10 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
 					if jsonError != nil {
 						if successRedirectResp != nil {
+							_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
+							if DiscardErr != nil {
+								return nil, DiscardErr
+							}
 							successRedirectResp.Body.Close()
 						}
 						return nil, jsonError
@@ -254,6 +301,10 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
 					if xmlError != nil {
 						if successRedirectResp != nil {
+							_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
+							if DiscardErr != nil {
+								return nil, DiscardErr
+							}
 							successRedirectResp.Body.Close()
 						}
 						return nil, xmlError
@@ -283,7 +334,10 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 				urlData.FinalLocation = finalLocation
 				break
 			} else {
-				RespBody, _ := ioutil.ReadAll(originalResp.Body)
+				RespBody, RespBodyError := ioutil.ReadAll(originalResp.Body)
+				if RespBodyError != nil {
+					return nil, RespBodyError
+				}
 				respBody = string(RespBody)
 				finalLocation = originalResp.Request.URL.String()
 				urlData.Data.Server = originalResp.Header.Get("Server")
@@ -405,9 +459,9 @@ func Head(doc *html.Node) (*html.Node, error) {
 func renderNode(n *html.Node) (string, error) {
 	var buf bytes.Buffer
 	w := io.Writer(&buf)
-	rederError := html.Render(w, n)
-	if rederError != nil {
-		return "", rederError
+	renderError := html.Render(w, n)
+	if renderError != nil {
+		return "", renderError
 	}
 	return buf.String(), nil
 }

@@ -60,18 +60,40 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
+	timeout := 2 * time.Second
+	transport := &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   timeout,
+	}
 	for _, u := range urls.UrlList {
-		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-		resp, GetErr := http.Get(u)
-		if GetErr != nil {
-			err := fmt.Errorf("screenshots get error %v:", GetErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
+		req, reqErr := http.NewRequest("GET", u, nil)
+		if reqErr != nil {
+			err := fmt.Errorf("screenshots req error %v", reqErr)
 			log.Println(err)
 			continue
 		}
-		RespBody, _ := ioutil.ReadAll(resp.Body)
+		req.Header.Set("Connection", "close")
+		resp, respErr := httpClient.Do(req)
+		if respErr != nil {
+			if resp != nil {
+				io.Copy(ioutil.Discard, resp.Body) // WE READ THE BODY
+				resp.Body.Close()
+			}
+			err := fmt.Errorf("screenshots resp error %v", respErr)
+			log.Println(err)
+			continue
+		}
+		RespBody, RespBodyError := ioutil.ReadAll(resp.Body)
+		if RespBodyError != nil {
+			resp.Body.Close()
+			err := fmt.Errorf("screenshots ioutil error %v", RespBodyError)
+			log.Println(err)
+			continue
+		}
 		respBody := string(RespBody)
 		resp.Body.Close()
 		b64Encoded := base64.StdEncoding.EncodeToString([]byte(respBody))
@@ -81,7 +103,10 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 	for _, v := range uniqueRespBody {
 		ScreenShotData, ScreenShotDataIdArray, InspectUrlError := CaptureScreenShot(&v, taskId)
 		if InspectUrlError != nil {
-			err := fmt.Errorf("screenshots run-inspection error %v: %v", InspectUrlError, v)
+			if ScreenShotDataIdArray != nil {
+				idArray = append(idArray, *ScreenShotDataIdArray...)
+			}
+			err := fmt.Errorf("screenshots capture-screen-shot error %v: %v", InspectUrlError, v)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
