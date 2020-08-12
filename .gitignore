@@ -23,3 +23,6 @@ dpkg/
 
 # Development configuration
 config.example.json
+
+# sonarqube
+.scannerwork/
