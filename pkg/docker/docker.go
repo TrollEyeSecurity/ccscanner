@@ -59,6 +59,7 @@ func GetImages() {
 		io.Copy(ioutil.Discard, out)
 		out.Close()
 	}
+	cli.Close()
 }
 
 func StartContainer(
