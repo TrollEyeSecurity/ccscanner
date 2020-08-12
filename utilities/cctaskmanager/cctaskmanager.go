@@ -48,6 +48,7 @@ func TaskManagerMain() {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -55,16 +56,36 @@ func TaskManagerMain() {
 	cursor, ConfigurationError := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1))
 	if ConfigurationError != nil {
 		fmt.Println(ConfigurationError.Error(), errorString)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	var results []bson.M
-	cursor.All(context.TODO(), &results)
+	cursorError := cursor.All(context.TODO(), &results)
+	if cursorError != nil {
+		err := fmt.Errorf("taskmanager cursor error %v", cursorError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
 	if len(results) < 1 {
 		fmt.Println(errorString)
+		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	for {
-		NewlyAssignedTasks, _ := tasksCollection.Find(context.TODO(), bson.D{{"status", "ASSIGNED"}})
+		NewlyAssignedTasks, NewlyAssignedTasksFindError := tasksCollection.Find(context.TODO(), bson.D{{"status", "ASSIGNED"}})
+		if NewlyAssignedTasksFindError != nil {
+			err := fmt.Errorf("taskmanager find error %v", NewlyAssignedTasksFindError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			MongoClient.Disconnect(context.TODO())
+			return
+		}
 		for NewlyAssignedTasks.Next(context.TODO()) {
 			var task database.Task
 			NewlyAssignedTasksErr := NewlyAssignedTasks.Decode(&task)
@@ -78,19 +99,19 @@ func TaskManagerMain() {
 			}
 			switch {
 			case task.Content.Function == "dast":
-				owaspzap.Scan(&task.Content.Args.DastConfigList, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				go owaspzap.Scan(&task.Content.Args.DastConfigList, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
 				break
 			case task.Content.Function == "get_screen_shot":
-				screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID)
+				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID)
 				break
 			case task.Content.Function == "url_inspection":
-				urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID)
+				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID)
 				break
 			case task.Content.Function == "dns_check":
 				go dns.AnalyzeDomainNames(&task.Content.Args.Dns, &task.ID)
 				break
 			case task.Content.Function == "osint_discovery":
-				osint.Discovery(&task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan, &task.SecretData.Osint.Otx)
+				go osint.Discovery(&task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan, &task.SecretData.Osint.Otx)
 				break
 			case task.Content.Function == "nmap_host_discovery":
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)

@@ -6,20 +6,34 @@ import (
 	"fmt"
 	"github.com/CriticalSecurity/ccscanner/pkg/certificates"
 	"github.com/CriticalSecurity/ccscanner/pkg/shodan"
+	"io"
+	"io/ioutil"
 	"net"
 )
 
 func DoLookup(ip *string, shodanKey *string) *NameData {
 	nd := &NameData{}
-	lookupList, _ := net.LookupAddr(*ip)
+	lookupList, lookupAddrErr := net.LookupAddr(*ip)
+	if lookupAddrErr != nil {
+		return nil
+	}
 	nd.ValidNames = append(nd.ValidNames, lookupList...)
 	if IsPrivateIP(net.ParseIP(*ip)) == false {
-		resp, _ := shodan.LoopkupIp(ip, shodanKey)
+		resp, lookupErr := shodan.LoopkupIp(ip, shodanKey)
+		if lookupErr != nil {
+			return nil
+		}
 		shodanResponse := shodan.HostData{}
 		DecoderError := json.NewDecoder(resp.Body).Decode(&shodanResponse)
 		if DecoderError != nil {
+			resp.Body.Close()
 			return nil
 		}
+		_, DiscardErr := io.Copy(ioutil.Discard, resp.Body) // WE READ THE BODY
+		if DiscardErr != nil {
+			return nil
+		}
+		resp.Body.Close()
 		for _, service := range shodanResponse.Services {
 			if service.SSL != nil {
 				potentialNames, certErr := certificates.AnalyzeCertsForNames(ip, &service.Port)
@@ -40,7 +54,6 @@ func DoLookup(ip *string, shodanKey *string) *NameData {
 				}
 			}
 		}
-		resp.Body.Close()
 	}
 	return nd
 }

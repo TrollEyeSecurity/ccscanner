@@ -31,6 +31,7 @@ func RemoveContainers(idArray []string) {
 			log.Println(err)
 		}
 	}
+	cli.Close()
 }
 
 func GetImages() {
@@ -73,6 +74,7 @@ func StartContainer(
 	config.Image = *imageName
 	ContainerList, ContainerListErr := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
 	if ContainerListErr != nil {
+		cli.Close()
 		return nil, ContainerListErr
 	}
 	for _, c := range ContainerList {
@@ -81,8 +83,10 @@ func StartContainer(
 		}
 		if c.Names[0] == "/"+*containerName && c.State == "exited" {
 			if err := cli.ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
+				cli.Close()
 				return nil, err
 			}
+			cli.Close()
 			return nil, nil
 		}
 	}
@@ -94,9 +98,11 @@ func StartContainer(
 		*containerName,
 	)
 	if err != nil {
+		cli.Close()
 		return nil, err
 	}
 	if err := cli.ContainerStart(ctx, Container.ID, types.ContainerStartOptions{}); err != nil {
+		cli.Close()
 		return nil, err
 	}
 	cli.Close()

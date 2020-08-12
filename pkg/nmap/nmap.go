@@ -65,6 +65,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
+		cli.Close()
 		return
 	}
 	idArray = append(idArray, NmapContainer.ID)
@@ -76,6 +77,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
+		cli.Close()
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -91,6 +93,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
 		return
 	}
 	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
@@ -102,6 +105,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
 		return
 	}
 	reader, ContainerLogsErr := cli.ContainerLogs(ctx, NmapContainer.ID, types.ContainerLogsOptions{
@@ -116,9 +120,12 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
+		reader.Close()
 		return
 	}
 	byteValue, ioutilReadAllError := ioutil.ReadAll(reader)
+	reader.Close()
 	if ioutilReadAllError != nil {
 		err := fmt.Errorf("nmap scan ioutil error %v", ioutilReadAllError)
 		if sentry.CurrentHub().Client() != nil {
@@ -127,9 +134,9 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
 		return
 	}
-	reader.Close()
 	data := &Nmaprun{}
 	XmlUnmarshalErr := xml.Unmarshal(byteValue, data)
 	if XmlUnmarshalErr != nil {
@@ -141,6 +148,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
 		return
 	}
 	jsonData, jsonDataError := json.Marshal(data)
@@ -153,6 +161,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		log.Println(err)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
+		cli.Close()
 		return
 	}
 	result := base64.StdEncoding.EncodeToString(jsonData)
@@ -170,7 +179,9 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		if ip != "" {
 			NameData := names.DoLookup(&ip, shodanKey)
-			nameInfoMap[ip] = *NameData
+			if NameData != nil {
+				nameInfoMap[ip] = *NameData
+			}
 		}
 		for _, port := range host.Ports.Port {
 			var urls []string

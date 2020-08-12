@@ -1,7 +1,6 @@
 package shodan
 
 import (
-	"bytes"
 	"net/http"
 	"net/url"
 	"time"
@@ -21,6 +20,7 @@ func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error) {
 	}
 	//adding the proxy settings to the Transport object
 	transport := &http.Transport{
+		DisableKeepAlives: true,
 		//Proxy: http.ProxyURL(proxyURL),
 		//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
@@ -30,11 +30,10 @@ func LoopkupIp(ip *string, shodanKey *string) (*http.Response, error) {
 		Timeout:   time.Second * 10,
 	}
 	//generating the HTTP GET request
-	var data []byte
 	request, RequestErr := http.NewRequest(
 		"GET",
 		scannersUrl.String(),
-		bytes.NewBuffer(data),
+		nil,
 	)
 	if RequestErr != nil {
 		return nil, RequestErr
