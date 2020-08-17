@@ -12,6 +12,7 @@ import (
 	"github.com/CriticalSecurity/ccscanner/pkg/osint"
 	"github.com/CriticalSecurity/ccscanner/pkg/owaspzap"
 	"github.com/CriticalSecurity/ccscanner/pkg/screenshots"
+	"github.com/CriticalSecurity/ccscanner/pkg/sonarqube"
 	"github.com/CriticalSecurity/ccscanner/pkg/urlinspection"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -98,6 +99,9 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
+			case task.Content.Function == "sast":
+				go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
+				break
 			case task.Content.Function == "dast":
 				go owaspzap.Scan(&task.Content.Args.DastConfigList, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
 				break
