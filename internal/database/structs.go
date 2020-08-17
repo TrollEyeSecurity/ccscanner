@@ -30,6 +30,7 @@ type Task struct {
 	NmapResult       string             `bson:"nmap_result" json:"nmap_result"`
 	OpenvasResult    string             `bson:"openvas_result" json:"openvas_result"`
 	OwaspZapResult   string             `bson:"owasp_zap_result" json:"owasp_zap_result"`
+	SastResult       SastResults        `bson:"sast_result" json:"sast_result"`
 	OpenvasTaskId    string             `bson:"openvas_task_id" json:"openvas_task_id"`
 	DnsResult        []DnsResults       `bson:"dns_result" json:"dns_result"`
 	OsintResult      []OsintResults     `bson:"osint_result" json:"osint_result"`
@@ -48,15 +49,31 @@ type Task struct {
 */
 
 type TaskContent struct {
-	Function string  `json:"function"`
-	Args     TaskArg `json:"args"`
+	IntegrationType string  `json:"integration_type"`
+	ProjectName     string  `json:"project_name"`
+	Repourl         string  `json:"repourl"`
+	BranchName      string  `json:"branch_name"`
+	Function        string  `json:"function"`
+	Args            TaskArg `json:"args"`
 }
 
 type TaskSecret struct {
-	Osint Secrets `bson:"osint" json:"osint"`
+	Osint      OsintSecrets `bson:"osint" json:"osint"`
+	Repouser   string       `bson:"repouser" json:"repouser"`
+	SastSecret SastSecret   `bson:"sast_secret" json:"sast_secret"`
+	Data       SecretData   `bson:"data" json:"data"`
 }
 
-type Secrets struct {
+type SecretData struct {
+	Token string `bson:"token" json:"token"`
+}
+
+type SastSecret struct {
+	Sonarhosturl string `bson:"sonarhosturl" json:"sonarhosturl"`
+	Sonarlogin   string `bson:"sonarlogin" json:"sonarlogin"`
+}
+
+type OsintSecrets struct {
 	Otx    string `json:"otx"`
 	Shodan string `bson:"shodan" json:"shodan"`
 }
@@ -117,4 +134,9 @@ type FinalLocationUrlData struct {
 	Title    string `json:"title"`
 	Url      string `json:"url"`
 	UniqueId string `json:"unique_id"`
+}
+
+type SastResults struct {
+	SonarScanId              string `bson:"sonar_scan_id" json:"sonar_scan_id"`
+	DependencyCheckerResults string `bson:"dependency_checker_results" json:"dependency_checker_results"`
 }

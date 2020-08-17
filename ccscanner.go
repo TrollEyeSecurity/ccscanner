@@ -102,6 +102,7 @@ func ScannerMain() {
 				{"nmap_result", nil},
 				{"openvas_result", nil},
 				{"owasp_zap_result", nil},
+				{"sast_result", nil},
 				{"dns_result", nil},
 				{"osint_result", nil},
 				{"container_id", nil},
