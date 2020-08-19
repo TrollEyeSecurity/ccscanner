@@ -167,6 +167,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 					sentry.CaptureException(err)
 				}
 				log.Println(err)
+				cli.Close()
 				return
 			}
 		}
@@ -190,7 +191,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		log.Println(err)
 		_, updateError := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", *taskId}},
-			bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "FAILED"}}}},
+			bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "FAILURE"}}}},
 		)
 		if updateError != nil {
 			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
@@ -200,8 +201,10 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
+			cli.Close()
 			return
 		}
+		cli.Close()
 		return
 	}
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
@@ -219,6 +222,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
+		cli.Close()
 		return
 	}
 	// check if the OpenVas Container is ready to scan
@@ -236,6 +240,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
+			cli.Close()
 			return
 		}
 		byteValue, _ := ioutil.ReadAll(OpenVasContainerLogReader)
@@ -253,9 +258,33 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 					sentry.CaptureException(err)
 				}
 				log.Println(err)
+				cli.Close()
 				return
 			}
 			break
+		}
+		if strings.Contains(string(byteValue), "pg_ctl: server did not start in time") {
+			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("openvas error %v: %v", StartOpenVasErr, OpenVasContainer)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			_, updateError := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", *taskId}},
+				bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "ASSIGNED"}}}},
+			)
+			if updateError != nil {
+				err := fmt.Errorf("openvas error %v", updateError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				cli.Close()
+				return
+			}
+			cli.Close()
+			return
 		}
 		time.Sleep(15 * time.Second)
 	}
