@@ -8,8 +8,8 @@ The only officially supported  operating system is Ubuntu 20.04 LTS (Focal Fossa
 
 Assuming a minimal base server install was successful, do the following.
 
-### Example using version 1.0.2 as the latest ###
-`export latest=1.0.2`
+### Example using version 1.1.4 as the latest ###
+`export latest=1.1.4`
 
 `curl -L https://github.com/CriticalSecurity/ccscanner/releases/download/v$latest/ccscanner_$latest-0ubuntu_amd64.deb -O`
 
@@ -21,7 +21,7 @@ Assuming a minimal base server install was successful, do the following.
 
 ## Linking to Command Center or your own Centralized Scan Manager ##
 
-`cclink --url=BASEURL --token=LINKING_TOKEN`
+`cclink -url=BASEURL -token=LINKING_TOKEN`
 
 After linking the scanner to [Command Center](https://www.critical-sec.com/command-center/) or your own centralized scan manager you can manage the two services with `systemd`.
 
