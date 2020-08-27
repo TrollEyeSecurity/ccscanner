@@ -17,3 +17,12 @@ type esVersion struct {
 	MinimumWireCompatibilityVersion  string `bson:"minimum_wire_compatibility_version" json:"minimum_wire_compatibility_version"`
 	MinimumIndexCompatibilityVersion string `bson:"minimum_index_compatibility_version" json:"minimum_index_compatibility_version"`
 }
+
+type HTMLMeta struct {
+	Title              string `json:"title"`
+	Description        string `json:"description"`
+	SiteName           string `json:"site_name"`
+	ApplicationName    string `json:"application_name"`
+	ApplicationVersion string `json:"application_version"`
+	ApplicationTitle   string `json:"application_title"`
+}

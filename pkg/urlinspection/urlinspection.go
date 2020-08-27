@@ -315,19 +315,35 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				} else {
 					uniqueTxt := ""
-					title := getTitle(respBody)
 					head, getHeadError := getHead(respBody)
 					if getHeadError != nil {
 						log.Println(getHeadError)
 					}
-					if *head == "<head></head>" && title != "" {
-						uniqueTxt = title
-					} else {
+					var metaData string
+					hm := extractMeta(respBody)
+					if hm.ApplicationName != "" {
+						metaData += hm.ApplicationName
+					}
+					if hm.ApplicationVersion != "" {
+						metaData += " " + hm.ApplicationVersion
+					}
+					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
+						metaData += " | " + hm.ApplicationTitle
+					}
+					fmt.Println(metaData)
+					uniqueTxt = metaData
+					if metaData == "" && hm.Title != "" {
+						uniqueTxt = hm.Title
+					} else if uniqueTxt == "" {
 						uniqueTxt = *head
 					}
 					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
 					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = title
+					if metaData != "" {
+						urlData.Data.Title = metaData
+					} else {
+						urlData.Data.Title = hm.Title
+					}
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				}
 				successRedirectResp.Body.Close()
@@ -370,19 +386,35 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				} else {
 					uniqueTxt := ""
-					title := getTitle(respBody)
 					head, getHeadError := getHead(respBody)
 					if getHeadError != nil {
 						log.Println(getHeadError)
 					}
-					if *head == "<head></head>" && title != "" {
-						uniqueTxt = title
-					} else {
+					var metaData string
+					hm := extractMeta(respBody)
+					if hm.ApplicationName != "" {
+						metaData += hm.ApplicationName
+					}
+					if hm.ApplicationVersion != "" {
+						metaData += " " + hm.ApplicationVersion
+					}
+					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
+						metaData += " | " + hm.ApplicationTitle
+					}
+					fmt.Println(metaData)
+					uniqueTxt = metaData
+					if metaData == "" && hm.Title != "" {
+						uniqueTxt = hm.Title
+					} else if uniqueTxt == "" {
 						uniqueTxt = *head
 					}
 					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
 					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = title
+					if metaData != "" {
+						urlData.Data.Title = metaData
+					} else {
+						urlData.Data.Title = hm.Title
+					}
 					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 				}
 				originalResp.Body.Close()
@@ -403,38 +435,6 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 	}
 	//urlData.Body = respBody
 	return &urlData, nil
-}
-
-func getTitle(HTMLString string) (title string) {
-	r := strings.NewReader(HTMLString)
-	z := html.NewTokenizer(r)
-	var i int
-	for {
-		tt := z.Next()
-		i++
-		if i > 100 { // Title should be one of the first tags
-			return
-		}
-		switch {
-		case tt == html.ErrorToken:
-			// End of the document, we're done
-			return
-		case tt == html.StartTagToken:
-			t := z.Token()
-			// Check if the token is an <title> tag
-			if t.Data != "title" {
-				continue
-			}
-			// fmt.Printf("%+v\n%v\n%v\n%v\n", t, t, t.Type.String(), t.Attr)
-			tt := z.Next()
-			if tt == html.TextToken {
-				t := z.Token()
-				title = t.Data
-				return
-				// fmt.Printf("%+v\n%v\n", t, t.Data)
-			}
-		}
-	}
 }
 
 func Head(doc *html.Node) (*html.Node, error) {
@@ -522,4 +522,86 @@ func parseXML(xmlBody *string) (title *string, uniqueText *string, err error) {
 	unique := *xmlBody
 	uniqueText = &unique
 	return title, uniqueText, nil
+}
+
+func extractMeta(HTMLString string) *HTMLMeta {
+	r := strings.NewReader(HTMLString)
+	z := html.NewTokenizer(r)
+	titleFound := false
+	hm := new(HTMLMeta)
+	for {
+		tt := z.Next()
+		switch tt {
+		case html.ErrorToken:
+			return hm
+		case html.StartTagToken, html.SelfClosingTagToken:
+			t := z.Token()
+			if t.Data == `body` {
+				return hm
+			}
+			if t.Data == "title" {
+				titleFound = true
+			}
+			if t.Data == "meta" {
+				desc, ok := extractMetaName(t, "description")
+				if ok {
+					hm.Description = desc
+				}
+				ogTitle, ok := extractMetaProperty(t, "og:title")
+				if ok {
+					hm.Title = ogTitle
+				}
+				ogDesc, ok := extractMetaProperty(t, "og:description")
+				if ok {
+					hm.Description = ogDesc
+				}
+				ogSiteName, ok := extractMetaProperty(t, "og:site_name")
+				if ok {
+					hm.SiteName = ogSiteName
+				}
+				appName, ok := extractMetaName(t, "application-name")
+				if ok {
+					hm.ApplicationName = appName
+				}
+				ajsVersion, ok := extractMetaName(t, "ajs-version-number")
+				if ok {
+					hm.ApplicationVersion = ajsVersion
+				}
+				ajsTitle, ok := extractMetaName(t, "ajs-app-title")
+				if ok {
+					hm.ApplicationTitle = ajsTitle
+				}
+			}
+		case html.TextToken:
+			if titleFound {
+				t := z.Token()
+				hm.Title = t.Data
+				titleFound = false
+			}
+		}
+	}
+}
+
+func extractMetaProperty(t html.Token, prop string) (content string, ok bool) {
+	for _, attr := range t.Attr {
+		if attr.Key == "property" && attr.Val == prop {
+			ok = true
+		}
+		if attr.Key == "content" {
+			content = attr.Val
+		}
+	}
+	return
+}
+
+func extractMetaName(t html.Token, prop string) (content string, ok bool) {
+	for _, attr := range t.Attr {
+		if attr.Key == "name" && attr.Val == prop {
+			ok = true
+		}
+		if attr.Key == "content" {
+			content = attr.Val
+		}
+	}
+	return
 }

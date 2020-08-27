@@ -25,7 +25,11 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	}
 	path := "/scanners/link"
 	method := "POST"
-	response, _ := HttpClientRequest(&baseURL, &path, bytesRepresentation, &method, &linkToken)
+	response, linkError := HttpClientRequest(&baseURL, &path, bytesRepresentation, &method, &linkToken)
+	if linkError != nil {
+		fmt.Println(linkError)
+		os.Exit(1)
+	}
 	if response == nil {
 		fmt.Println("No response from server.")
 		os.Exit(1)
@@ -63,7 +67,11 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	}
 	path := "/scanners/communicate"
 	method := "POST"
-	response, _ := HttpClientRequest(&baseUrl, &path, bytesRepresentation, &method, &token)
+	response, linkError := HttpClientRequest(&baseUrl, &path, bytesRepresentation, &method, &token)
+	if linkError != nil {
+		fmt.Println(linkError)
+		return &cr, nil
+	}
 	if response == nil {
 		fmt.Println("No response from server.")
 		return &cr, nil
