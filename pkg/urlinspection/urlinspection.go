@@ -330,7 +330,6 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
 						metaData += " | " + hm.ApplicationTitle
 					}
-					fmt.Println(metaData)
 					uniqueTxt = metaData
 					if metaData == "" && hm.Title != "" {
 						uniqueTxt = hm.Title
@@ -401,7 +400,6 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
 						metaData += " | " + hm.ApplicationTitle
 					}
-					fmt.Println(metaData)
 					uniqueTxt = metaData
 					if metaData == "" && hm.Title != "" {
 						uniqueTxt = hm.Title
