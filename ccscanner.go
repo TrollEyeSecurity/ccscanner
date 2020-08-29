@@ -23,7 +23,7 @@ func main() {
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	flag.Parse()
 	if *versionBool {
-		fmt.Printf("command center scanner version: %s", common.Version)
+		fmt.Printf("command center scanner version: %s\n", common.Version)
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)
