@@ -58,12 +58,12 @@ type Nmaprun struct {
 			Vendor   string `xml:"vendor,attr"`
 		} `xml:"address"`
 		Hostnames []struct {
-			Hostname struct{
-				Name	string	`xml:"name,attr"`
-				Type 	string	`xml:"type,attr"`
-			}`xml:"hostname"`
+			Hostname struct {
+				Name string `xml:"name,attr"`
+				Type string `xml:"type,attr"`
+			} `xml:"hostname"`
 		} `xml:"hostnames"`
-		Ports     struct {
+		Ports struct {
 			Extraports struct {
 				State        string `xml:"state,attr"`
 				Count        string `xml:"count,attr"`
@@ -101,21 +101,21 @@ type Nmaprun struct {
 						Table []struct {
 							Key  string `xml:"key,attr"`
 							Elem []struct {
-								Key  string `xml:"key,attr"`
+								Key string `xml:"key,attr"`
 							} `xml:"elem"`
 							Table []struct {
 								Key  string `xml:"key,attr"`
 								Elem []struct {
-									Key  string `xml:"key,attr"`
+									Key string `xml:"key,attr"`
 								} `xml:"elem"`
 							} `xml:"table"`
 						} `xml:"table"`
 						Elem []struct {
-							Key  string `xml:"key,attr"`
+							Key string `xml:"key,attr"`
 						} `xml:"elem"`
 					} `xml:"table"`
 					Elem []struct {
-						Key  string `xml:"key,attr"`
+						Key string `xml:"key,attr"`
 					} `xml:"elem"`
 				} `xml:"script"`
 			} `xml:"port"`
@@ -169,24 +169,15 @@ type Nmaprun struct {
 			To     string `xml:"to,attr"`
 		} `xml:"times"`
 		Hostscript struct {
+			Text   string `xml:",chardata"`
 			Script []struct {
+				Text   string `xml:",chardata"`
 				ID     string `xml:"id,attr"`
 				Output string `xml:"output,attr"`
-				Table  struct {
-					Key  string `xml:"key,attr"`
-					Elem []struct {
-						Key  string `xml:"key,attr"`
-					} `xml:"elem"`
-					Table []struct {
-						Key   string   `xml:"key,attr"`
-						Elem  []string `xml:"elem"`
-						Table struct {
-							Key  string `xml:"key,attr"`
-							Elem []struct {
-								Key  string `xml:"key,attr"`
-							} `xml:"elem"`
-						} `xml:"table"`
-					} `xml:"table"`
+				Table  []struct {
+					Text string   `xml:",chardata"`
+					Key  string   `xml:"key,attr"`
+					Elem []string `xml:"elem"`
 				} `xml:"table"`
 			} `xml:"script"`
 		} `xml:"hostscript"`
