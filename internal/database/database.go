@@ -97,7 +97,14 @@ func GetCurrentTasks() *[]Task {
 		log.Fatalf("MongoClient Error: %s", MongoClientError)
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
-	RunningTasks, _ := tasksCollection.Find(context.TODO(), bson.M{"status": bson.M{"$ne": "DONE"}})
+	RunningTasks, FindRunningTasksError := tasksCollection.Find(context.TODO(), bson.M{"status": bson.M{"$ne": "DONE"}})
+	if FindRunningTasksError != nil {
+		err := fmt.Errorf("database get-current-tasks error %v", FindRunningTasksError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+	}
 	for RunningTasks.Next(context.TODO()) {
 		var task Task
 		RunningTasksDecodeErr := RunningTasks.Decode(&task)
