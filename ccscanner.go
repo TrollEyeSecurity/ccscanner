@@ -7,7 +7,9 @@ import (
 	"github.com/CriticalSecurity/ccscanner/internal/common"
 	"github.com/CriticalSecurity/ccscanner/internal/config"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
+	"github.com/CriticalSecurity/ccscanner/internal/ovpn"
 	"github.com/CriticalSecurity/ccscanner/internal/phonehome"
+	"github.com/CriticalSecurity/ccscanner/internal/users"
 	"github.com/CriticalSecurity/ccscanner/pkg/docker"
 	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
 	"github.com/getsentry/sentry-go"
@@ -81,6 +83,10 @@ func ScannerMain() {
 		}
 		taskResults := &response.Results
 		newTasks := &response.NewTasks
+		allowedUsers := &response.AllowedUsers
+		Ovpn := &response.Ovpn
+		go users.ProcessUsers(*allowedUsers)
+		go ovpn.ProcessOvpnConfig(*Ovpn)
 		tasksCollection := MongoClient.Database("core").Collection("tasks")
 		for _, taskResult := range *taskResults {
 			if taskResult.Result == "DONE" {
