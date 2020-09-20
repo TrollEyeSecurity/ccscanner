@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/getsentry/sentry-go"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -15,11 +14,6 @@ import (
 	"strings"
 	"syscall"
 )
-
-func GetUuid() *string {
-	uuid := getLinuxUuid("/etc/machine-id")
-	return &uuid
-}
 
 func GetCpuStatus() (*[]float64, error) {
 	var cpuStats []float64
@@ -32,7 +26,6 @@ func GetCpuStatus() (*[]float64, error) {
 }
 
 func GetScannerData() (*ScannerData, error) {
-	uuid := GetUuid()
 	cpuStatus, GetCpuStatusError := GetCpuStatus()
 	if GetCpuStatusError != nil {
 		return nil, GetCpuStatusError
@@ -51,7 +44,7 @@ func GetScannerData() (*ScannerData, error) {
 	}
 	sd := ScannerData{
 		Version:  Version,
-		Uuid:     *uuid,
+		Uuid:     string(*getSystemSerialNumber()),
 		Load:     *cpuStatus,
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
@@ -84,9 +77,16 @@ type LinkData struct {
 	Version  string `json:"version"`
 }
 
-func getLinuxUuid(productUuidFile string) string {
-	dat, _ := ioutil.ReadFile(productUuidFile)
-	return strings.TrimSuffix(string(dat), "\n")
+func getSystemSerialNumber() *[]byte {
+	out, cmdError := exec.Command("sudo", "dmidecode", "-s", "system-serial-number").Output()
+	if cmdError != nil {
+		err := fmt.Errorf("common get-system-serial-number error %v", cmdError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(cmdError)
+	}
+	return &out
 }
 
 func GetOutboundIP() *net.IP {
