@@ -44,7 +44,7 @@ func GetScannerData() (*ScannerData, error) {
 	}
 	sd := ScannerData{
 		Version:  Version,
-		Uuid:     string(*getSystemSerialNumber()),
+		Uuid:     string(*GetSystemSerialNumber()),
 		Load:     *cpuStatus,
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
@@ -77,7 +77,7 @@ type LinkData struct {
 	Version  string `json:"version"`
 }
 
-func getSystemSerialNumber() *[]byte {
+func GetSystemSerialNumber() *[]byte {
 	out, cmdError := exec.Command("sudo", "dmidecode", "-s", "system-serial-number").Output()
 	if cmdError != nil {
 		err := fmt.Errorf("common get-system-serial-number error %v", cmdError)
