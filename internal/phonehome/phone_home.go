@@ -14,7 +14,7 @@ import (
 func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	ld := common.LinkData{
 		Token:    linkToken,
-		Uuid:     string(*common.GetSystemSerialNumber()),
+		Uuid:     *common.GetUuid(),
 		Hostname: *common.GetFqdn(),
 		Version:  common.Version,
 	}
