@@ -88,17 +88,24 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		AttachStdout: true,
 		AttachStderr: true,
 	}
-	resources := &container.Resources{
+	sastResources := &container.Resources{
+		Memory: 2.048e+9,
+	}
+	depResources := &container.Resources{
 		Memory: 5.12e+8,
 	}
-	hostConfig := &container.HostConfig{
-		Resources:   *resources,
+	sastHostConfig := &container.HostConfig{
+		Resources:   *sastResources,
+		NetworkMode: "host",
+	}
+	depHostConfig := &container.HostConfig{
+		Resources:   *depResources,
 		NetworkMode: "host",
 	}
 	now := time.Now()
 	sastContainerName := "sast-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
 	depContainerName := "dep-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
-	SastContainer, SastStartContainerErr := docker.StartContainer(&imageName, &sastContainerName, sonarconfig, hostConfig)
+	SastContainer, SastStartContainerErr := docker.StartContainer(&imageName, &sastContainerName, sonarconfig, sastHostConfig)
 	if SastStartContainerErr != nil {
 		err := fmt.Errorf("sast scan error %v: %v", SastStartContainerErr, SastContainer)
 		if sentry.CurrentHub().Client() != nil {
@@ -107,7 +114,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		log.Println(err)
 		return
 	}
-	DepContainer, DepStartContainerErr := docker.StartContainer(&imageName, &depContainerName, depconfig, hostConfig)
+	DepContainer, DepStartContainerErr := docker.StartContainer(&imageName, &depContainerName, depconfig, depHostConfig)
 	if DepStartContainerErr != nil {
 		err := fmt.Errorf("sast scan error %v: %v", DepStartContainerErr, SastContainer)
 		if sentry.CurrentHub().Client() != nil {
