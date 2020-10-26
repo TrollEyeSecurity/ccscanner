@@ -17,8 +17,18 @@ import (
 )
 
 func GetUuid() *string {
-	uuid := getLinuxUuid("/etc/machine-id")
-	return &uuid
+	cmd := exec.Command("sudo", "dmidecode", "--string", "system-uuid")
+	out, CommandErr := cmd.Output()
+	if CommandErr != nil {
+		err := fmt.Errorf("get-uuid error %v: %v", CommandErr, string(out))
+		log.Println(err)
+		// return nil, err
+	}
+	cmd.Process.Kill()
+	s := string(out)
+	t := strings.Replace(s, "-", "", -1)
+	r := strings.TrimSuffix(t, "\n")
+	return &r
 }
 
 func GetCpuStatus() (*[]float64, error) {
