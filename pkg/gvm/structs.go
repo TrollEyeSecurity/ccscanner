@@ -1,4 +1,4 @@
-package openvas
+package gvm
 
 import "encoding/xml"
 
@@ -18,11 +18,11 @@ type ModifyConfigResponse struct {
 }
 
 type CreateTarget struct {
-	XMLName    		xml.Name `xml:"create_target"`
-	Name     		string   `xml:"name,attr"`
-	Hosts 			string   `xml:"hosts,attr"`
-	AliveTests		string   `xml:"alive_tests,attr"`
-	ExcludeHosts	string   `xml:"exclude_hosts,attr"`
+	XMLName      xml.Name `xml:"create_target"`
+	Name         string   `xml:"name,attr"`
+	Hosts        string   `xml:"hosts,attr"`
+	AliveTests   string   `xml:"alive_tests,attr"`
+	ExcludeHosts string   `xml:"exclude_hosts,attr"`
 }
 
 type CreateTargetResponse struct {

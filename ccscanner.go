@@ -11,7 +11,7 @@ import (
 	"github.com/CriticalSecurity/ccscanner/internal/phonehome"
 	"github.com/CriticalSecurity/ccscanner/internal/users"
 	"github.com/CriticalSecurity/ccscanner/pkg/docker"
-	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
+	"github.com/CriticalSecurity/ccscanner/pkg/gvm"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -92,7 +92,7 @@ func ScannerMain() {
 			if taskResult.Result == "DONE" {
 				go database.DeleteTaskById(taskResult.TaskId)
 			} else if taskResult.Result == "STOP_SCAN" {
-				go openvas.StopVulnerabilityScan(taskResult.TaskId)
+				go gvm.StopVulnerabilityScan(taskResult.TaskId)
 			} else {
 				go database.UpdateTaskById(taskResult.TaskId, taskResult.Result)
 			}

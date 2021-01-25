@@ -51,7 +51,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 	for _, dnsname := range *dnsnames {
 		results := database.DnsResults{}
 		now := time.Now()
-		cmd := "-d " + dnsname + " --disable_check_bindversion --j " + filePath + " -t std,srv,axfr,crt " + "-D namelist.txt"
+		cmd := "-d " + dnsname + " --disable_check_bindversion --j " + filePath + " -t std,srv,axfr,crt -D namelist.txt"
 		cmdS := strings.Split(cmd, " ")
 		config := &container.Config{
 			Image:        imageName,

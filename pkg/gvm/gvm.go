@@ -1,4 +1,4 @@
-package openvas
+package gvm
 
 import (
 	"context"
@@ -26,7 +26,7 @@ import (
 func StopVulnerabilityScan(ScanTaskId int64) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		err := fmt.Errorf("openvas error %v", MongoClientError)
+		err := fmt.Errorf("gvm mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -42,10 +42,10 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	if VulnerabilityScanTask.Status == "STOPPED" || VulnerabilityScanTask.Status == "SUCCESS" {
 		return
 	}
-	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/tmp/gvmd.sock --xml "
-	username := "openvas_user"
+	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/var/run/gvm/gvmd.sock --xml "
+	username := "gvm_user"
 	host := "127.0.0.1"
-	pass := "openvas_user"
+	pass := "gvm_user"
 	sshConfig := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{ssh.Password(pass)},
@@ -54,7 +54,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	sshDest := host + ":" + VulnerabilityScanTask.SshPort
 	sshClient, sshClientErr := ssh.Dial("tcp", sshDest, sshConfig)
 	if sshClientErr != nil {
-		err := fmt.Errorf("openvas error %v: %v", sshClientErr, sshClient)
+		err := fmt.Errorf("gvm ssh-client error %v: %v", sshClientErr, sshClient)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -63,7 +63,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	}
 	stopTaskSshSession, stopTaskSshSessionErr := sshClient.NewSession()
 	if stopTaskSshSessionErr != nil {
-		err := fmt.Errorf("openvas error %v: %v", stopTaskSshSessionErr, stopTaskSshSession)
+		err := fmt.Errorf("gvm stop-task-ssh-session error %v: %v", stopTaskSshSessionErr, stopTaskSshSession)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -73,7 +73,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	stopTaskXml := "<stop_task task_id='" + VulnerabilityScanTask.OpenvasTaskId + "'/>"
 	stopTaskOutPut, stopTaskOutErr := stopTaskSshSession.CombinedOutput(baseCmd + "\"" + stopTaskXml + "\"")
 	if stopTaskOutErr != nil {
-		err := fmt.Errorf("openvas error %v: %v", stopTaskOutErr, stopTaskOutPut)
+		err := fmt.Errorf("gvm stop-task-output error %v: %v", stopTaskOutErr, string(stopTaskOutPut))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -86,7 +86,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 			{"status", "STOPPED"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("openvas error %v", updateError)
+		err := fmt.Errorf("gvm update-mongo error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -96,8 +96,8 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	MongoClient.Disconnect(context.TODO())
 }
 
-func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
-	imageName := docker.OpenVasImage
+func StartGVM(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
+	imageName := docker.GVMImage
 	config := &container.Config{
 		Image:        imageName,
 		Tty:          true,
@@ -122,18 +122,18 @@ func StartOpenVas(taskId *primitive.ObjectID, sshPort *string) (*string, error) 
 		},
 	}
 	now := time.Now()
-	containerName := "openvas-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
-	OpenVasContainer, OpenVasContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
-	if OpenVasContainerErr != nil {
-		return nil, OpenVasContainerErr
+	containerName := "gvm-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
+	GVMContainer, GVMContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
+	if GVMContainerErr != nil {
+		return nil, GVMContainerErr
 	}
-	return &OpenVasContainer.ID, nil
+	return &GVMContainer.ID, nil
 }
 
 func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		err := fmt.Errorf("openvas error %v", MongoClientError)
+		err := fmt.Errorf("gvm mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -144,7 +144,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
-		err := fmt.Errorf("openvas error %v: %v", NewEnvClientErr, cli)
+		err := fmt.Errorf("gvm new-client error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -162,7 +162,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		if listenPortErr != nil {
 			attempts++
 			if attempts > 9 {
-				err := fmt.Errorf("openvas error %v: %v", listenPortErr, "VulnerabilityScan listenPortErr - Cannot find an open port for ssh")
+				err := fmt.Errorf("gvm listen-port error %v: %v", listenPortErr, "VulnerabilityScan listenPortErr - Cannot find an open port for ssh")
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -177,14 +177,14 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		}
 		time.Sleep(3 * time.Second)
 	}
-	username := "openvas_user"
+	username := "gvm_user"
 	host := "127.0.0.1"
-	pass := "openvas_user"
-	OpenVasContainer, StartOpenVasErr := StartOpenVas(taskId, &sshPort)
-	if StartOpenVasErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v: %v", StartOpenVasErr, OpenVasContainer)
+	pass := "gvm_user"
+	GVMContainer, StartGVMErr := StartGVM(taskId, &sshPort)
+	if StartGVMErr != nil {
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm start-gvm error %v: %v", StartGVMErr, GVMContainer)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -194,9 +194,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "FAILURE"}}}},
 		)
 		if updateError != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v", updateError)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm mongo-update error %v", updateError)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -210,14 +210,14 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{
-			{"container_id", OpenVasContainer},
+			{"container_id", GVMContainer},
 			{"status", "INITIALIZING"},
 			{"ssh_port", &sshPort}}}},
 	)
 	if updateError != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", updateError)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm mongo-upate error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -225,17 +225,17 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		cli.Close()
 		return
 	}
-	// check if the OpenVas Container is ready to scan
+	// check if the GVM Container is ready to scan
 	for {
-		OpenVasContainerLogReader, OpenVasContainerLogStreamErr := cli.ContainerLogs(ctx, *OpenVasContainer, types.ContainerLogsOptions{
+		GVMContainerLogReader, GVMContainerLogStreamErr := cli.ContainerLogs(ctx, *GVMContainer, types.ContainerLogsOptions{
 			ShowStderr: true,
 			ShowStdout: true,
 			Timestamps: false,
 		})
-		if OpenVasContainerLogStreamErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v: %v", OpenVasContainerLogStreamErr, OpenVasContainerLogReader)
+		if GVMContainerLogStreamErr != nil {
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm gvm-log-reader error %v: %v", GVMContainerLogStreamErr, GVMContainerLogReader)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -243,17 +243,17 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			cli.Close()
 			return
 		}
-		byteValue, _ := ioutil.ReadAll(OpenVasContainerLogReader)
-		OpenVasContainerLogReader.Close()
+		byteValue, _ := ioutil.ReadAll(GVMContainerLogReader)
+		GVMContainerLogReader.Close()
 		if strings.Contains(string(byteValue), "sync_cert: Updating CERT info succeeded.") {
 			_, updateError1 := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", *taskId}},
 				bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
 			)
 			if updateError1 != nil {
-				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				err := fmt.Errorf("openvas error %v", updateError1)
+				cli.ContainerStop(context.Background(), *GVMContainer, nil)
+				cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+				err := fmt.Errorf("gvm mongo-update error %v", updateError1)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -264,8 +264,8 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			break
 		}
 		if strings.Contains(string(byteValue), "pg_ctl: server did not start in time") {
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v: %v", StartOpenVasErr, OpenVasContainer)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm pg_ctl error %v: %v", StartGVMErr, GVMContainer)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -275,7 +275,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 				bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "ASSIGNED"}}}},
 			)
 			if updateError != nil {
-				err := fmt.Errorf("openvas error %v", updateError)
+				err := fmt.Errorf("gvm mongo-update error %v", updateError)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -289,8 +289,23 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		time.Sleep(15 * time.Second)
 	}
 	// Start scanning
-	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/tmp/gvmd.sock --xml "
-	createTargetXml := "<create_target><name>newtarget</name><hosts>" + *hosts + "</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>" + *excludedHosts + "</exclude_hosts></create_target>"
+	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/var/run/gvm/gvmd.sock --xml "
+
+	// monkey patch - temporary fix for https://github.com/greenbone/ospd-openvas/issues/335
+	/**/
+	hostsArray := strings.Split(*hosts, ",")
+	excludeHostsArray := strings.Split(*excludedHosts, ",")
+	for _, item := range excludeHostsArray {
+		i, found := Find(hostsArray, item)
+		if found {
+			hostsArray = append(hostsArray[:i], hostsArray[i+1:]...)
+		}
+	}
+	s := strings.Join(hostsArray, ",")
+	newHosts := &s
+	createTargetXml := "<create_target><name>newtarget</name><hosts>" + *newHosts + "</hosts><alive_tests>Consider Alive</alive_tests><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
+	/**/
+	// createTargetXml := "<create_target><name>newtarget</name><hosts>" + *hosts + "</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>" + *excludedHosts + "</exclude_hosts><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
 	sshConfig := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{ssh.Password(pass)},
@@ -299,9 +314,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	sshDest := host + ":" + sshPort
 	sshClient, sshClientErr := ssh.Dial("tcp", sshDest, sshConfig)
 	if sshClientErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", sshClientErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm ssh-client error %v", sshClientErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -310,9 +325,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	}
 	createTargetSshSession, createTargetSshSessionErr := sshClient.NewSession()
 	if createTargetSshSessionErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", createTargetSshSessionErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm create-target-ssh-session error %v", createTargetSshSessionErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -321,9 +336,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	}
 	createTargetOutPut, createTargetOutPutErr := createTargetSshSession.CombinedOutput(baseCmd + "\"" + createTargetXml + "\"")
 	if createTargetOutPutErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v: %v", createTargetOutPutErr, createTargetOutPut)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm create-target-output error %v: %v", createTargetOutPutErr, string(createTargetOutPut))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -333,9 +348,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	CreateTargetResponseData := &CreateTargetResponse{}
 	CreateTargetResponseDataErr := xml.Unmarshal(createTargetOutPut, CreateTargetResponseData)
 	if CreateTargetResponseDataErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", CreateTargetResponseDataErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm create-target-response-data error %v", CreateTargetResponseDataErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -346,9 +361,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 
 	createTaskSshSession, createTaskSshSessionErr := sshClient.NewSession()
 	if createTaskSshSessionErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", createTaskSshSessionErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm create-task-ssh-session error %v", createTaskSshSessionErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -360,9 +375,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		createConfigSshSession, createConfigSshSessionErr := sshClient.NewSession()
 		createConfigXml := "<create_config><copy>" + *configuration + "</copy><name>newconfig</name></create_config>"
 		if createConfigSshSessionErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas vulnerability scan create-config-ssh-session error %v", createConfigSshSessionErr)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm vulnerability scan create-config-ssh-session error %v", createConfigSshSessionErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -371,9 +386,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		}
 		createConfigOutPut, createConfigXmlOutPutErr := createConfigSshSession.CombinedOutput(baseCmd + "\"" + createConfigXml + "\"")
 		if createConfigXmlOutPutErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas vulnerability scan create-config-xml-output error %v: %v", createConfigXmlOutPutErr, string(createConfigOutPut))
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm vulnerability scan create-config-xml-output error %v: %v", createConfigXmlOutPutErr, string(createConfigOutPut))
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -383,9 +398,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		CreateConfigResponseData := &CreateConfigResponse{}
 		CreateConfigResponseDataErr := xml.Unmarshal(createConfigOutPut, CreateConfigResponseData)
 		if CreateConfigResponseDataErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v: %v", CreateConfigResponseDataErr, createConfigOutPut)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm create-config-response-data error %v: %v", CreateConfigResponseDataErr, createConfigOutPut)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -401,9 +416,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			ModifyConfigSshSession, ModifyConfigSshSessionErr := sshClient.NewSession()
 			modifyConfigXml := "<modify_config config_id='" + CreateConfigResponseData.ID + "'><nvt_selection><family>" + k + "</family>" + nvts + "</nvt_selection></modify_config>"
 			if ModifyConfigSshSessionErr != nil {
-				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				err := fmt.Errorf("openvas error %v", ModifyConfigSshSessionErr)
+				cli.ContainerStop(context.Background(), *GVMContainer, nil)
+				cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+				err := fmt.Errorf("gvm modify-config-ssh-session error %v", ModifyConfigSshSessionErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -412,9 +427,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			}
 			modifyConfigOutPut, modifyConfigXmlOutPutErr := ModifyConfigSshSession.CombinedOutput(baseCmd + "\"" + modifyConfigXml + "\"")
 			if modifyConfigXmlOutPutErr != nil {
-				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				err := fmt.Errorf("openvas error %v: %v", modifyConfigXmlOutPutErr, modifyConfigOutPut)
+				cli.ContainerStop(context.Background(), *GVMContainer, nil)
+				cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+				err := fmt.Errorf("gvm modify-config-xml-output error %v: %v", modifyConfigXmlOutPutErr, string(modifyConfigOutPut))
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -424,9 +439,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			ModifyConfigResponseData := &ModifyConfigResponse{}
 			ModifyConfigResponseDataErr := xml.Unmarshal(modifyConfigOutPut, ModifyConfigResponseData)
 			if ModifyConfigResponseDataErr != nil {
-				cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-				cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-				err := fmt.Errorf("openvas error %v", ModifyConfigResponseDataErr)
+				cli.ContainerStop(context.Background(), *GVMContainer, nil)
+				cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+				err := fmt.Errorf("gvm modify-config-response-data error %v", ModifyConfigResponseDataErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -442,9 +457,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	createTaskXml := "<create_task><name>newtask</name><comment></comment><config id='" + config + "'/><target id='" + CreateTargetResponseData.ID + "'/></create_task>"
 	createTaskOutPut, createTaskOutPutErr := createTaskSshSession.CombinedOutput(baseCmd + "\"" + createTaskXml + "\"")
 	if createTaskOutPutErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v: %v", createTaskOutPutErr, createTaskOutPut)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm create-task-output error %v: %v", createTaskOutPutErr, string(createTaskOutPut))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -464,9 +479,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	)
 	startTaskSshSession, startTaskSshSessionErr := sshClient.NewSession()
 	if startTaskSshSessionErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", startTaskSshSessionErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm start-task-ssh-session error %v", startTaskSshSessionErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -476,9 +491,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	startTaskXml := "<start_task task_id='" + CreateTaskResponseData.ID + "'/>"
 	startTaskOutPut, startTaskOutErr := startTaskSshSession.CombinedOutput(baseCmd + "\"" + startTaskXml + "\"")
 	if startTaskOutErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v: %v", startTaskOutErr, startTaskOutPut)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm start-task-out error %v: %v", startTaskOutErr, string(startTaskOutPut))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -488,9 +503,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	StartTaskResponseData := &StartTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(startTaskOutPut, StartTaskResponseData)
 	if StartTaskResponseDataErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v", StartTaskResponseDataErr)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm start-task-response-data error %v", StartTaskResponseDataErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -501,9 +516,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	for {
 		getTaskSshSession, getTaskSshSessionErr := sshClient.NewSession()
 		if getTaskSshSessionErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v", getTaskSshSessionErr)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm get-task-ssh-session error %v", getTaskSshSessionErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -513,9 +528,9 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		getTaskXml := "<get_tasks task_id='" + CreateTaskResponseData.ID + "'/>"
 		getTaskOutPut, getTaskOutPutErr := getTaskSshSession.CombinedOutput(baseCmd + "\"" + getTaskXml + "\"")
 		if getTaskOutPutErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v: %v", getTaskOutPutErr, getTaskOutPut)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm get-task-output error %v: %v", getTaskOutPutErr, string(getTaskOutPut))
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -526,16 +541,16 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		GetTaskResponseDataErr := xml.Unmarshal(getTaskOutPut, GetTasksResponseData)
 		defer getTaskSshSession.Close()
 		if GetTaskResponseDataErr != nil {
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-			err := fmt.Errorf("openvas error %v", GetTaskResponseDataErr)
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm get-task-response-data error %v", GetTaskResponseDataErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
 			return
 		}
-		if GetTasksResponseData.Task.Status == "Done" || GetTasksResponseData.Task.Status == "Stopped" {
+		if GetTasksResponseData.Task.Status == "Interrupted" || GetTasksResponseData.Task.Status == "Done" || GetTasksResponseData.Task.Status == "Stopped" {
 			break
 		}
 		percent, _ := strconv.Atoi(GetTasksResponseData.Task.Progress.Text)
@@ -544,34 +559,34 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			bson.D{{"$set", bson.D{{"percent", percent}}}},
 		)
 		if updateError2 != nil {
-			err := fmt.Errorf("openvas error %v", updateError2)
+			err := fmt.Errorf("gvm mongo-update error %v", updateError2)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
-			cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-			cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 			return
 		}
 		time.Sleep(15 * time.Second)
 	}
 	getReportsSshSession, getReportsSshSessionErr := sshClient.NewSession()
 	if getReportsSshSessionErr != nil {
-		err := fmt.Errorf("openvas error %v", getReportsSshSessionErr)
+		err := fmt.Errorf("gvm get-reports-ssh-ession error %v", getReportsSshSessionErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 		return
 	}
 	getReportsXml := "<get_reports report_id='" + StartTaskResponseData.ReportID + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
 	getReportsOutPut, getReportsOutPutErr := getReportsSshSession.CombinedOutput(baseCmd + "\"" + getReportsXml + "\"")
 	if getReportsOutPutErr != nil {
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
-		err := fmt.Errorf("openvas error %v: %v", getReportsOutPutErr, getReportsOutPut)
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+		err := fmt.Errorf("gvm get-reports-output error %v: %v", getReportsOutPutErr, string(getReportsOutPut))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -592,18 +607,27 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			{"percent", 100}}}},
 	)
 	if updateError2 != nil {
-		err := fmt.Errorf("openvas error %v", updateError2)
+		err := fmt.Errorf("gvm mongo-update error %v", updateError2)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-		cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+		cli.ContainerStop(context.Background(), *GVMContainer, nil)
+		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 		return
 	}
-	cli.ContainerStop(context.Background(), *OpenVasContainer, nil)
-	cli.ContainerRemove(context.Background(), *OpenVasContainer, types.ContainerRemoveOptions{})
+	cli.ContainerStop(context.Background(), *GVMContainer, nil)
+	cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 	cli.Close()
 	MongoClient.Disconnect(context.TODO())
 	return
+}
+
+func Find(slice []string, val string) (int, bool) {
+	for i, item := range slice {
+		if item == val {
+			return i, true
+		}
+	}
+	return -1, false
 }

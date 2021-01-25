@@ -7,8 +7,8 @@ import (
 	"github.com/CriticalSecurity/ccscanner/internal/config"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/CriticalSecurity/ccscanner/pkg/dns"
+	"github.com/CriticalSecurity/ccscanner/pkg/gvm"
 	"github.com/CriticalSecurity/ccscanner/pkg/nmap"
-	"github.com/CriticalSecurity/ccscanner/pkg/openvas"
 	"github.com/CriticalSecurity/ccscanner/pkg/osint"
 	"github.com/CriticalSecurity/ccscanner/pkg/owaspzap"
 	"github.com/CriticalSecurity/ccscanner/pkg/screenshots"
@@ -121,7 +121,7 @@ func TaskManagerMain() {
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
-				go openvas.VulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
+				go gvm.VulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
 				break
 			case task.Content.Function == "nmap_port_scan":
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)

@@ -118,8 +118,7 @@ type UrlData struct {
 	FinalLocation string   `bson:"final_location" json:"final_location"`
 	UrlList       []string `bson:"url_list" json:"url_list"`
 	StatusCode    int      `bson:"status_code" json:"status_code"`
-	//Body          	string   	`bson:"body" json:"body"`
-	Data Data `bson:"data" json:"data"`
+	Data          Data     `bson:"data" json:"data"`
 }
 
 type Data struct {
