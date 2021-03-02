@@ -330,6 +330,9 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
 						metaData += " | " + hm.ApplicationTitle
 					}
+					if hm.Description != "" && metaData == "" {
+						metaData += hm.Description
+					}
 					uniqueTxt = metaData
 					if metaData == "" && hm.Title != "" {
 						uniqueTxt = hm.Title
@@ -399,6 +402,9 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 					}
 					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
 						metaData += " | " + hm.ApplicationTitle
+					}
+					if hm.Description != "" && metaData == "" {
+						metaData += hm.Description
 					}
 					uniqueTxt = metaData
 					if metaData == "" && hm.Title != "" {
@@ -544,6 +550,10 @@ func extractMeta(HTMLString string) *HTMLMeta {
 				desc, ok := extractMetaName(t, "description")
 				if ok {
 					hm.Description = desc
+				}
+				a10, ok := extractMetaName(t, "ATEN International Co Ltd.")
+				if ok {
+					hm.Description = a10
 				}
 				ogTitle, ok := extractMetaProperty(t, "og:title")
 				if ok {
