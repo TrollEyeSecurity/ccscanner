@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
 	"io"
@@ -58,6 +59,16 @@ func GetImages() {
 		}
 		io.Copy(ioutil.Discard, out)
 		out.Close()
+	}
+	pruneFilter := filters.NewArgs()
+	pruneFilter.Add("dangling", "true")
+	_, ImagesPruneErr := cli.ImagesPrune(ctx, pruneFilter)
+	if ImagesPruneErr != nil {
+		err := fmt.Errorf("docker images-prune error %v", ImagesPruneErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
 	}
 	cli.Close()
 }
