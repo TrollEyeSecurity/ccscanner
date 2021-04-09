@@ -48,11 +48,11 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	switch {
 	case content.IntegrationType == "gitlab" || content.IntegrationType == "github":
 		repourlSplit := strings.Split(content.Repourl, "//")
-		repourl = repourlSplit[1]
+		repourl = repourlSplit[0] + "//" + secretData.Repouser + ":" + secretData.Data.Token + "@" + repourlSplit[1]
 		break
 	case content.IntegrationType == "bitbucket":
 		repourlSplit := strings.Split(content.Repourl, "@")
-		repourl = repourlSplit[1]
+		repourl = repourlSplit[0] + "//" + secretData.Repouser + ":" + secretData.Data.Token + "@" + repourlSplit[1]
 		break
 	}
 	imageName := docker.SastImage
@@ -61,8 +61,6 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		Env: []string{
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
-			"REPOUSER=" + secretData.Repouser,
-			"REPOTOKEN=" + secretData.Data.Token,
 			"REPOURL=" + repourl,
 			"SONARLOGIN=" + secretData.SastSecret.Sonarlogin,
 			"SONARHOSTURL=" + secretData.SastSecret.Sonarhosturl,
@@ -77,8 +75,6 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		Env: []string{
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
-			"REPOUSER=" + secretData.Repouser,
-			"REPOTOKEN=" + secretData.Data.Token,
 			"REPOURL=" + repourl,
 			"SONARLOGIN=" + secretData.SastSecret.Sonarlogin,
 			"SONARHOSTURL=" + secretData.SastSecret.Sonarhosturl,
