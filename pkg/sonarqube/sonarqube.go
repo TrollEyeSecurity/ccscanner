@@ -76,8 +76,6 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
 			"REPOURL=" + repourl,
-			"SONARLOGIN=" + secretData.SastSecret.Sonarlogin,
-			"SONARHOSTURL=" + secretData.SastSecret.Sonarhosturl,
 		},
 		Cmd:          []string{"run-dep-checker.sh"},
 		Tty:          true,
