@@ -97,7 +97,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 	return
 }
 
-func InspectUrl(url *string) (*database.UrlData, error) {
+func InspectUrl(myUrl *string) (*database.UrlData, error) {
 	SuccessCodes := map[int]bool{
 		200: true,
 		201: true,
@@ -204,241 +204,136 @@ func InspectUrl(url *string) (*database.UrlData, error) {
 		Transport: transport,
 		Timeout:   timeout,
 	}
-	originalRrq, err := http.NewRequest("GET", *url, nil)
-	if err != nil {
-		return nil, err
-	}
-	originalRrq.Header.Set("Connection", "close")
-	originalResp, originalRespErr := client.Do(originalRrq)
-	if originalRespErr != nil {
-		if originalResp != nil {
-			originalResp.Body.Close()
-		}
-		return nil, originalRespErr
-	}
 	urlData := database.UrlData{}
 	var urlList []string
 	var finalLocation string
-	var respBody string
+	jsAttempt := 0
 	for {
-		if RedirectCodes[originalResp.StatusCode] {
-			newUrl := originalResp.Header.Get("Location")
-			originalResp.Body.Close()
-			_, DiscardErr := io.Copy(ioutil.Discard, originalResp.Body) // WE READ THE BODY
+		var newUrl string
+		request, err := http.NewRequest("GET", *myUrl, nil)
+		if err != nil {
+			return nil, err
+		}
+		request.Header.Set("Connection", "close")
+		response, originalRespErr := client.Do(request)
+		if originalRespErr != nil {
+			if response != nil {
+				response.Body.Close()
+			}
+			return nil, originalRespErr
+		}
+		RespBody, RespBodyError := ioutil.ReadAll(response.Body)
+		if RespBodyError != nil {
+			return nil, RespBodyError
+		}
+		respBody := string(RespBody)
+		//nu := response.Header.Get("Location")
+		var nl string
+		if jsAttempt == 0 {
+			nl = extractJavascriptLocation(respBody)
+			jsAttempt += 1
+		}
+		switch {
+		//case nu != "":
+		//	nu1 := strings.ReplaceAll(nu, " ", "")
+		//	nu2 := strings.TrimSuffix(nu1, "\n")
+		//	newUrl = *myUrl + strings.TrimLeft(nu2, "/")
+		case nl != "":
+			jsAttempt += 1
+			nl1 := strings.ReplaceAll(nl, " ", "")
+			nl2 := strings.TrimSuffix(nl1, "\n")
+			newUrl = *myUrl + strings.TrimLeft(nl2, "/")
+		}
+		switch {
+		case newUrl != "":
+			*myUrl = newUrl
+			urlList = append(urlList, *myUrl)
+		case RedirectCodes[response.StatusCode]:
+			*myUrl = response.Header.Get("Location")
+			response.Body.Close()
+			_, DiscardErr := io.Copy(ioutil.Discard, response.Body) // WE READ THE BODY
 			if DiscardErr != nil {
 				return nil, DiscardErr
 			}
-			urlList = append(urlList, newUrl)
-			RedirectRrq, RedirectRrqErr := http.NewRequest("GET", newUrl, nil)
-			if RedirectRrqErr != nil {
-				return nil, RedirectRrqErr
-			}
-			RedirectRrq.Header.Set("Connection", "close")
-			RedirectResp, RedirectRespErr := client.Do(RedirectRrq)
-			if RedirectRespErr != nil {
-				if RedirectResp != nil {
-					_, DiscardErr := io.Copy(ioutil.Discard, RedirectResp.Body) // WE READ THE BODY
-					if DiscardErr != nil {
-						return nil, DiscardErr
+			urlList = append(urlList, *myUrl)
+		case SuccessCodes[response.StatusCode] && newUrl == "":
+			finalLocation = response.Request.URL.String()
+			urlData.Data.Server = response.Header.Get("Server")
+			urlData.Data.XPoweredBy = response.Header.Get("X-Powered-By")
+			urlData.Data.ContentType = response.Header.Get("Content-Type")
+			urlData.StatusCode = response.StatusCode
+			if strings.Contains(urlData.Data.ContentType, "json") {
+				jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
+				if jsonError != nil {
+					if response != nil {
+						response.Body.Close()
 					}
-					RedirectResp.Body.Close()
+					return nil, jsonError
 				}
-				return nil, RedirectRespErr
-			}
-		}
-		if SuccessCodes[originalResp.StatusCode] {
-			newUrl := originalResp.Header.Get("Location")
-			if newUrl != "" {
-				originalResp.Body.Close()
-				_, DiscardErr := io.Copy(ioutil.Discard, originalResp.Body) // WE READ THE BODY
-				if DiscardErr != nil {
-					return nil, DiscardErr
+				b64 := base64.StdEncoding.EncodeToString([]byte(*jsonUniqueText))
+				uniqueId := md5.Sum([]byte(b64))
+				urlData.Data.Title = *jsonTitle
+				urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+			} else if strings.Contains(urlData.Data.ContentType, "xml") {
+				xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
+				if xmlError != nil {
+					if response != nil {
+						response.Body.Close()
+					}
+					return nil, xmlError
 				}
-				urlList = append(urlList, newUrl)
-				successRedirectRrq, successRedirectRrqErr := http.NewRequest("GET", newUrl, nil)
-				if successRedirectRrqErr != nil {
-					return nil, successRedirectRrqErr
-				}
-				successRedirectRrq.Header.Set("Connection", "close")
-				successRedirectResp, successRedirectRespErr := client.Do(successRedirectRrq)
-				if successRedirectRespErr != nil {
-					if successRedirectResp != nil {
-						_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
-						if DiscardErr != nil {
-							return nil, DiscardErr
-						}
-						successRedirectResp.Body.Close()
-					}
-					return nil, successRedirectRespErr
-				}
-				RespBody, RespBodyError := ioutil.ReadAll(successRedirectResp.Body)
-				if RespBodyError != nil {
-					return nil, RespBodyError
-				}
-				respBody = string(RespBody)
-				finalLocation = successRedirectResp.Request.URL.String()
-				urlData.Data.Server = successRedirectResp.Header.Get("Server")
-				urlData.Data.XPoweredBy = successRedirectResp.Header.Get("X-Powered-By")
-				urlData.Data.ContentType = successRedirectResp.Header.Get("Content-Type")
-				urlData.StatusCode = successRedirectResp.StatusCode
-				if strings.Contains(urlData.Data.ContentType, "json") {
-					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
-					if jsonError != nil {
-						if successRedirectResp != nil {
-							_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
-							if DiscardErr != nil {
-								return nil, DiscardErr
-							}
-							successRedirectResp.Body.Close()
-						}
-						return nil, jsonError
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(*jsonUniqueText))
-					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = *jsonTitle
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-				} else if strings.Contains(urlData.Data.ContentType, "xml") {
-					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
-					if xmlError != nil {
-						if successRedirectResp != nil {
-							_, DiscardErr := io.Copy(ioutil.Discard, successRedirectResp.Body) // WE READ THE BODY
-							if DiscardErr != nil {
-								return nil, DiscardErr
-							}
-							successRedirectResp.Body.Close()
-						}
-						return nil, xmlError
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(*xmlUniqueText))
-					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = *xmlTitle
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-				} else {
-					uniqueTxt := ""
-					head, getHeadError := getHead(respBody)
-					if getHeadError != nil {
-						log.Println(getHeadError)
-					}
-					var metaData string
-					hm := extractMeta(respBody)
-					if hm.ApplicationName != "" {
-						metaData += hm.ApplicationName
-					}
-					if hm.ApplicationVersion != "" {
-						metaData += " " + hm.ApplicationVersion
-					}
-					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
-						metaData += " | " + hm.ApplicationTitle
-					}
-					if hm.Description != "" && metaData == "" {
-						metaData += hm.Description
-					}
-					uniqueTxt = metaData
-					if metaData == "" && hm.Title != "" {
-						uniqueTxt = hm.Title
-					} else if uniqueTxt == "" {
-						uniqueTxt = *head
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
-					uniqueId := md5.Sum([]byte(b64))
-					if metaData != "" {
-						urlData.Data.Title = metaData
-					} else {
-						urlData.Data.Title = hm.Title
-					}
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-				}
-				successRedirectResp.Body.Close()
-				urlData.FinalLocation = finalLocation
-				break
+				b64 := base64.StdEncoding.EncodeToString([]byte(*xmlUniqueText))
+				uniqueId := md5.Sum([]byte(b64))
+				urlData.Data.Title = *xmlTitle
+				urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 			} else {
-				RespBody, RespBodyError := ioutil.ReadAll(originalResp.Body)
-				if RespBodyError != nil {
-					return nil, RespBodyError
+				uniqueTxt := ""
+				head, getHeadError := getHead(respBody)
+				if getHeadError != nil {
+					log.Println(getHeadError)
 				}
-				respBody = string(RespBody)
-				finalLocation = originalResp.Request.URL.String()
-				urlData.Data.Server = originalResp.Header.Get("Server")
-				urlData.Data.XPoweredBy = originalResp.Header.Get("X-Powered-By")
-				urlData.Data.ContentType = originalResp.Header.Get("Content-Type")
-				urlData.StatusCode = originalResp.StatusCode
-				if strings.Contains(urlData.Data.ContentType, "json") {
-					jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
-					if jsonError != nil {
-						if originalResp != nil {
-							originalResp.Body.Close()
-						}
-						return nil, jsonError
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(*jsonUniqueText))
-					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = *jsonTitle
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-				} else if strings.Contains(urlData.Data.ContentType, "xml") {
-					xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
-					if xmlError != nil {
-						if originalResp != nil {
-							originalResp.Body.Close()
-						}
-						return nil, xmlError
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(*xmlUniqueText))
-					uniqueId := md5.Sum([]byte(b64))
-					urlData.Data.Title = *xmlTitle
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+				var metaData string
+				hm := extractMeta(respBody)
+				if hm.ApplicationName != "" {
+					metaData += hm.ApplicationName
+				}
+				if hm.ApplicationVersion != "" {
+					metaData += " " + hm.ApplicationVersion
+				}
+				if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
+					metaData += " | " + hm.ApplicationTitle
+				}
+				if hm.Description != "" && metaData == "" {
+					metaData += hm.Description
+				}
+				uniqueTxt = metaData
+				if metaData == "" && hm.Title != "" {
+					uniqueTxt = hm.Title
+				} else if uniqueTxt == "" {
+					uniqueTxt = *head
+				}
+				b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
+				uniqueId := md5.Sum([]byte(b64))
+				if metaData != "" {
+					urlData.Data.Title = metaData
 				} else {
-					uniqueTxt := ""
-					head, getHeadError := getHead(respBody)
-					if getHeadError != nil {
-						log.Println(getHeadError)
-					}
-					var metaData string
-					hm := extractMeta(respBody)
-					if hm.ApplicationName != "" {
-						metaData += hm.ApplicationName
-					}
-					if hm.ApplicationVersion != "" {
-						metaData += " " + hm.ApplicationVersion
-					}
-					if hm.ApplicationTitle != "" && hm.ApplicationTitle != hm.ApplicationName {
-						metaData += " | " + hm.ApplicationTitle
-					}
-					if hm.Description != "" && metaData == "" {
-						metaData += hm.Description
-					}
-					uniqueTxt = metaData
-					if metaData == "" && hm.Title != "" {
-						uniqueTxt = hm.Title
-					} else if uniqueTxt == "" {
-						uniqueTxt = *head
-					}
-					b64 := base64.StdEncoding.EncodeToString([]byte(uniqueTxt))
-					uniqueId := md5.Sum([]byte(b64))
-					if metaData != "" {
-						urlData.Data.Title = metaData
-					} else {
-						urlData.Data.Title = hm.Title
-					}
-					urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
+					urlData.Data.Title = hm.Title
 				}
-				originalResp.Body.Close()
-				urlData.FinalLocation = finalLocation
-				break
+				urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
 			}
-		}
-		if ClientErrorCodes[originalResp.StatusCode] {
-			urlData.StatusCode = originalResp.StatusCode
-			originalResp.Body.Close()
-			break
-		}
-		if ServerErrorCodes[originalResp.StatusCode] {
-			urlData.StatusCode = originalResp.StatusCode
-			originalResp.Body.Close()
-			break
+			response.Body.Close()
+			urlData.FinalLocation = finalLocation
+			return &urlData, nil
+		case ClientErrorCodes[response.StatusCode]:
+			urlData.StatusCode = response.StatusCode
+			response.Body.Close()
+			return &urlData, nil
+		case ServerErrorCodes[response.StatusCode]:
+			urlData.StatusCode = response.StatusCode
+			response.Body.Close()
+			return &urlData, nil
 		}
 	}
-	//urlData.Body = respBody
-	return &urlData, nil
 }
 
 func Head(doc *html.Node) (*html.Node, error) {
@@ -612,4 +507,41 @@ func extractMetaName(t html.Token, prop string) (content string, ok bool) {
 		}
 	}
 	return
+}
+
+func extractJavascriptLocation(HTMLString string) string {
+	s := ""
+	reader := strings.NewReader(HTMLString)
+	z := html.NewTokenizer(reader)
+	jsFound := false
+	for {
+		tt := z.Next()
+		switch tt {
+		case html.ErrorToken:
+			return s
+		case html.StartTagToken, html.SelfClosingTagToken:
+			t := z.Token()
+			if t.Data == `body` {
+				return s
+			}
+			if t.Data == "script" {
+				jsFound = true
+			}
+		case html.TextToken:
+			if jsFound {
+				t := z.Token()
+				wl := strings.Contains(t.Data, "window.location")
+				tl := strings.Contains(t.Data, "top.location")
+				if wl || tl {
+					tokenSplit := strings.Split(t.Data, "=")
+					locationSplit := strings.Split(tokenSplit[1], "\n")
+					t1 := strings.Replace(locationSplit[0], ";", "", -1)
+					t2 := strings.Replace(t1, "\"", "", -1)
+					s = t2
+					return s
+				}
+				jsFound = false
+			}
+		}
+	}
 }
