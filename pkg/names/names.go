@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
+	"strings"
 )
 
 func DoLookup(ip *string, shodanKey *string) *NameData {
@@ -17,7 +18,12 @@ func DoLookup(ip *string, shodanKey *string) *NameData {
 	if lookupAddrErr != nil {
 		return nil
 	}
-	nd.ValidNames = append(nd.ValidNames, lookupList...)
+	var newlookupList []string
+	for _, newName := range lookupList {
+		name1 := strings.TrimRight(newName, ".")
+		newlookupList = append(newlookupList, name1)
+	}
+	nd.ValidNames = append(nd.ValidNames, newlookupList...)
 	if IsPrivateIP(net.ParseIP(*ip)) == false {
 		resp, lookupErr := shodan.LoopkupIp(ip, shodanKey)
 		if lookupErr != nil {
@@ -46,10 +52,11 @@ func DoLookup(ip *string, shodanKey *string) *NameData {
 						continue
 					}
 					theyMatch := ipaddr[0].String() == *ip
+					name1 := strings.TrimRight(name, ".")
 					if theyMatch {
-						nd.ValidNames = append(nd.ValidNames, name)
+						nd.ValidNames = append(nd.ValidNames, name1)
 					} else {
-						nd.InvalidNames = append(nd.InvalidNames, name)
+						nd.InvalidNames = append(nd.InvalidNames, name1)
 					}
 				}
 			}

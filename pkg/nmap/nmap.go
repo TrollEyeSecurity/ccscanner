@@ -193,7 +193,8 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 				url := protocol + ip + ":" + port.Portid + "/"
 				urls = append(urls, url)
 				for _, name := range nameInfoMap[ip].ValidNames {
-					url = protocol + name + ":" + port.Portid + "/"
+					name1 := strings.TrimRight(name, ".")
+					url = protocol + name1 + ":" + port.Portid + "/"
 					urls = append(urls, url)
 				}
 			}
