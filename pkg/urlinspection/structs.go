@@ -1,5 +1,7 @@
 package urlinspection
 
+import "encoding/xml"
+
 type ES struct {
 	Name        string    `bson:"name" json:"name"`
 	ClusterName string    `bson:"cluster_name" json:"cluster_name"`
@@ -25,4 +27,28 @@ type HTMLMeta struct {
 	ApplicationName    string `json:"application_name"`
 	ApplicationVersion string `json:"application_version"`
 	ApplicationTitle   string `json:"application_title"`
+}
+
+type WSDLMeta struct {
+	XMLName         xml.Name `xml:"definitions"`
+	Name            string   `xml:"name,attr"`
+	TargetNamespace string   `xml:"targetNamespace,attr"`
+	Service         Service  `xml:"service"`
+}
+
+type Service struct {
+	Doc   string  `xml:"documentation"`
+	Ports []*Port `xml:"port"`
+}
+
+type Port struct {
+	XMLName xml.Name `xml:"port"`
+	Name    string   `xml:"name,attr"`
+	Binding string   `xml:"binding,attr"`
+	Address Address  `xml:"address"`
+}
+
+type Address struct {
+	XMLName  xml.Name `xml:"address"`
+	Location string   `xml:"location,attr"`
 }

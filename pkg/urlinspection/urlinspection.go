@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"fmt"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
@@ -19,6 +20,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -233,23 +235,28 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 			nl = extractJavascriptLocation(respBody)
 			jsAttempt += 1
 		}
+		spaces := strings.Contains(nl, " ")
+		if spaces {
+			nl = ""
+		}
 		switch {
-		//case nu != "":
-		//	nu1 := strings.ReplaceAll(nu, " ", "")
-		//	nu2 := strings.TrimSuffix(nu1, "\n")
-		//	newUrl = *myUrl + strings.TrimLeft(nu2, "/")
 		case nl != "":
-			jsAttempt += 1
-			nl1 := strings.ReplaceAll(nl, " ", "")
-			nl2 := strings.TrimSuffix(nl1, "\n")
-			newUrl = *myUrl + strings.TrimLeft(nl2, "/")
+			//nl1 := strings.ReplaceAll(nl, " ", "")
+			//nl2 := strings.TrimSuffix(nl1, "\n")
+			newUrl = *myUrl + strings.TrimLeft(nl, "/")
 		}
 		switch {
 		case newUrl != "":
 			*myUrl = newUrl
 			urlList = append(urlList, *myUrl)
 		case RedirectCodes[response.StatusCode]:
-			*myUrl = response.Header.Get("Location")
+			newLocation := response.Header.Get("Location")
+			fullUrl := strings.Contains(newLocation, "://")
+			if fullUrl {
+				*myUrl = newLocation
+			} else {
+				*myUrl = *myUrl + strings.TrimLeft(newLocation, "/")
+			}
 			response.Body.Close()
 			_, DiscardErr := io.Copy(ioutil.Discard, response.Body) // WE READ THE BODY
 			if DiscardErr != nil {
@@ -262,7 +269,10 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 			urlData.Data.XPoweredBy = response.Header.Get("X-Powered-By")
 			urlData.Data.ContentType = response.Header.Get("Content-Type")
 			urlData.StatusCode = response.StatusCode
-			if strings.Contains(urlData.Data.ContentType, "json") {
+			plainXml := strings.Contains(urlData.Data.ContentType, "text/xml")
+			appXml := strings.Contains(urlData.Data.ContentType, "application/xml")
+			switch {
+			case strings.Contains(urlData.Data.ContentType, "json"):
 				jsonTitle, jsonUniqueText, jsonError := parseJson(&respBody)
 				if jsonError != nil {
 					if response != nil {
@@ -274,7 +284,7 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 				uniqueId := md5.Sum([]byte(b64))
 				urlData.Data.Title = *jsonTitle
 				urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-			} else if strings.Contains(urlData.Data.ContentType, "xml") {
+			case plainXml || appXml:
 				xmlTitle, xmlUniqueText, xmlError := parseXML(&respBody)
 				if xmlError != nil {
 					if response != nil {
@@ -286,7 +296,7 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 				uniqueId := md5.Sum([]byte(b64))
 				urlData.Data.Title = *xmlTitle
 				urlData.Data.UniqueId = hex.EncodeToString(uniqueId[:])
-			} else {
+			default:
 				uniqueTxt := ""
 				head, getHeadError := getHead(respBody)
 				if getHeadError != nil {
@@ -399,27 +409,24 @@ func parseJson(jsonBody *string) (title *string, uniqueText *string, err error) 
 }
 
 func parseXML(xmlBody *string) (title *string, uniqueText *string, err error) {
-	/*var es ES
-	jsonError := xml.Unmarshal([]byte(*xmlBody), &es)
-	if jsonError != nil {
-		return nil, nil, jsonError
+	var wsdlMeta WSDLMeta
+	xmlError := xml.Unmarshal([]byte(*xmlBody), &wsdlMeta)
+	if xmlError != nil {
+		return nil, nil, xmlError
 	}
-	if es.Tagline == "You know, for Search" {
-		esTitle := "Elasticsearch " + es.Version.Number
-		unique := es.Version.BuildHash
+	switch {
+	case wsdlMeta.TargetNamespace != "":
+		title = &wsdlMeta.TargetNamespace
+		unique := wsdlMeta.TargetNamespace + "-" + wsdlMeta.Name + "-" + wsdlMeta.Service.Doc
 		uniqueText = &unique
-		title = &esTitle
-	} else {
-		defaultTitle := "A SOAP API"
-		title = &defaultTitle
+	default:
+		var s string
+		s = "A SOAP API"
+		title = &s
 		unique := *xmlBody
 		uniqueText = &unique
 	}
-	*/
-	defaultTitle := "A SOAP API"
-	title = &defaultTitle
-	unique := *xmlBody
-	uniqueText = &unique
+
 	return title, uniqueText, nil
 }
 
@@ -478,7 +485,16 @@ func extractMeta(HTMLString string) *HTMLMeta {
 		case html.TextToken:
 			if titleFound {
 				t := z.Token()
-				hm.Title = t.Data
+				fortiClient := strings.Contains(HTMLString, "Launch FortiClient")
+				fortiGate := strings.Contains(HTMLString, "FortiGate")
+				switch {
+				case t.Data == "Please Login" && fortiClient:
+					hm.Title = "FortiClient VPN"
+				case fortiGate:
+					hm.Title = "FortiGate Administration"
+				default:
+					hm.Title = t.Data
+				}
 				titleFound = false
 			}
 		}
@@ -533,10 +549,9 @@ func extractJavascriptLocation(HTMLString string) string {
 				wl := strings.Contains(t.Data, "window.location")
 				tl := strings.Contains(t.Data, "top.location")
 				if wl || tl {
-					tokenSplit := strings.Split(t.Data, "=")
-					locationSplit := strings.Split(tokenSplit[1], "\n")
-					t1 := strings.Replace(locationSplit[0], ";", "", -1)
-					t2 := strings.Replace(t1, "\"", "", -1)
+					r := regexp.MustCompile("[\"'](.*?)[\"']")
+					s1 := r.FindString(t.Data)
+					t2 := strings.Replace(s1, "\"", "", -1)
 					s = t2
 					return s
 				}
