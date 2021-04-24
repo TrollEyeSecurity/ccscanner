@@ -37,80 +37,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		207: true,
 		208: true,
 		226: true,
-		// unoffical
-		218: true,
-	}
-	var results []database.UrlData
-	MongoClient, MongoClientError := database.GetMongoClient()
-	if MongoClientError != nil {
-		err := fmt.Errorf("urlinspection run-inspection error %v", MongoClientError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
-		return
-	}
-	tasksCollection := MongoClient.Database("core").Collection("tasks")
-	_, updateError := tasksCollection.UpdateOne(context.TODO(),
-		bson.D{{"_id", *taskId}},
-		bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
-	)
-	if updateError != nil {
-		err := fmt.Errorf("urlinspection run-inspection error %v", updateError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
-		return
-	}
-	for _, u := range urls.UrlList {
-		InspectionResults, InspectUrlError := InspectUrl(&u)
-		if InspectUrlError != nil {
-			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
-			//if sentry.CurrentHub().Client() != nil {
-			//	sentry.CaptureException(err)
-			//}
-			log.Println(err)
-			continue
-		}
-		if SuccessCodes[InspectionResults.StatusCode] {
-			results = append(results, *InspectionResults)
-		}
-	}
-	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
-		bson.D{{"_id", taskId}},
-		bson.D{{"$set", bson.D{
-			{"url_ins_result", results},
-			{"status", "SUCCESS"},
-			{"percent", 100}}}},
-	)
-	if update2Error != nil {
-		err := fmt.Errorf("nmap scan error %v", update2Error)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
-		return
-	}
-	MongoClient.Disconnect(context.TODO())
-	return
-}
-
-func InspectUrl(myUrl *string) (*database.UrlData, error) {
-	SuccessCodes := map[int]bool{
-		200: true,
-		201: true,
-		202: true,
-		203: true,
-		204: true,
-		205: true,
-		206: true,
-		207: true,
-		208: true,
-		226: true,
+		304: true,
 		// unoffical
 		218: true,
 	}
@@ -119,7 +46,6 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 		301: true,
 		302: true,
 		303: true,
-		304: true,
 		305: true,
 		306: true,
 		307: true,
@@ -197,6 +123,63 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 		525: true,
 		527: true,
 	}
+	var results []database.UrlData
+	MongoClient, MongoClientError := database.GetMongoClient()
+	if MongoClientError != nil {
+		err := fmt.Errorf("urlinspection run-inspection error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	_, updateError := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", *taskId}},
+		bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
+	)
+	if updateError != nil {
+		err := fmt.Errorf("urlinspection run-inspection error %v", updateError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	for _, u := range urls.UrlList {
+		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ClientErrorCodes, ServerErrorCodes)
+		if InspectUrlError != nil {
+			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
+			log.Println(err)
+			continue
+		}
+		if SuccessCodes[InspectionResults.StatusCode] {
+			results = append(results, *InspectionResults)
+		}
+	}
+	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", taskId}},
+		bson.D{{"$set", bson.D{
+			{"url_ins_result", results},
+			{"status", "SUCCESS"},
+			{"percent", 100}}}},
+	)
+	if update2Error != nil {
+		err := fmt.Errorf("nmap scan error %v", update2Error)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	MongoClient.Disconnect(context.TODO())
+	return
+}
+
+func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]bool, ClientErrorCodes map[int]bool, ServerErrorCodes map[int]bool) (*database.UrlData, error) {
 	timeout := 2 * time.Second
 	transport := &http.Transport{
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -208,6 +191,7 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 	}
 	urlData := database.UrlData{}
 	var urlList []string
+	var urlCodesList []int
 	var finalLocation string
 	jsAttempt := 0
 	for {
@@ -224,12 +208,13 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 			}
 			return nil, originalRespErr
 		}
+		urlList = append(urlList, *myUrl)
+		urlCodesList = append(urlCodesList, response.StatusCode)
 		RespBody, RespBodyError := ioutil.ReadAll(response.Body)
 		if RespBodyError != nil {
 			return nil, RespBodyError
 		}
 		respBody := string(RespBody)
-		//nu := response.Header.Get("Location")
 		var nl string
 		if jsAttempt == 0 {
 			nl = extractJavascriptLocation(respBody)
@@ -239,16 +224,12 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 		if spaces {
 			nl = ""
 		}
-		switch {
-		case nl != "":
-			//nl1 := strings.ReplaceAll(nl, " ", "")
-			//nl2 := strings.TrimSuffix(nl1, "\n")
+		if nl != "" {
 			newUrl = *myUrl + strings.TrimLeft(nl, "/")
 		}
 		switch {
 		case newUrl != "":
 			*myUrl = newUrl
-			urlList = append(urlList, *myUrl)
 		case RedirectCodes[response.StatusCode]:
 			newLocation := response.Header.Get("Location")
 			fullUrl := strings.Contains(newLocation, "://")
@@ -258,11 +239,10 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 				*myUrl = *myUrl + strings.TrimLeft(newLocation, "/")
 			}
 			response.Body.Close()
-			_, DiscardErr := io.Copy(ioutil.Discard, response.Body) // WE READ THE BODY
+			_, DiscardErr := io.Copy(ioutil.Discard, response.Body)
 			if DiscardErr != nil {
 				return nil, DiscardErr
 			}
-			urlList = append(urlList, *myUrl)
 		case SuccessCodes[response.StatusCode] && newUrl == "":
 			finalLocation = response.Request.URL.String()
 			urlData.Data.Server = response.Header.Get("Server")
@@ -335,15 +315,55 @@ func InspectUrl(myUrl *string) (*database.UrlData, error) {
 			urlData.FinalLocation = finalLocation
 			return &urlData, nil
 		case ClientErrorCodes[response.StatusCode]:
-			urlData.StatusCode = response.StatusCode
-			response.Body.Close()
-			return &urlData, nil
+			switch {
+			case len(urlCodesList) > 0:
+				index, success := findSuccess(urlCodesList, SuccessCodes)
+				if success {
+					*myUrl = urlList[index]
+					newUrl = ""
+					jsAttempt = 2
+					response.Body.Close()
+				} else {
+					urlData.StatusCode = response.StatusCode
+					response.Body.Close()
+					return &urlData, nil
+				}
+			default:
+				urlData.StatusCode = response.StatusCode
+				response.Body.Close()
+				return &urlData, nil
+			}
 		case ServerErrorCodes[response.StatusCode]:
-			urlData.StatusCode = response.StatusCode
-			response.Body.Close()
-			return &urlData, nil
+			switch {
+			case len(urlCodesList) > 0:
+				index, success := findSuccess(urlCodesList, SuccessCodes)
+				if success {
+					*myUrl = urlList[index]
+					newUrl = ""
+					jsAttempt = 2
+					response.Body.Close()
+
+				} else {
+					urlData.StatusCode = response.StatusCode
+					response.Body.Close()
+					return &urlData, nil
+				}
+			default:
+				urlData.StatusCode = response.StatusCode
+				response.Body.Close()
+				return &urlData, nil
+			}
 		}
 	}
+}
+
+func findSuccess(responseCodesArray []int, SuccessCodes map[int]bool) (int, bool) {
+	for index, n := range responseCodesArray {
+		if SuccessCodes[n] {
+			return index, true
+		}
+	}
+	return 0, false
 }
 
 func Head(doc *html.Node) (*html.Node, error) {
@@ -487,11 +507,14 @@ func extractMeta(HTMLString string) *HTMLMeta {
 				t := z.Token()
 				fortiClient := strings.Contains(HTMLString, "Launch FortiClient")
 				fortiGate := strings.Contains(HTMLString, "FortiGate")
+				sonicWall := strings.Contains(HTMLString, "SonicWall - Virtual Office - Powered by SonicWall, Inc.")
 				switch {
 				case t.Data == "Please Login" && fortiClient:
 					hm.Title = "FortiClient VPN"
 				case fortiGate:
 					hm.Title = "FortiGate Administration"
+				case sonicWall:
+					hm.Title = "SonicWall - Virtual Office"
 				default:
 					hm.Title = t.Data
 				}
@@ -552,7 +575,8 @@ func extractJavascriptLocation(HTMLString string) string {
 					r := regexp.MustCompile("[\"'](.*?)[\"']")
 					s1 := r.FindString(t.Data)
 					t2 := strings.Replace(s1, "\"", "", -1)
-					s = t2
+					t3 := strings.Replace(t2, "'", "", -1)
+					s = t3
 					return s
 				}
 				jsFound = false
