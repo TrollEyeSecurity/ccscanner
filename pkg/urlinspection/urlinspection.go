@@ -528,6 +528,7 @@ func extractMeta(HTMLString string) *HTMLMeta {
 				fortiClient := strings.Contains(HTMLString, "Launch FortiClient")
 				fortiGate := strings.Contains(HTMLString, "FortiGate")
 				sonicWall := strings.Contains(HTMLString, "SonicWall - Virtual Office - Powered by SonicWall, Inc.")
+				netapp := strings.Contains(HTMLString, "https://mysupport.netapp.com/")
 				switch {
 				case t.Data == "Please Login" && fortiClient:
 					hm.Title = "FortiClient VPN"
@@ -535,6 +536,8 @@ func extractMeta(HTMLString string) *HTMLMeta {
 					hm.Title = "FortiGate Administration"
 				case sonicWall:
 					hm.Title = "SonicWall - Virtual Office"
+				case netapp:
+					hm.Title = "NetApp Administration"
 				default:
 					hm.Title = t.Data
 				}
