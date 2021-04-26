@@ -227,6 +227,22 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 		if nl != "" {
 			newUrl = *myUrl + strings.TrimLeft(nl, "/")
 		}
+		hm := extractMeta(respBody)
+		if hm.ApplicationRedirect != "" {
+			appRedirect := hm.ApplicationRedirect
+			res1 := strings.ToLower(appRedirect)
+			res2 := strings.Replace(res1, " ", "", -1)
+			res3 := strings.Split(res2, "url=")
+			res4 := strings.Replace(res3[1], "\"", "", -1)
+			res5 := strings.Replace(res4, "'", "", -1)
+			fullUrl := strings.Contains(res5, "://")
+			if fullUrl {
+				newUrl = res5
+			} else {
+				newUrl = *myUrl + res5
+			}
+			response.Body.Close()
+		}
 		switch {
 		case newUrl != "":
 			*myUrl = newUrl
@@ -501,6 +517,10 @@ func extractMeta(HTMLString string) *HTMLMeta {
 				if ok {
 					hm.ApplicationTitle = ajsTitle
 				}
+				redirect, ok := extractMetaRedirect(t, "Refresh")
+				if ok {
+					hm.ApplicationRedirect = redirect
+				}
 			}
 		case html.TextToken:
 			if titleFound {
@@ -539,6 +559,18 @@ func extractMetaProperty(t html.Token, prop string) (content string, ok bool) {
 func extractMetaName(t html.Token, prop string) (content string, ok bool) {
 	for _, attr := range t.Attr {
 		if attr.Key == "name" && attr.Val == prop {
+			ok = true
+		}
+		if attr.Key == "content" {
+			content = attr.Val
+		}
+	}
+	return
+}
+
+func extractMetaRedirect(t html.Token, prop string) (content string, ok bool) {
+	for _, attr := range t.Attr {
+		if attr.Key == "http-equiv" && attr.Val == prop {
 			ok = true
 		}
 		if attr.Key == "content" {

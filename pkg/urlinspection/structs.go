@@ -21,12 +21,13 @@ type esVersion struct {
 }
 
 type HTMLMeta struct {
-	Title              string `json:"title"`
-	Description        string `json:"description"`
-	SiteName           string `json:"site_name"`
-	ApplicationName    string `json:"application_name"`
-	ApplicationVersion string `json:"application_version"`
-	ApplicationTitle   string `json:"application_title"`
+	Title               string `json:"title"`
+	Description         string `json:"description"`
+	SiteName            string `json:"site_name"`
+	ApplicationName     string `json:"application_name"`
+	ApplicationVersion  string `json:"application_version"`
+	ApplicationTitle    string `json:"application_title"`
+	ApplicationRedirect string `json:"application_redirect"`
 }
 
 type WSDLMeta struct {
