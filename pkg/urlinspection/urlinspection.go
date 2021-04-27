@@ -312,6 +312,9 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 				if hm.Description != "" && metaData == "" {
 					metaData += hm.Description
 				}
+				if urlData.Data.Server == "DNVRS-Webs" && metaData == "" {
+					metaData += "Hikvision DVR"
+				}
 				uniqueTxt = metaData
 				if metaData == "" && hm.Title != "" {
 					uniqueTxt = hm.Title
@@ -530,6 +533,10 @@ func extractMeta(HTMLString string) *HTMLMeta {
 				sonicWall := strings.Contains(HTMLString, "SonicWall - Virtual Office - Powered by SonicWall, Inc.")
 				netapp := strings.Contains(HTMLString, "https://mysupport.netapp.com/")
 				netappOntapSysManager := strings.Contains(HTMLString, "/sysmgr/v4/")
+				raritanLogoLegrand := strings.Contains(HTMLString, "raritan-logo-legrand")
+				webuiLogin := strings.Contains(HTMLString, "/webui/login/")
+				ciscoSystems := strings.Contains(HTMLString, "Cisco Systems, Inc.")
+				wdMyCloud := strings.Contains(HTMLString, "WDMyCloud")
 				switch {
 				case t.Data == "Please Login" && fortiClient:
 					hm.Title = "FortiClient VPN"
@@ -541,6 +548,12 @@ func extractMeta(HTMLString string) *HTMLMeta {
 					hm.Title = "NetApp Administration"
 				case t.Data == "Loading..." && netappOntapSysManager:
 					hm.Title = "NetApp ONTAP System Manager"
+				case raritanLogoLegrand:
+					hm.Title = "Raritan Administration"
+				case webuiLogin && ciscoSystems && t.Data == "":
+					hm.Title = "Cisco Systems Switch Administration"
+				case wdMyCloud && t.Data == "":
+					hm.Title = "WD My Cloud Home Administration"
 				default:
 					hm.Title = t.Data
 				}
