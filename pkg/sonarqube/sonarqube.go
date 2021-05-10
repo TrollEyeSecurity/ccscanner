@@ -1,8 +1,10 @@
 package sonarqube
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"github.com/CriticalSecurity/ccscanner/internal/database"
 	"github.com/CriticalSecurity/ccscanner/pkg/docker"
@@ -14,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -52,7 +55,8 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		break
 	case content.IntegrationType == "bitbucket":
 		repourlSplit := strings.Split(content.Repourl, "@")
-		repourl = repourlSplit[0] + "//" + secretData.Repouser + ":" + secretData.Data.Token + "@" + repourlSplit[1]
+		token := getBitbucketToken(&secretData.Data)
+		repourl = "https://x-token-auth:{" + *token + "}@" + repourlSplit[1]
 		break
 	}
 	imageName := docker.SastImage
@@ -244,4 +248,33 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	}
 	MongoClient.Disconnect(context.TODO())
 	return
+}
+
+func getBitbucketToken(secretData *database.SecretData) *string {
+	b := []byte("grant_type=client_credentials")
+	auth := base64.StdEncoding.EncodeToString([]byte(secretData.Key + ":" + secretData.Secret))
+	httpClient := &http.Client{
+		Timeout: time.Second * 10,
+	}
+	req, NewRequestErr := http.NewRequest("POST", "https://bitbucket.org/site/oauth2/access_token", bytes.NewReader(b))
+	if NewRequestErr != nil {
+		log.Println(NewRequestErr)
+		return nil
+	}
+	req.Header.Add("Authorization", "Basic "+auth)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Connection", "close")
+	req.Close = true
+	resp, httpClientErr := httpClient.Do(req)
+	if httpClientErr != nil {
+		log.Println(httpClientErr)
+		return nil
+	}
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Print(err.Error())
+	}
+	var responseObject Response
+	json.Unmarshal(bodyBytes, &responseObject)
+	return &responseObject.AccessToken
 }

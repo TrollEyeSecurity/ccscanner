@@ -65,7 +65,9 @@ type TaskSecret struct {
 }
 
 type SecretData struct {
-	Token string `bson:"token" json:"token"`
+	Token  string `bson:"token" json:"token"`
+	Key    string `bson:"key" json:"key"`
+	Secret string `bson:"secret" json:"secret"`
 }
 
 type SastSecret struct {
