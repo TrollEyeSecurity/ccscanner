@@ -180,6 +180,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	username := "gvm_user"
 	host := "127.0.0.1"
 	pass := "gvm_user"
+	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/var/run/gvm/gvmd.sock --xml "
 	GVMContainer, StartGVMErr := StartGVM(taskId, &sshPort)
 	if StartGVMErr != nil {
 		cli.ContainerStop(context.Background(), *GVMContainer, nil)
@@ -248,7 +249,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		if strings.Contains(string(byteValue), "sync_cert: Updating CERT info succeeded.") {
 			_, updateError1 := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", *taskId}},
-				bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
+				bson.D{{"$set", bson.D{{"status", "STAGE1-INITIALIZED"}}}},
 			)
 			if updateError1 != nil {
 				cli.ContainerStop(context.Background(), *GVMContainer, nil)
@@ -288,9 +289,6 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		}
 		time.Sleep(15 * time.Second)
 	}
-	// Start scanning
-	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/var/run/gvm/gvmd.sock --xml "
-
 	// monkey patch - temporary fix for https://github.com/greenbone/ospd-openvas/issues/335
 	/**/
 	hostsArray := strings.Split(*hosts, ",")
@@ -301,11 +299,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 			hostsArray = append(hostsArray[:i], hostsArray[i+1:]...)
 		}
 	}
-	s := strings.Join(hostsArray, ",")
-	newHosts := &s
-	createTargetXml := "<create_target><name>newtarget</name><hosts>" + *newHosts + "</hosts><alive_tests>Consider Alive</alive_tests><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
-	/**/
-	// createTargetXml := "<create_target><name>newtarget</name><hosts>" + *hosts + "</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>" + *excludedHosts + "</exclude_hosts><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
+
 	sshConfig := &ssh.ClientConfig{
 		User: username,
 		Auth: []ssh.AuthMethod{ssh.Password(pass)},
@@ -323,6 +317,60 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		log.Println(err)
 		return
 	}
+	/*
+		/**/
+	// createGetConfig"
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	for {
+		createGetConfigsSshSession, createGetConfigsSshSessionErr := sshClient.NewSession()
+		if createGetConfigsSshSessionErr != nil {
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm create-target-ssh-session error %v", createGetConfigsSshSessionErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			return
+		}
+		createGetConfigsOutPut, createGetConfigsOutPutErr := createGetConfigsSshSession.CombinedOutput(baseCmd + "\"<get_configs/>\"")
+		if createGetConfigsOutPutErr != nil {
+			cli.ContainerStop(context.Background(), *GVMContainer, nil)
+			cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+			err := fmt.Errorf("gvm create-target-output error %v: %v", createGetConfigsOutPutErr, string(createGetConfigsOutPut))
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			return
+		}
+		if strings.Contains(string(createGetConfigsOutPut), "<config_count>12") {
+			_, updateError1 := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", *taskId}},
+				bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
+			)
+			if updateError1 != nil {
+				cli.ContainerStop(context.Background(), *GVMContainer, nil)
+				cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
+				err := fmt.Errorf("gvm mongo-update error %v", updateError1)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				cli.Close()
+				return
+			}
+			break
+		}
+		defer createGetConfigsSshSession.Close()
+		time.Sleep(15 * time.Second)
+	}
+	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	/**/
+	s := strings.Join(hostsArray, ",")
+	newHosts := &s
+	createTargetXml := "<create_target><name>newtarget</name><hosts>" + *newHosts + "</hosts><alive_tests>Consider Alive</alive_tests><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
+	// createTargetXml := "<create_target><name>newtarget</name><hosts>" + *hosts + "</hosts><alive_tests>Consider Alive</alive_tests><exclude_hosts>" + *excludedHosts + "</exclude_hosts><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
 	createTargetSshSession, createTargetSshSessionErr := sshClient.NewSession()
 	if createTargetSshSessionErr != nil {
 		cli.ContainerStop(context.Background(), *GVMContainer, nil)
