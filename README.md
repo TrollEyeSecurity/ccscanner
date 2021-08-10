@@ -1,5 +1,5 @@
 # Command Center Scanner #
-[Command Center](https://www.critical-sec.com/command-center/) is a full featured vulnerability management platform for penetration testing teams. Command Center Scanner is the client application designed to perform tasks during penetration tests and security audits using
+[Command Center](https://www.trolleyesecurity.com/command-center/) is a full featured vulnerability management platform for penetration testing teams. Command Center Scanner is the client application designed to perform tasks during penetration tests and security audits using
 Docker containers.
 
 
@@ -11,7 +11,7 @@ Assuming a minimal base server install was successful, do the following.
 ### Example using version 1.1.4 as the latest ###
 `export latest=1.1.4`
 
-`curl -L https://github.com/CriticalSecurity/ccscanner/releases/download/v$latest/ccscanner_$latest-0ubuntu_amd64.deb -O`
+`curl -L https://github.com/TrollEyeSecurity/ccscanner/releases/download/v$latest/ccscanner_$latest-0ubuntu_amd64.deb -O`
 
 `sudo apt update`
 
@@ -23,7 +23,7 @@ Assuming a minimal base server install was successful, do the following.
 
 `cclink -url=BASEURL -token=LINKING_TOKEN`
 
-After linking the scanner to [Command Center](https://www.critical-sec.com/command-center/) or your own centralized scan manager you can manage the two services with `systemd`.
+After linking the scanner to [Command Center](https://www.trolleyesecurity.com/command-center/) or your own centralized scan manager you can manage the two services with `systemd`.
 
 `systemctl enable ccscanner.service && systemctl start ccscanner.service`
 
@@ -31,7 +31,7 @@ After linking the scanner to [Command Center](https://www.critical-sec.com/comma
 
 ## Building from source ##
 
-`git clone https://github.com/CriticalSecurity/ccscanner.git`
+`git clone https://github.com/TrollEyeSecurity/ccscanner.git`
 
 `cd ccscanner-master`
 
@@ -39,8 +39,8 @@ After linking the scanner to [Command Center](https://www.critical-sec.com/comma
 
 Three binary files will be put in the `bin` directory.
 
-`ccscanner` - ccscanner is main program file that will contact [Command Center](https://www.critical-sec.com/command-center/) or your own centralized scan manager developed to use ccscanner.
+`ccscanner` - ccscanner is main program file that will contact [Command Center](https://www.trolleyesecurity.com/command-center/) or your own centralized scan manager developed to use ccscanner.
 
 `cctaskmanager` - cctaskmanager handles the tasks stored in the mongo database.
 
-`cclink` -  cclink links the scanner to [Command Center](https://www.critical-sec.com/command-center/).
+`cclink` -  cclink links the scanner to [Command Center](https://www.trolleyesecurity.com/command-center/).
