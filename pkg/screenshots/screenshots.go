@@ -27,7 +27,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 	var idArray []string
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
-		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
+		err := fmt.Errorf("screenshots new-client error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -36,7 +36,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 	}
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		err := fmt.Errorf("screenshots run-inspection error %v", MongoClientError)
+		err := fmt.Errorf("screenshots mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -124,7 +124,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 			{"percent", 100}}}},
 	)
 	if update2Error != nil {
-		err := fmt.Errorf("nmap scan error %v", update2Error)
+		err := fmt.Errorf("screenshots update error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
