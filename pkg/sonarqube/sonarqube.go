@@ -148,6 +148,23 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		cli.Close()
 		return
 	}
+
+	_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", *taskId}},
+		bson.D{{"$set", bson.D{{"percent", 50}}}},
+	)
+	if updateError2 != nil {
+		err := fmt.Errorf("sonarqube mongo-update error %v", updateError2)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		cli.Close()
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+
 	_, depErrCh := cli.ContainerWait(ctx, DepContainer.ID)
 	if depErrCh != nil {
 		err := fmt.Errorf("sast scan error %v", depErrCh)
@@ -160,6 +177,23 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		cli.Close()
 		return
 	}
+
+	_, updateError3 := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", *taskId}},
+		bson.D{{"$set", bson.D{{"percent", 90}}}},
+	)
+	if updateError3 != nil {
+		err := fmt.Errorf("sonarqube mongo-update error %v", updateError3)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		cli.Close()
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+
 	sastReader, SastContainerLogsErr := cli.ContainerLogs(ctx, SastContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
@@ -189,12 +223,36 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		cli.Close()
 		return
 	}
-	r := regexp.MustCompile(`(task\?id\=)(.*)`)
-	match := r.FindStringSubmatch(string(SastByteValue))
-	if len(match) > 2 {
-		sastOutput := match[2]
+	SonarScannerError := "ERROR: Error during SonarScanner execution"
+	if strings.Contains(SonarScannerError, string(SastByteValue)) {
+		_, update2Error := tasksCollection.UpdateOne(context.TODO(),
+			bson.D{{"_id", taskId}},
+			bson.D{{"$set", bson.D{
+				{"sast_result", string(SastByteValue)},
+				{"status", "SUCCESS"},
+				{"percent", 100}}}},
+		)
+		docker.RemoveContainers(idArray)
+		cli.Close()
+		if update2Error != nil {
+			err := fmt.Errorf("sonarqube update2Error %v", update2Error)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			MongoClient.Disconnect(context.TODO())
+			return
+		}
+		MongoClient.Disconnect(context.TODO())
+		return
+	}
+	taskIdRex := regexp.MustCompile(`(task\?id\=)(.*)`)
+	taskIdMatch := taskIdRex.FindStringSubmatch(string(SastByteValue))
+	if len(taskIdMatch) > 2 {
+		sastOutput := taskIdMatch[2]
 		SastScanResults.SonarScanId = sastOutput
 	}
+
 	depReader, depContainerLogsErr := cli.ContainerLogs(ctx, DepContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
