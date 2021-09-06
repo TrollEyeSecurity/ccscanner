@@ -3,8 +3,8 @@ package owaspzap
 import (
 	"context"
 	"fmt"
-	"github.com/CriticalSecurity/ccscanner/internal/database"
-	"github.com/CriticalSecurity/ccscanner/pkg/docker"
+	"github.com/TrollEyeSecurity/ccscanner/internal/database"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"

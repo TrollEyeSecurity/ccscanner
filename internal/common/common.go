@@ -3,7 +3,7 @@ package common
 import (
 	"bytes"
 	"fmt"
-	"github.com/CriticalSecurity/ccscanner/internal/database"
+	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/getsentry/sentry-go"
 	"io/ioutil"
 	"log"

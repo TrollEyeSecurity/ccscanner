@@ -2,7 +2,7 @@ package ovpn
 
 import (
 	"fmt"
-	"github.com/CriticalSecurity/ccscanner/internal/phonehome"
+	"github.com/TrollEyeSecurity/ccscanner/internal/phonehome"
 	"log"
 	"os"
 	"os/exec"

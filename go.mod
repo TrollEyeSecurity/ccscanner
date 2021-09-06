@@ -1,4 +1,4 @@
-module github.com/CriticalSecurity/ccscanner
+module github.com/TrollEyeSecurity/ccscanner
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect

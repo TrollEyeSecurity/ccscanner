@@ -1,6 +1,6 @@
 package phonehome
 
-import "github.com/CriticalSecurity/ccscanner/internal/database"
+import "github.com/TrollEyeSecurity/ccscanner/internal/database"
 
 type CommunicateResp struct {
 	NewTasks     []database.Task   `json:"new_tasks"`

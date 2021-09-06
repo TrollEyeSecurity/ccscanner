@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/CriticalSecurity/ccscanner/internal/common"
+	"github.com/TrollEyeSecurity/ccscanner/internal/common"
 	"net/http"
 	"net/url"
 	"os"
