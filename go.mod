@@ -10,7 +10,7 @@ require (
 	github.com/klauspost/compress v1.10.10 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	go.mongodb.org/mongo-driver v1.3.4
+	go.mongodb.org/mongo-driver v1.5.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
