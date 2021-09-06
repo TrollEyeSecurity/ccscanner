@@ -508,6 +508,28 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		cli.ContainerStop(context.Background(), *GVMContainer, nil)
 		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 		err := fmt.Errorf("gvm create-task-output error %v: %v", createTaskOutPutErr, string(createTaskOutPut))
+		noConfig := "Response Error 404. Failed to find config"
+		if strings.Contains(err.Error(), noConfig) {
+			sshClient.Close()
+			cli.Close()
+			_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", *taskId}},
+				bson.D{{"$set", bson.D{
+					{"openvas_result", noConfig},
+					{"status", "FAILURE"},
+					{"percent", 100}}}},
+			)
+			if updateError2 != nil {
+				err := fmt.Errorf("gvm mongo-update error %v", updateError2)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				return
+			}
+			MongoClient.Disconnect(context.TODO())
+			return
+		}
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -530,6 +552,7 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 		cli.ContainerStop(context.Background(), *GVMContainer, nil)
 		cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 		err := fmt.Errorf("gvm start-task-ssh-session error %v", startTaskSshSessionErr)
+
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
