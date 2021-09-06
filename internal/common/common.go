@@ -63,6 +63,7 @@ func GetScannerData() (*ScannerData, error) {
 		Version:  Version,
 		Uuid:     *uuid,
 		Load:     *cpuStatus,
+		Mode:     *database.GetCurrentMode(),
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
 		Ram:      m.TotalAlloc,
@@ -85,6 +86,7 @@ type ScannerData struct {
 	IpData   []IpData         `json:"ip_data"`
 	IpAddr   net.IP           `json:"ip_addr"`
 	Tasks    []database.Task  `json:"tasks"`
+	Mode     string           `json:"mode"`
 }
 
 type LinkData struct {

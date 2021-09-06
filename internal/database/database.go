@@ -17,6 +17,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 	"time"
 )
@@ -291,4 +292,40 @@ func dontReassign(category string) bool {
 		return false
 	}
 	return true
+}
+
+func GetCurrentMode() *string {
+	errorString := "\n\nHave you linked the scanner to Command Center?"
+	MongoClient, MongoClientError := GetMongoClient()
+	if MongoClientError != nil {
+		err := fmt.Errorf("database update-tasks error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
+	systemCollection := MongoClient.Database("core").Collection("system")
+	cursor, ConfigurationError := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
+	if ConfigurationError != nil {
+		fmt.Println(ConfigurationError.Error(), errorString)
+		time.Sleep(30 * time.Second)
+		fmt.Println(errorString)
+		os.Exit(0)
+		return &errorString
+	}
+	var results []bson.M
+	cursor.All(context.TODO(), &results)
+	if len(results) < 1 {
+		fmt.Println(errorString)
+		time.Sleep(30 * time.Second)
+		log.Fatalf("Configuraton Error: %s", errorString)
+	}
+	notmode := results[0]["mode"]
+	if notmode != nil {
+		mode := results[0]["mode"].(string)
+		return &mode
+	}
+	log.Fatalf("Configuraton Error: %s", errorString)
+	return &errorString
 }

@@ -8,6 +8,7 @@ type ConfigFields struct {
 	ID      primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	BaseURL string             `json:"baseurl"`
 	Token   string             `json:"token"`
+	Mode    string             `json:"mode"`
 }
 
 /*
