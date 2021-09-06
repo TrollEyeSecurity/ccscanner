@@ -34,7 +34,7 @@ func main() {
 	cursor.All(context.TODO(), &results)
 	if len(results) > 0 {
 		reader := bufio.NewReader(os.Stdin)
-		fmt.Println("It appears that you may already be linked to Command Center.\n")
+		fmt.Println("It appears that you have already linked to Command Center.\n")
 		for {
 			fmt.Println("Would you like to re-link, (Y/N)?")
 			char, err := reader.ReadByte()
@@ -61,7 +61,7 @@ func main() {
 	if len(results) > 0 {
 		_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", "configuration"}},
-			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", &lr.Token}, {"shodan", &lr.Shodan}}}},
+			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", &lr.Token}, {"shodan", &lr.Shodan}, {"mode", "running"}}}},
 		)
 		if ConfigurationError != nil {
 			err := fmt.Errorf("link error %v", ConfigurationError)
@@ -75,7 +75,8 @@ func main() {
 		_, ConfigurationError := systemCollection.InsertOne(context.TODO(), bson.D{
 			{"_id", "configuration"},
 			{"baseurl", *baseUrl},
-			{"token", &lr.Token}},
+			{"token", &lr.Token},
+			{"mode", "running"}},
 		)
 		if ConfigurationError != nil {
 			err := fmt.Errorf("link error %v", ConfigurationError)
