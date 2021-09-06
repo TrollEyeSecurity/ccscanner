@@ -88,6 +88,10 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 		response.Body.Close()
 		fmt.Println("404 Not Found.")
 		return &cr, nil
+	} else if response.Status == "401 Unauthorized" {
+		response.Body.Close()
+		fmt.Println("401 Unauthorized - You may want to re-link to Command Center")
+		return &cr, nil
 	}
 	NewDecoderError := json.NewDecoder(response.Body).Decode(&cr)
 	if NewDecoderError != nil {
@@ -113,8 +117,8 @@ func HttpClientRequest(baseURL *string, path *string, data []byte, method *strin
 	}
 	//adding the proxy settings to the Transport object
 	transport := &http.Transport{
-		// Proxy: http.ProxyURL(proxyURL),
-		// TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//Proxy: http.ProxyURL(proxyURL),
+		//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	//adding the Transport object to the http Client
 	client := &http.Client{
