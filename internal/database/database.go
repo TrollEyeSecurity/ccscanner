@@ -75,11 +75,12 @@ func StartDatabase() {
 }
 
 func GetMongoClient() (*mongo.Client, error) {
-	MongoClient, err := mongo.NewClient(options.Client().ApplyURI("mongodb://@127.0.0.1:27017"))
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	MongoClient, err := mongo.NewClient(options.Client().ApplyURI("mongodb://127.0.0.1:27017"))
 	if err != nil {
 		return nil, err
 	}
-	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err = MongoClient.Connect(ctx)
 	if err != nil {
 		return nil, err
