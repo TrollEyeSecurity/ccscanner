@@ -126,7 +126,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 	var results []database.UrlData
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
-		err := fmt.Errorf("urlinspection run-inspection error %v", MongoClientError)
+		err := fmt.Errorf("urlinspection mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -140,7 +140,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("urlinspection run-inspection error %v", updateError)
+		err := fmt.Errorf("urlinspection task-update error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -167,7 +167,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 			{"percent", 100}}}},
 	)
 	if update2Error != nil {
-		err := fmt.Errorf("nmap scan error %v", update2Error)
+		err := fmt.Errorf("urlinspection task-update error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
