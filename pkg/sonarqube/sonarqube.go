@@ -24,7 +24,7 @@ import (
 )
 
 func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
-	SastScanResults := database.SastResults{}
+	SastResults := database.SastResults{}
 	var idArray []string
 	MongoClient, MongoClientError := database.GetMongoClient()
 	if MongoClientError != nil {
@@ -47,25 +47,30 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		log.Println(err)
 		return
 	}
-	var repourl string
+	var repoUrl string
+	var tech string
 	switch {
 	case content.IntegrationType == "gitlab" || content.IntegrationType == "github":
-		repourlSplit := strings.Split(content.Repourl, "//")
-		repourl = repourlSplit[0] + "//" + secretData.Repouser + ":" + secretData.Data.Token + "@" + repourlSplit[1]
+		repoUrlSplit := strings.Split(content.Repourl, "//")
+		repoUrl = "https://x-token-auth:" + secretData.Data.Token + "@" + repoUrlSplit[1]
 		break
 	case content.IntegrationType == "bitbucket":
-		repourlSplit := strings.Split(content.Repourl, "@")
+		repoUrlSplit := strings.Split(content.Repourl, "@")
 		token := getBitbucketToken(&secretData.Data)
-		repourl = "https://x-token-auth:{" + *token + "}@" + repourlSplit[1]
+		repoUrl = "https://x-token-auth:{" + *token + "}@" + repoUrlSplit[1]
 		break
 	}
+
+	// todo: what the tech?
+
 	imageName := docker.SastImage
-	sonarconfig := &container.Config{
+	sonarConfig := &container.Config{
 		Image: imageName,
 		Env: []string{
+			"TECH=" + tech,
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
-			"REPOURL=" + repourl,
+			"REPOURL=" + repoUrl,
 			"SONARLOGIN=" + secretData.SastSecret.Sonarlogin,
 			"SONARHOSTURL=" + secretData.SastSecret.Sonarhosturl,
 		},
@@ -74,26 +79,26 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		AttachStdout: true,
 		AttachStderr: true,
 	}
-	depconfig := &container.Config{
+	depConfig := &container.Config{
 		Image: imageName,
 		Env: []string{
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
-			"REPOURL=" + repourl,
+			"REPOURL=" + repoUrl,
 		},
 		Cmd:          []string{"run-dep-checker.sh"},
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
-	sastResources := &container.Resources{
+	sonarResources := &container.Resources{
 		Memory: 2.048e+9,
 	}
 	depResources := &container.Resources{
 		Memory: 5.12e+8,
 	}
-	sastHostConfig := &container.HostConfig{
-		Resources:   *sastResources,
+	sonarHostConfig := &container.HostConfig{
+		Resources:   *sonarResources,
 		NetworkMode: "host",
 	}
 	depHostConfig := &container.HostConfig{
@@ -101,31 +106,31 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		NetworkMode: "host",
 	}
 	now := time.Now()
-	sastContainerName := "sast-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
+	sonarContainerName := "sast-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
 	depContainerName := "dep-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
-	SastContainer, SastStartContainerErr := docker.StartContainer(&imageName, &sastContainerName, sonarconfig, sastHostConfig)
-	if SastStartContainerErr != nil {
-		err := fmt.Errorf("sast scan error %v: %v", SastStartContainerErr, SastContainer)
+	sonarContainer, sonarStartContainerErr := docker.StartContainer(&imageName, &sonarContainerName, sonarConfig, sonarHostConfig)
+	if sonarStartContainerErr != nil {
+		err := fmt.Errorf("sast scan error %v: %v", sonarStartContainerErr, sonarContainer)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
 		return
 	}
-	DepContainer, DepStartContainerErr := docker.StartContainer(&imageName, &depContainerName, depconfig, depHostConfig)
-	if DepStartContainerErr != nil {
-		err := fmt.Errorf("sast scan error %v: %v", DepStartContainerErr, SastContainer)
+	depContainer, depStartContainerErr := docker.StartContainer(&imageName, &depContainerName, depConfig, depHostConfig)
+	if depStartContainerErr != nil {
+		err := fmt.Errorf("sast scan error %v: %v", depStartContainerErr, sonarContainer)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
 		return
 	}
-	idArray = append(idArray, SastContainer.ID)
-	idArray = append(idArray, DepContainer.ID)
+	idArray = append(idArray, sonarContainer.ID)
+	idArray = append(idArray, depContainer.ID)
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
-		bson.D{{"$set", bson.D{{"container_id", DepContainer.ID}, {"status", "PROGRESS"}}}},
+		bson.D{{"$set", bson.D{{"container_id", depContainer.ID}, {"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
 		err := fmt.Errorf("nmap sast error %v", updateError)
@@ -136,9 +141,9 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		docker.RemoveContainers(idArray)
 		return
 	}
-	_, sastErrCh := cli.ContainerWait(ctx, SastContainer.ID)
-	if sastErrCh != nil {
-		err := fmt.Errorf("sast scan error %v", sastErrCh)
+	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID)
+	if sonarErrCh != nil {
+		err := fmt.Errorf("sast scan error %v", sonarErrCh)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -165,7 +170,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 
-	_, depErrCh := cli.ContainerWait(ctx, DepContainer.ID)
+	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID)
 	if depErrCh != nil {
 		err := fmt.Errorf("sast scan error %v", depErrCh)
 		if sentry.CurrentHub().Client() != nil {
@@ -194,12 +199,12 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 
-	sastReader, SastContainerLogsErr := cli.ContainerLogs(ctx, SastContainer.ID, types.ContainerLogsOptions{
+	sonarReader, sonarContainerLogsErr := cli.ContainerLogs(ctx, sonarContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
 	})
-	if SastContainerLogsErr != nil {
-		err := fmt.Errorf("sast scan error %v: %v", SastContainerLogsErr, sastReader)
+	if sonarContainerLogsErr != nil {
+		err := fmt.Errorf("sast scan error %v: %v", sonarContainerLogsErr, sonarReader)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -207,13 +212,14 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
 		cli.Close()
-		sastReader.Close()
+		sonarReader.Close()
 		return
 	}
-	SastByteValue, sastIoutilReadAllError := ioutil.ReadAll(sastReader)
-	sastReader.Close()
-	if sastIoutilReadAllError != nil {
-		err := fmt.Errorf("sast scan ioutil error %v", sastIoutilReadAllError)
+	sonarByteValue, sonarIoutilReadAllError := ioutil.ReadAll(sonarReader)
+	sonarReader.Close()
+	SastResults.SonarOutput = string(sonarByteValue)
+	if sonarIoutilReadAllError != nil {
+		err := fmt.Errorf("sast scan ioutil error %v", sonarIoutilReadAllError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -224,12 +230,12 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 	SonarScannerError := "ERROR: Error during SonarScanner execution"
-	if strings.Contains(SonarScannerError, string(SastByteValue)) {
+	if strings.Contains(SonarScannerError, string(sonarByteValue)) {
 		_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", taskId}},
 			bson.D{{"$set", bson.D{
-				{"sast_result", string(SastByteValue)},
-				{"status", "SUCCESS"},
+				{"sast_result", string(sonarByteValue)},
+				{"status", "FAILURE"},
 				{"percent", 100}}}},
 		)
 		docker.RemoveContainers(idArray)
@@ -247,13 +253,13 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 	taskIdRex := regexp.MustCompile(`(task\?id\=)(.*)`)
-	taskIdMatch := taskIdRex.FindStringSubmatch(string(SastByteValue))
+	taskIdMatch := taskIdRex.FindStringSubmatch(string(sonarByteValue))
 	if len(taskIdMatch) > 2 {
-		sastOutput := taskIdMatch[2]
-		SastScanResults.SonarScanId = sastOutput
+		sonarScanId := taskIdMatch[2]
+		SastResults.SonarScanId = sonarScanId
 	}
 
-	depReader, depContainerLogsErr := cli.ContainerLogs(ctx, DepContainer.ID, types.ContainerLogsOptions{
+	depReader, depContainerLogsErr := cli.ContainerLogs(ctx, depContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
 	})
@@ -284,19 +290,19 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	}
 	if len(depByteValue) > 0 {
 		result := base64.StdEncoding.EncodeToString(depByteValue)
-		SastScanResults.DependencyCheckerResults = result
+		SastResults.DependencyCheckerResults = result
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"sast_result", SastScanResults},
+			{"sast_result", SastResults},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
 	docker.RemoveContainers(idArray)
 	cli.Close()
 	if update2Error != nil {
-		err := fmt.Errorf("owasp zap scan error %v", update2Error)
+		err := fmt.Errorf("sast scan error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
