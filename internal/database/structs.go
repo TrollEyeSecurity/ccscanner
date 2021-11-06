@@ -141,4 +141,5 @@ type FinalLocationUrlData struct {
 type SastResults struct {
 	SonarScanId              string `bson:"sonar_scan_id" json:"sonar_scan_id"`
 	DependencyCheckerResults string `bson:"dependency_checker_results" json:"dependency_checker_results"`
+	SonarOutput              string `bson:"sonar_output" json:"sonar_output"`
 }
