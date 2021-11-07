@@ -23,7 +23,7 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	if BytesRepresentationErr != nil {
 		return &lr, BytesRepresentationErr
 	}
-	path := "/scanners/link"
+	path := "scanners/link"
 	method := "POST"
 	response, linkError := HttpClientRequest(&baseURL, &path, bytesRepresentation, &method, &linkToken)
 	if linkError != nil {
@@ -65,7 +65,7 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	if BytesRepresentationErr != nil {
 		return nil, BytesRepresentationErr
 	}
-	path := "/scanners/communicate"
+	path := "scanners/communicate"
 	method := "POST"
 	response, linkError := HttpClientRequest(&baseUrl, &path, bytesRepresentation, &method, &token)
 	if linkError != nil {
