@@ -24,6 +24,7 @@ type Task struct {
 	ID               primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	Name             string             `json:"name"`
 	TaskId           int64              `bson:"task_id" json:"task_id"`
+	TaskType         string             `bson:"task_type" json:"task_type"`
 	Status           string             `json:"status"`
 	ContainerId      string             `bson:"container_id" json:"container_id"`
 	Content          TaskContent        `json:"content"`
