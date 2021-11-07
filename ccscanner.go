@@ -41,6 +41,7 @@ func main() {
 	}
 	docker.GetImages()
 	database.StartDatabase()
+	// todo: if current status is maintenance, finish maintenance first
 	ScannerMain()
 }
 
@@ -98,6 +99,10 @@ func ScannerMain() {
 			}
 		}
 		for _, task := range *newTasks {
+			if task.TaskType == "maintenance" {
+				go common.Maintenance()
+				continue
+			}
 			_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
 				{"name", task.Name},
 				{"task_id", task.TaskId},

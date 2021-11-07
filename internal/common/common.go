@@ -2,9 +2,12 @@ package common
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/getsentry/sentry-go"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo/options"
 	"io/ioutil"
 	"log"
 	"net"
@@ -14,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 func GetUuid() *string {
@@ -207,4 +211,77 @@ func getIpData() *[]IpData {
 		}
 	}
 	return &IntList
+}
+
+func Maintenance() {
+	MongoClient, MongoClientError := database.GetMongoClient()
+	if MongoClientError != nil {
+		err := fmt.Errorf("maintenance error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
+	systemCollection := MongoClient.Database("core").Collection("system")
+	cursor, _ := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
+	var results []bson.M
+	cursor.All(context.TODO(), &results)
+	_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", "configuration"}},
+		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "maintenance"}}}},
+	)
+	if ConfigurationError != nil {
+		err := fmt.Errorf("maintenance error %v", ConfigurationError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Configuration Error: %s", ConfigurationError)
+	}
+
+	fmt.Println("looping database.GetCurrentTasks() until == 0")
+	for {
+		tasks := database.GetCurrentTasks()
+		fmt.Println(len(*tasks))
+		if len(*tasks) == 0 {
+			break
+		}
+		time.Sleep(3 * time.Minute)
+	}
+
+	ansiblePlaybook := "/usr/bin/ansible-playbook"
+	playbooksDir := "/etc/ccscanner/playbooks"
+	updateSystemCmd := exec.Command(ansiblePlaybook, playbooksDir+"/updateSystem.yml")
+	startErr := updateSystemCmd.Start()
+	if startErr != nil {
+		fmt.Println("failed start")
+		log.Fatal(startErr)
+	}
+	waitErr := updateSystemCmd.Wait()
+	if waitErr != nil {
+		fmt.Println("failed wait")
+		log.Fatal(waitErr)
+	}
+	_, ConfigurationError1 := systemCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", "configuration"}},
+		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "running"}}}},
+	)
+	if ConfigurationError1 != nil {
+		err := fmt.Errorf("maintenance error %v", ConfigurationError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Configuration Error: %s", ConfigurationError)
+	}
+	Reboot()
+	return
+}
+
+func Reboot() {
+	rebootCmd := exec.Command("reboot")
+	startErr := rebootCmd.Start()
+	if startErr != nil {
+		fmt.Println("failed to reboot")
+		log.Fatal(startErr)
+	}
 }
