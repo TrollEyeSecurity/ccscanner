@@ -8,7 +8,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -98,11 +97,6 @@ type LinkData struct {
 	Uuid     string `json:"uuid"`
 	Hostname string `json:"hostname"`
 	Version  string `json:"version"`
-}
-
-func getLinuxUuid(productUuidFile string) string {
-	dat, _ := ioutil.ReadFile(productUuidFile)
-	return strings.TrimSuffix(string(dat), "\n")
 }
 
 func GetOutboundIP() *net.IP {
@@ -239,7 +233,7 @@ func Maintenance() {
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
 
-	fmt.Println("looping database.GetCurrentTasks() until == 0")
+	// fmt.Println("looping database.GetCurrentTasks() until == 0")
 	for {
 		tasks := database.GetCurrentTasks()
 		fmt.Println(len(*tasks))
@@ -254,12 +248,16 @@ func Maintenance() {
 	updateSystemCmd := exec.Command(ansiblePlaybook, playbooksDir+"/updateSystem.yml")
 	startErr := updateSystemCmd.Start()
 	if startErr != nil {
-		fmt.Println("failed start")
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(startErr)
+		}
 		log.Fatal(startErr)
 	}
 	waitErr := updateSystemCmd.Wait()
 	if waitErr != nil {
-		fmt.Println("failed wait")
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(waitErr)
+		}
 		log.Fatal(waitErr)
 	}
 	_, ConfigurationError1 := systemCollection.UpdateOne(context.TODO(),
@@ -281,7 +279,9 @@ func Reboot() {
 	rebootCmd := exec.Command("reboot")
 	startErr := rebootCmd.Start()
 	if startErr != nil {
-		fmt.Println("failed to reboot")
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(startErr)
+		}
 		log.Fatal(startErr)
 	}
 }
