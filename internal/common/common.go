@@ -232,34 +232,63 @@ func Maintenance() {
 		}
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
-
-	// fmt.Println("looping database.GetCurrentTasks() until == 0")
 	for {
 		tasks := database.GetCurrentTasks()
-		fmt.Println(len(*tasks))
 		if len(*tasks) == 0 {
 			break
 		}
 		time.Sleep(3 * time.Minute)
 	}
 
-	ansiblePlaybook := "/usr/bin/ansible-playbook"
-	playbooksDir := "/etc/ccscanner/playbooks"
-	updateSystemCmd := exec.Command(ansiblePlaybook, playbooksDir+"/updateSystem.yml")
-	startErr := updateSystemCmd.Start()
-	if startErr != nil {
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(startErr)
+	/*
+		updateSystemCmd := exec.Command(
+			"apt",
+			"-qq",
+			"update")
+
+		updateSystemCmdErr := updateSystemCmd.Start()
+
+		if updateSystemCmdErr != nil {
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(updateSystemCmdErr)
+			}
+			log.Fatal(updateSystemCmdErr)
 		}
-		log.Fatal(startErr)
-	}
-	waitErr := updateSystemCmd.Wait()
-	if waitErr != nil {
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(waitErr)
+		waitUpdateSystemCmdErr := updateSystemCmd.Wait()
+		if waitUpdateSystemCmdErr != nil {
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(waitUpdateSystemCmdErr)
+			}
+			log.Fatal(waitUpdateSystemCmdErr)
 		}
-		log.Fatal(waitErr)
-	}
+
+		upgradeSystemCmd := exec.Command(
+			"DEBIAN_FRONTEND=noninteractive",
+			"apt",
+			"-qq",
+			"-o Dpkg::Options::=\"--force-confnew\"",
+			"--allow-downgrades",
+			"--allow-remove-essential",
+			"--allow-change-held-packages ",
+			"dist-upgrade",
+			"-y")
+
+		upgradeSystemCmdErr := upgradeSystemCmd.Start()
+		if upgradeSystemCmdErr != nil {
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(upgradeSystemCmdErr)
+			}
+			log.Fatal(upgradeSystemCmdErr)
+		}
+
+		waitUpgradeSystemCmdErr := upgradeSystemCmd.Wait()
+		if waitUpgradeSystemCmdErr != nil {
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(waitUpgradeSystemCmdErr)
+			}
+			log.Fatal(waitUpgradeSystemCmdErr)
+		}
+	*/
 	_, ConfigurationError1 := systemCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", "configuration"}},
 		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "running"}}}},
@@ -271,12 +300,13 @@ func Maintenance() {
 		}
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
-	Reboot()
+	MongoClient.Disconnect(context.TODO())
+	// Reboot()
 	return
 }
 
 func Reboot() {
-	rebootCmd := exec.Command("reboot")
+	rebootCmd := exec.Command("/usr/sbin/shutdown", "-r", "now")
 	startErr := rebootCmd.Start()
 	if startErr != nil {
 		if sentry.CurrentHub().Client() != nil {
@@ -284,4 +314,33 @@ func Reboot() {
 		}
 		log.Fatal(startErr)
 	}
+	return
+}
+
+func SetModeRunning() {
+	MongoClient, MongoClientError := database.GetMongoClient()
+	if MongoClientError != nil {
+		err := fmt.Errorf("maintenance error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
+	systemCollection := MongoClient.Database("core").Collection("system")
+	cursor, _ := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
+	var results []bson.M
+	cursor.All(context.TODO(), &results)
+	_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", "configuration"}},
+		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "running"}}}},
+	)
+	if ConfigurationError != nil {
+		err := fmt.Errorf("maintenance error %v", ConfigurationError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Configuration Error: %s", ConfigurationError)
+	}
+	MongoClient.Disconnect(context.TODO())
 }
