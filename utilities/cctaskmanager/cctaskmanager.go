@@ -130,4 +130,5 @@ func TaskManagerMain() {
 		}
 		time.Sleep(15 * time.Second)
 	}
+	MongoClient.Disconnect(context.TODO())
 }

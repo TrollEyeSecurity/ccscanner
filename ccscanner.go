@@ -23,9 +23,14 @@ import (
 func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
+	setModeBool := flag.Bool("mode", false, "Change the mode to running")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
+		return
+	}
+	if *setModeBool {
+		common.SetModeRunning()
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)
@@ -135,4 +140,5 @@ func ScannerMain() {
 		}
 		time.Sleep(30 * time.Second)
 	}
+	MongoClient.Disconnect(context.TODO())
 }
