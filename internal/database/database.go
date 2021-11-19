@@ -327,6 +327,6 @@ func GetCurrentMode() *string {
 		mode := results[0]["mode"].(string)
 		return &mode
 	}
-	log.Fatalf("Configuraton Error: %s", errorString)
+	MongoClient.Disconnect(context.TODO())
 	return &errorString
 }
