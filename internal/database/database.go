@@ -91,6 +91,7 @@ func GetMongoClient() (*mongo.Client, error) {
 func GetCurrentTasks() *[]Task {
 	var tasks []Task
 	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("database get-current-tasks error %v", MongoClient)
 		if sentry.CurrentHub().Client() != nil {
@@ -213,7 +214,6 @@ func GetCurrentTasks() *[]Task {
 		cli.Close()
 		tasks = append(tasks, task)
 	}
-	MongoClient.Disconnect(context.TODO())
 	return &tasks
 }
 
@@ -240,6 +240,7 @@ func ReassignTask(tasksCollection *mongo.Collection, task *Task) {
 
 func DeleteTaskById(taskId int64) {
 	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("database delete-tasks error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -258,11 +259,11 @@ func DeleteTaskById(taskId int64) {
 		}
 		log.Fatalf("Update Error: %s", updateError)
 	}
-	MongoClient.Disconnect(context.TODO())
 }
 
 func UpdateTaskById(taskId int64, status string) {
 	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("database update-tasks error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -282,7 +283,6 @@ func UpdateTaskById(taskId int64, status string) {
 		}
 		log.Fatalf("Update Error: %s", updateError)
 	}
-	MongoClient.Disconnect(context.TODO())
 }
 
 func dontReassign(category string) bool {
@@ -298,6 +298,7 @@ func dontReassign(category string) bool {
 func GetCurrentMode() *string {
 	errorString := "\n\nHave you linked the scanner to Command Center?"
 	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("database update-tasks error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -327,6 +328,5 @@ func GetCurrentMode() *string {
 		mode := results[0]["mode"].(string)
 		return &mode
 	}
-	MongoClient.Disconnect(context.TODO())
 	return &errorString
 }

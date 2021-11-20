@@ -25,6 +25,7 @@ import (
 
 func StopVulnerabilityScan(ScanTaskId int64) {
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("gvm mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -93,7 +94,6 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 		log.Println(err)
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 }
 
 func StartGVM(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
@@ -132,6 +132,7 @@ func StartGVM(taskId *primitive.ObjectID, sshPort *string) (*string, error) {
 
 func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("gvm mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -690,7 +691,6 @@ func VulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.O
 	cli.ContainerStop(context.Background(), *GVMContainer, nil)
 	cli.ContainerRemove(context.Background(), *GVMContainer, types.ContainerRemoveOptions{})
 	cli.Close()
-	MongoClient.Disconnect(context.TODO())
 	return
 }
 

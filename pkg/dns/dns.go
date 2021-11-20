@@ -37,6 +37,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 	}
 	imageName := docker.DnsReconImage
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("dns analyze-domain-names error %v: %v", MongoClientError, MongoClient)
 		if sentry.CurrentHub().Client() != nil {
@@ -213,7 +214,6 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		log.Println(err)
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 	return
 }
 

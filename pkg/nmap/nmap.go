@@ -70,6 +70,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 	}
 	idArray = append(idArray, NmapContainer.ID)
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("nmap scan error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -245,7 +246,6 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 	return
 }
 

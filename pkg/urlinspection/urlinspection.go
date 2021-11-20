@@ -125,6 +125,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 	}
 	var results []database.UrlData
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("urlinspection mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -175,7 +176,6 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 	return
 }
 

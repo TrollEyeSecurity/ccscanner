@@ -53,6 +53,7 @@ func main() {
 func ScannerMain() {
 	errorString := "\n\nHave you linked the scanner to Command Center?"
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("ccscanner mongo-client connect error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -140,5 +141,4 @@ func ScannerMain() {
 		}
 		time.Sleep(30 * time.Second)
 	}
-	MongoClient.Disconnect(context.TODO())
 }

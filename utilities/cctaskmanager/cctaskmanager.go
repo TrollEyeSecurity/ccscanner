@@ -43,6 +43,7 @@ func main() {
 func TaskManagerMain() {
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("taskmanager error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -130,5 +131,4 @@ func TaskManagerMain() {
 		}
 		time.Sleep(15 * time.Second)
 	}
-	MongoClient.Disconnect(context.TODO())
 }

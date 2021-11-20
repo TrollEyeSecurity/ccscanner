@@ -35,6 +35,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		return
 	}
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("screenshots mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -135,7 +136,6 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		return
 	}
 	cli.Close()
-	MongoClient.Disconnect(context.TODO())
 	docker.RemoveContainers(idArray)
 	return
 }

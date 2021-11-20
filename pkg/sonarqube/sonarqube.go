@@ -27,6 +27,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	SastResults := database.SastResults{}
 	var idArray []string
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("owasp zap scan error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -310,7 +311,6 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 	return
 }
 

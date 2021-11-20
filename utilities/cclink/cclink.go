@@ -20,6 +20,7 @@ func main() {
 	flag.Parse()
 	database.StartDatabase()
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("link error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -86,6 +87,5 @@ func main() {
 			log.Fatalf("Configuration Error: %s", ConfigurationError)
 		}
 	}
-	MongoClient.Disconnect(context.TODO())
 	fmt.Println("\nLink to Command Center was successful.\n")
 }

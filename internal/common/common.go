@@ -209,6 +209,7 @@ func getIpData() *[]IpData {
 
 func Maintenance() {
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("maintenance error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -300,7 +301,6 @@ func Maintenance() {
 		}
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
-	MongoClient.Disconnect(context.TODO())
 	// Reboot()
 	return
 }
@@ -319,6 +319,7 @@ func Reboot() {
 
 func SetModeRunning() {
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("maintenance error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -342,5 +343,4 @@ func SetModeRunning() {
 		}
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
-	MongoClient.Disconnect(context.TODO())
 }

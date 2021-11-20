@@ -17,6 +17,7 @@ import (
 
 func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otxKey *string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
 		err := fmt.Errorf("osint error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
@@ -78,5 +79,4 @@ func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otx
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	MongoClient.Disconnect(context.TODO())
 }
