@@ -67,8 +67,13 @@ func ProcessUsers(allowedUsers [][]string) {
 	}
 	if len(currentUsers) > 0 {
 		for _, User := range currentUsers {
-			// so I don't kill my dev box
-			if User == "arozar" {
+			// so I don't kill my dev box or client admin
+			keepUser := map[string]bool{
+				"arozar": true,
+				"admin":  true,
+				"ubuntu": true,
+			}
+			if keepUser[User] {
 				continue
 			}
 			userDelCmd := exec.Command("sudo", "userdel", "--remove", "--force", User)
