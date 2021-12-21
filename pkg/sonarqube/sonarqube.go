@@ -218,7 +218,8 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	}
 	sonarByteValue, sonarIoutilReadAllError := ioutil.ReadAll(sonarReader)
 	sonarReader.Close()
-	SastResults.SonarOutput = string(sonarByteValue)
+	SonarOutputResult := base64.StdEncoding.EncodeToString(sonarByteValue)
+	SastResults.SonarOutput = SonarOutputResult
 	if sonarIoutilReadAllError != nil {
 		err := fmt.Errorf("sast scan ioutil error %v", sonarIoutilReadAllError)
 		if sentry.CurrentHub().Client() != nil {
