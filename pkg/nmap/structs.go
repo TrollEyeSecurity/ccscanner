@@ -94,28 +94,36 @@ type Nmaprun struct {
 					Cpe        []string `xml:"cpe"`
 				} `xml:"service"`
 				Script []struct {
+					Text   string `xml:",chardata"`
 					ID     string `xml:"id,attr"`
 					Output string `xml:"output,attr"`
 					Table  []struct {
+						Text  string `xml:",chardata"`
 						Key   string `xml:"key,attr"`
 						Table []struct {
+							Text string `xml:",chardata"`
 							Key  string `xml:"key,attr"`
 							Elem []struct {
-								Key string `xml:"key,attr"`
+								Text string `xml:",chardata"`
+								Key  string `xml:"key,attr"`
 							} `xml:"elem"`
 							Table []struct {
+								Text string `xml:",chardata"`
 								Key  string `xml:"key,attr"`
 								Elem []struct {
-									Key string `xml:"key,attr"`
+									Text string `xml:",chardata"`
+									Key  string `xml:"key,attr"`
 								} `xml:"elem"`
 							} `xml:"table"`
 						} `xml:"table"`
 						Elem []struct {
-							Key string `xml:"key,attr"`
+							Text string `xml:",chardata"`
+							Key  string `xml:"key,attr"`
 						} `xml:"elem"`
 					} `xml:"table"`
 					Elem []struct {
-						Key string `xml:"key,attr"`
+						Text string `xml:",chardata"`
+						Key  string `xml:"key,attr"`
 					} `xml:"elem"`
 				} `xml:"script"`
 			} `xml:"port"`
