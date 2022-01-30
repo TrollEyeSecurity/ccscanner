@@ -108,9 +108,6 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 				idArray = append(idArray, *ScreenShotDataIdArray...)
 			}
 			err := fmt.Errorf("screenshots capture-screen-shot error %v: %v", InspectUrlError, v)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
 			log.Println(err)
 			continue
 		}
