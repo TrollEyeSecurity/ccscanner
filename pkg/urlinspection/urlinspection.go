@@ -657,8 +657,8 @@ func extractJavascriptLocation(HTMLString string) string {
 	}
 }
 
-func PercentageChange(old, new int) (delta int64) {
-	diff := int64(new - old)
-	delta = (diff / int64(old)) * 100
+func PercentageChange(old, new int) (delta int32) {
+	diff := int32(new - old)
+	delta = (diff / int32(old)) * 100
 	return
 }

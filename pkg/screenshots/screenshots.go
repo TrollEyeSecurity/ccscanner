@@ -232,8 +232,8 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 	return &b64img, &idArray, nil
 }
 
-func PercentageChange(old, new int) (delta int64) {
-	diff := int64(new - old)
-	delta = (diff / int64(old)) * 100
+func PercentageChange(old, new int) (delta int32) {
+	diff := int32(new - old)
+	delta = (diff / int32(old)) * 100
 	return
 }
