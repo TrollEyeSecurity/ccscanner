@@ -35,7 +35,7 @@ func GetIpReputation(ip *string, otxKey *string) (*http.Response, error) {
 	//adding the Transport object to the http Client
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   time.Second * 10,
+		Timeout:   time.Second * 35,
 	}
 	//generating the HTTP GET request
 	var data []byte
