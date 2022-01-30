@@ -24,43 +24,43 @@ func ProcessUsers(allowedUsers [][]string) {
 			if contains(currentUsers, userName) {
 				currentUsers = removeUser(userName, currentUsers)
 			}
-			_, lookupError := user.Lookup(userName)
-			if lookupError != nil {
+			User, _ := user.Lookup(userName)
+			if User == nil {
 				userAddCmd := exec.Command("sudo", "useradd", "--create-home", "--shell", "/bin/bash", userName)
 				userAddCmdError := userAddCmd.Run()
 				if userAddCmdError != nil {
-					log.Println(userAddCmdError)
+					log.Println("userAddCmdError: " + userAddCmdError.Error())
 				}
 				userModCmd := exec.Command("sudo", "usermod", "-aG", "sudo,docker", userName)
 				userModCmdError := userModCmd.Run()
 				if userModCmdError != nil {
-					log.Println(userModCmdError)
+					log.Println("userModCmdError: " + userModCmdError.Error())
 				}
 				createSshDirCmd := exec.Command("sudo", "mkdir", "/home/"+userName+"/.ssh")
 				createSshDirCmdError := createSshDirCmd.Run()
 				if createSshDirCmdError != nil {
-					log.Println(createSshDirCmdError)
+					log.Println("createSshDirCmdError: " + createSshDirCmdError.Error())
 				}
 				sshKeyCmd := exec.Command("echo", u[1])
 				authorizedKeysFile, err := os.Create("/tmp/authorized_keys")
 				if err != nil {
-					log.Println(err)
+					log.Println("authorizedKeysFile: " + err.Error())
 				}
 				sshKeyCmd.Stdout = authorizedKeysFile
 				sshKeyCmdError := sshKeyCmd.Run()
 				if sshKeyCmdError != nil {
-					log.Println(sshKeyCmdError)
+					log.Println("sshKeyCmdError: " + sshKeyCmdError.Error())
 				}
 				authorizedKeysFile.Close()
 				mvCmd := exec.Command("sudo", "mv", "/tmp/authorized_keys", "/home/"+userName+"/.ssh/")
 				mvCmdError := mvCmd.Run()
 				if mvCmdError != nil {
-					log.Println(mvCmdError)
+					log.Println("mvCmdError: " + mvCmdError.Error())
 				}
 				chownCmd := exec.Command("sudo", "chown", userName+":"+userName, "-R", "/home/"+userName+"")
 				chownCmdError := chownCmd.Run()
 				if chownCmdError != nil {
-					log.Println(chownCmdError)
+					log.Println("chownCmdError: " + chownCmdError.Error())
 				}
 			}
 		}
@@ -69,9 +69,9 @@ func ProcessUsers(allowedUsers [][]string) {
 		for _, User := range currentUsers {
 			// so I don't kill my dev box or client admin
 			keepUser := map[string]bool{
-				"arozar": true,
-				"admin":  true,
-				"ubuntu": true,
+				"arozar":        true,
+				"administrator": true,
+				"ubuntu":        true,
 			}
 			if keepUser[User] {
 				continue
