@@ -315,6 +315,10 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 				if urlData.Data.Server == "DNVRS-Webs" && metaData == "" {
 					metaData += "Hikvision DVR"
 				}
+				ServU := strings.Contains(urlData.Data.Server, "Serv-U/")
+				if ServU && metaData == "" {
+					metaData += "SolarWinds Serv-U File Server"
+				}
 				uniqueTxt = metaData
 				if metaData == "" && hm.Title != "" {
 					uniqueTxt = hm.Title
