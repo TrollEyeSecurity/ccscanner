@@ -101,6 +101,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		uniqueRespBody = make(map[string]string)
 		uniqueRespBody[b64Encoded] = u
 	}
+	idx := 0
 	for _, v := range uniqueRespBody {
 		ScreenShotData, ScreenShotDataIdArray, InspectUrlError := CaptureScreenShot(&v, taskId)
 		if InspectUrlError != nil {
@@ -113,6 +114,21 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		}
 		idArray = append(idArray, *ScreenShotDataIdArray...)
 		ScreenShotDataList = append(ScreenShotDataList, *ScreenShotData)
+		idx += 1
+		value := PercentageChange(len(urls.UrlList), idx)
+		_, updatePercentError := tasksCollection.UpdateOne(context.TODO(),
+			bson.D{{"_id", taskId}},
+			bson.D{{"$set", bson.D{
+				{"percent", value}}}},
+		)
+		if updatePercentError != nil {
+			err := fmt.Errorf("screenshots updatePercentError %v", updatePercentError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			return
+		}
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
@@ -214,4 +230,10 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 	cli.Close()
 	b64img := base64.StdEncoding.EncodeToString(img)
 	return &b64img, &idArray, nil
+}
+
+func PercentageChange(old, new int) (delta int64) {
+	diff := int64(new - old)
+	delta = (diff / int64(old)) * 100
+	return
 }

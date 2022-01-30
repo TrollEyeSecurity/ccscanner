@@ -149,6 +149,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
+	idx := 0
 	for _, u := range urls.UrlList {
 		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ClientErrorCodes, ServerErrorCodes)
 		if InspectUrlError != nil {
@@ -158,6 +159,22 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		}
 		if SuccessCodes[InspectionResults.StatusCode] {
 			results = append(results, *InspectionResults)
+		}
+		idx += 1
+		value := PercentageChange(len(urls.UrlList), idx)
+		_, updatePercentError := tasksCollection.UpdateOne(context.TODO(),
+			bson.D{{"_id", taskId}},
+			bson.D{{"$set", bson.D{
+				{"percent", value}}}},
+		)
+		if updatePercentError != nil {
+			err := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			MongoClient.Disconnect(context.TODO())
+			return
 		}
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
@@ -638,4 +655,10 @@ func extractJavascriptLocation(HTMLString string) string {
 			}
 		}
 	}
+}
+
+func PercentageChange(old, new int) (delta int64) {
+	diff := int64(new - old)
+	delta = (diff / int64(old)) * 100
+	return
 }
