@@ -46,13 +46,9 @@ func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otx
 		shodanData := base64.StdEncoding.EncodeToString(shodanRespBody)
 		otxResp, GetIpReputationErr := otx.GetIpReputation(&host, otxKey)
 		if GetIpReputationErr != nil {
-			err := fmt.Errorf("osint error %v", GetIpReputationErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
+			err := fmt.Errorf("osint GetIpReputationErr %v", GetIpReputationErr)
 			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
-			return
+			continue
 		}
 		otxRespBody, _ := ioutil.ReadAll(otxResp.Body)
 		otxData := base64.StdEncoding.EncodeToString(otxRespBody)
@@ -76,7 +72,6 @@ func Discovery(hosts *string, taskId *primitive.ObjectID, shodanKey *string, otx
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 }
