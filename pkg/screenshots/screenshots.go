@@ -155,7 +155,8 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 
 func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]string, error) {
 	var idArray []string
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
 		return nil, nil, NewEnvClientErr
