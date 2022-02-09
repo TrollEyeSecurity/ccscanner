@@ -56,6 +56,7 @@ type TaskContent struct {
 	Repourl         string  `json:"repourl"`
 	BranchName      string  `json:"branch_name"`
 	Function        string  `json:"function"`
+	Tech            string  `json:"tech"`
 	Args            TaskArg `json:"args"`
 }
 

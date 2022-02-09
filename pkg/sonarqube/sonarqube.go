@@ -49,7 +49,6 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 	var repoUrl string
-	var tech string
 	switch {
 	case content.IntegrationType == "gitlab" || content.IntegrationType == "github":
 		repoUrlSplit := strings.Split(content.Repourl, "//")
@@ -62,13 +61,11 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		break
 	}
 
-	// todo: what the tech?
-
 	imageName := docker.SastImage
 	sonarConfig := &container.Config{
 		Image: imageName,
 		Env: []string{
-			"TECH=" + tech,
+			"TECH=" + content.Tech,
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
 			"REPOURL=" + repoUrl,
@@ -255,12 +252,13 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 	taskIdRex := regexp.MustCompile(`(task\?id\=)(.*)`)
-	taskIdMatch := taskIdRex.FindStringSubmatch(string(sonarByteValue))
-	if len(taskIdMatch) > 2 {
-		sonarScanId := taskIdMatch[2]
-		SastResults.SonarScanId = sonarScanId
+	taskIdMatch := taskIdRex.FindAllStringSubmatch(string(sonarByteValue), -1)
+	var sonarScanIdSlice []string
+	for _, v := range taskIdMatch {
+		sonarScanIdSlice = append(sonarScanIdSlice, v[1])
 	}
-
+	sonarScanIds := strings.Join(sonarScanIdSlice, ",")
+	SastResults.SonarScanId = sonarScanIds
 	depReader, depContainerLogsErr := cli.ContainerLogs(ctx, depContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
