@@ -128,7 +128,7 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 		dmarcTXT, _ := net.LookupTXT("_dmarc." + dnsname)
 		spf := ExtractSPF(dnsTXT)
 		dmarc := ExtractDMARC(dmarcTXT)
-		digImageName := docker.NmapDockerImage
+		digImageName := docker.KaliLinuxImage
 		digConfig := &container.Config{
 			Image: digImageName,
 			Cmd: []string{

@@ -41,7 +41,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		cmd = "nmap -oX - --stats-every 30s " + *nmap_params + " " + *hosts + " --exclude " + *excludes
 	}
 	cmdS := strings.Split(cmd, " ")
-	imageName := docker.NmapDockerImage
+	imageName := docker.KaliLinuxImage
 	config := &container.Config{
 		Image:        imageName,
 		Cmd:          cmdS,

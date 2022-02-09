@@ -162,7 +162,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 		return nil, nil, NewEnvClientErr
 	}
 	now := time.Now()
-	imageName := docker.NmapDockerImage
+	imageName := docker.KaliLinuxImage
 	filePath := "url_screen_shot"
 	config := &container.Config{
 		Image: imageName,
