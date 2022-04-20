@@ -40,11 +40,17 @@ func ProcessOvpnConfig(ovpnConfig phonehome.OvpnConfig) {
 		rmCmd.Run()
 		return
 	}
-	if status == 3 || status == 4 && ovpnConfig.OvpnConnect == true {
-		writeOvpnConfig(&ovpnConfig.OvpnConfig)
-		enableCmd := exec.Command("sudo", "systemctl", "enable", "--now", "openvpn@client.service")
-		enableCmd.Run()
-		return
+	statusCodes := map[int]bool{
+		3: true,
+		4: true,
+	}
+	if statusCodes[status] {
+		if ovpnConfig.OvpnConnect == true {
+			writeOvpnConfig(&ovpnConfig.OvpnConfig)
+			enableCmd := exec.Command("sudo", "systemctl", "enable", "--now", "openvpn@client.service")
+			enableCmd.Run()
+			return
+		}
 	}
 }
 
