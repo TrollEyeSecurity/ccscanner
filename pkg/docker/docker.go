@@ -24,7 +24,14 @@ func RemoveContainers(idArray []string) {
 		log.Println(err)
 	}
 	for _, id := range idArray {
-		if ContainerRemovErr := cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{}); ContainerRemovErr != nil {
+		if err := cli.ContainerStop(ctx, id, nil); err != nil {
+			log.Printf("Unable to stop container %s: %s", id, err)
+		}
+		removeOptions := types.ContainerRemoveOptions{
+			RemoveVolumes: true,
+			Force:         true,
+		}
+		if ContainerRemovErr := cli.ContainerRemove(ctx, id, removeOptions); ContainerRemovErr != nil {
 			err := fmt.Errorf("docker remove-containers error %v", ContainerRemovErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
@@ -36,7 +43,7 @@ func RemoveContainers(idArray []string) {
 }
 
 func GetImages() {
-	images := []string{KaliLinuxImage, DnsReconImage, GVMImage, MongoDbDockerImage, OwaspZapImage, SastImage}
+	images := []string{KaliLinuxImage, DnsReconImage, MongoDbDockerImage, OwaspZapImage, SastImage}
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {
