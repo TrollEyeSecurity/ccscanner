@@ -285,9 +285,42 @@ func UpdateTaskById(taskId int64, status string) {
 	}
 }
 
+func GetOwaspZapResultById(taskId int64) *string {
+	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
+	if MongoClientError != nil {
+		err := fmt.Errorf("database update-tasks error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	var task Task
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", taskId}}).Decode(&task)
+	return &task.OwaspZapResult
+}
+
+func GetTaskStatusById(taskId int64) (*string, *int) {
+	MongoClient, MongoClientError := GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
+	if MongoClientError != nil {
+		err := fmt.Errorf("database update-tasks error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	var task Task
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", taskId}}).Decode(&task)
+	return &task.Status, &task.Percent
+}
+
 func dontReassign(category string) bool {
 	switch category {
 	case
+		"dast",
 		"get_screen_shot",
 		"url_inspection":
 		return false
