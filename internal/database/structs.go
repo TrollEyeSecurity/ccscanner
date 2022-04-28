@@ -5,20 +5,12 @@ import (
 )
 
 type ConfigFields struct {
-	ID      primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	BaseURL string             `json:"baseurl"`
-	Token   string             `json:"token"`
-	Mode    string             `json:"mode"`
+	ID             primitive.ObjectID `bson:"_id" json:"id,omitempty"`
+	BaseURL        string             `json:"baseurl"`
+	Token          string             `json:"token"`
+	Mode           string             `json:"mode"`
+	GvmInitialized bool               `json:"gvm_initialized"`
 }
-
-/*
-{
-	"name": "Nmap Host Discovery SERVER_SG:1588877954",
-	"task_id": 984369,
-	"task_type": "task",
-	"scan_id": 984383,
-	"content": {"function": "nmap_host_discovery", "args": [{"nmap_params": "-sn -T4", "hosts": "string"}]}}
-*/
 
 type Task struct {
 	ID               primitive.ObjectID `bson:"_id" json:"id,omitempty"`
@@ -51,13 +43,14 @@ type Task struct {
 */
 
 type TaskContent struct {
-	IntegrationType string  `json:"integration_type"`
-	ProjectName     string  `json:"project_name"`
-	Repourl         string  `json:"repourl"`
-	BranchName      string  `json:"branch_name"`
-	Function        string  `json:"function"`
-	Tech            string  `json:"tech"`
-	Args            TaskArg `json:"args"`
+	IntegrationType string       `json:"integration_type"`
+	ProjectName     string       `json:"project_name"`
+	Repourl         string       `json:"repourl"`
+	BranchName      string       `json:"branch_name"`
+	Function        string       `json:"function"`
+	Tech            string       `json:"tech"`
+	Args            TaskArg      `json:"args"`
+	DastConfigList  []DastConfig `json:"dast_config_list"`
 }
 
 type TaskSecret struct {
@@ -84,14 +77,13 @@ type OsintSecrets struct {
 }
 
 type TaskArg struct {
-	NmapParams     string              `json:"nmap_params"`
-	Hosts          string              `json:"hosts"`
-	Excludes       string              `json:"excludes"`
-	Dns            []string            `json:"dns"`
-	Urls           Urls                `bson:"urls" json:"urls"`
-	Configuration  string              `json:"configuration"`
-	DastConfigList []string            `json:"dast_config_list"`
-	DisabledNvts   map[string][]string `bson:"disabled_nvts" json:"disabled_nvts"`
+	NmapParams    string              `json:"nmap_params"`
+	Hosts         string              `json:"hosts"`
+	Excludes      string              `json:"excludes"`
+	Dns           []string            `json:"dns"`
+	Urls          Urls                `bson:"urls" json:"urls"`
+	Configuration string              `json:"configuration"`
+	DisabledNvts  map[string][]string `bson:"disabled_nvts" json:"disabled_nvts"`
 }
 
 type Urls struct {
@@ -144,4 +136,50 @@ type SastResults struct {
 	SonarScanId              string `bson:"sonar_scan_id" json:"sonar_scan_id"`
 	DependencyCheckerResults string `bson:"dependency_checker_results" json:"dependency_checker_results"`
 	SonarOutput              string `bson:"sonar_output" json:"sonar_output"`
+}
+
+type DastConfig struct {
+	WebappName                    string   `json:"webapp_name"`
+	WebappAka                     string   `json:"webapp_aka"`
+	WebappRooturl                 string   `json:"webapp_rooturl"`
+	WebappZapContext              string   `json:"webapp_zap_context"`
+	WebappMysql                   bool     `json:"webapp_mysql"`
+	WebappPostgresql              bool     `json:"webapp_postgresql"`
+	WebappMssql                   bool     `json:"webapp_mssql"`
+	WebappOracle                  bool     `json:"webapp_oracle"`
+	WebappSqlite                  bool     `json:"webapp_sqlite"`
+	WebappAccess                  bool     `json:"webapp_access"`
+	WebappFirebird                bool     `json:"webapp_firebird"`
+	WebappMaxdb                   bool     `json:"webapp_maxdb"`
+	WebappSybase                  bool     `json:"webapp_sybase"`
+	WebappDb2                     bool     `json:"webapp_db2"`
+	WebappHypersonicsql           bool     `json:"webapp_hypersonicsql"`
+	WebappMongodb                 bool     `json:"webapp_mongodb"`
+	WebappCouchdb                 bool     `json:"webapp_couchdb"`
+	WebappAsp                     bool     `json:"webapp_asp"`
+	WebappC                       bool     `json:"webapp_c"`
+	WebappJava                    bool     `json:"webapp_java"`
+	WebappJavascript              bool     `json:"webapp_javascript"`
+	WebappJsp                     bool     `json:"webapp_jsp"`
+	WebappPhp                     bool     `json:"webapp_php"`
+	WebappPython                  bool     `json:"webapp_python"`
+	WebappRuby                    bool     `json:"webapp_ruby"`
+	WebappXML                     bool     `json:"webapp_xml"`
+	WebappLinux                   bool     `json:"webapp_linux"`
+	WebappMacos                   bool     `json:"webapp_macos"`
+	WebappWindows                 bool     `json:"webapp_windows"`
+	WebappGit                     bool     `json:"webapp_git"`
+	WebappSvn                     bool     `json:"webapp_svn"`
+	WebappApache                  bool     `json:"webapp_apache"`
+	WebappIis                     bool     `json:"webapp_iis"`
+	WebappTomcat                  bool     `json:"webapp_tomcat"`
+	WebappUrlregex                string   `json:"webapp_urlregex"`
+	WebappAuthmethod              string   `json:"webapp_authmethod"`
+	WebappLoginurl                string   `json:"webapp_loginurl"`
+	WebappLoginrequestdata        string   `json:"webapp_loginrequestdata"`
+	WebappLoggedinindicatorregex  string   `json:"webapp_loggedinindicatorregex"`
+	WebappLoggedoutindicatorregex string   `json:"webapp_loggedoutindicatorregex"`
+	WebappUsers                   []string `json:"webapp_users"`
+	SecretList                    []string `json:"secret_list"`
+	ID                            int      `json:"id"`
 }
