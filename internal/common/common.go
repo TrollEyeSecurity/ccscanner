@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -67,6 +68,7 @@ func GetScannerData() (*ScannerData, error) {
 		Uuid:     *uuid,
 		Load:     *cpuStatus,
 		Mode:     *database.GetCurrentMode(),
+		Gvm:      *gvm.CheckStatus(),
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
 		Ram:      m.TotalAlloc,
@@ -90,6 +92,7 @@ type ScannerData struct {
 	IpAddr   net.IP           `json:"ip_addr"`
 	Tasks    []database.Task  `json:"tasks"`
 	Mode     string           `json:"mode"`
+	Gvm      bool             `json:"gvm"`
 }
 
 type LinkData struct {
