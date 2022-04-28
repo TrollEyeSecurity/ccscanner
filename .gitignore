@@ -26,3 +26,7 @@ config.example.json
 
 # sonarqube
 .scannerwork/
+context.xml
+/context.xml
+
+dastConfig.json
