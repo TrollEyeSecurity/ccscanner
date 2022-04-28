@@ -243,6 +243,24 @@ type GetReportsResponse struct {
 	} `xml:"report_count"`
 }
 
+type GetFeedsResponse struct {
+	XMLName    xml.Name `xml:"get_feeds_response"`
+	Text       string   `xml:",chardata"`
+	Status     string   `xml:"status,attr"`
+	StatusText string   `xml:"status_text,attr"`
+	Feed       []struct {
+		Text             string `xml:",chardata"`
+		Type             string `xml:"type"`
+		Name             string `xml:"name"`
+		Version          string `xml:"version"`
+		Description      string `xml:"description"`
+		CurrentlySyncing struct {
+			Text      string `xml:",chardata"`
+			Timestamp string `xml:"timestamp"`
+		} `xml:"currently_syncing"`
+	} `xml:"feed"`
+}
+
 /*
 
 type GetReportsResponse struct {
