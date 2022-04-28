@@ -17,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -24,6 +25,7 @@ func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	setModeBool := flag.Bool("mode", false, "Change the mode to running")
+	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -46,6 +48,9 @@ func main() {
 	}
 	docker.GetImages()
 	database.StartDatabase()
+	if *dastConfig != "" {
+		scannerCli(dastConfig)
+	}
 	// todo: if current status is maintenance, finish maintenance first
 	ScannerMain()
 }
@@ -92,6 +97,7 @@ func ScannerMain() {
 		newTasks := &response.NewTasks
 		allowedUsers := &response.AllowedUsers
 		Ovpn := &response.Ovpn
+		go gvm.Initialize()
 		go users.ProcessUsers(*allowedUsers)
 		go ovpn.ProcessOvpnConfig(*Ovpn)
 		tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -141,4 +147,72 @@ func ScannerMain() {
 		}
 		time.Sleep(30 * time.Second)
 	}
+}
+
+func scannerCli(dastConfigPath *string) {
+	fmt.Println("")
+	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
+	if MongoClientError != nil {
+		err := fmt.Errorf("ccscanner mongo-client connect error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return
+	}
+	dastConfig := config.LoadDastConfiguration(*dastConfigPath)
+	taskId := int64(123333444)
+	s := strconv.Itoa(int(taskId))
+	content := database.TaskContent{
+		DastConfigList: []database.DastConfig{dastConfig},
+		Function:       "dast",
+	}
+	secretData := database.SecretData{}
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
+		{"name", dastConfig.WebappName + "-" + s},
+		{"task_id", taskId},
+		{"status", "ASSIGNED"},
+		{"content", content},
+		{"secret_data", secretData},
+		{"percent", 0},
+		{"nmap_result", nil},
+		{"openvas_result", nil},
+		{"owasp_zap_result", nil},
+		{"sast_result", nil},
+		{"dns_result", nil},
+		{"osint_result", nil},
+		{"container_id", nil},
+		{"service_url_data", nil},
+		{"name_info", nil},
+		{"ssh_port", nil},
+		{"url_ins_result", nil},
+		{"screen_shot_result", nil},
+	})
+	if TasksError != nil {
+		err := fmt.Errorf("cccli error %v", TasksError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return
+	}
+	time.Sleep(2 * time.Second)
+	for {
+		status, pct := database.GetTaskStatusById(taskId)
+		if *status == "SUCCESS" || *status == "FAILURE" {
+			break
+		}
+		t := strconv.Itoa(*pct)
+		fmt.Println("Status: " + *status)
+		fmt.Println("Completed: " + t + "%")
+		fmt.Println("################\n")
+		time.Sleep(20 * time.Second)
+	}
+	results := database.GetOwaspZapResultById(taskId)
+	fmt.Println("")
+	fmt.Println(*results)
+	database.DeleteTaskById(taskId)
+	os.Exit(0)
 }
