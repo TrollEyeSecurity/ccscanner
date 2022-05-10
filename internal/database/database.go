@@ -285,7 +285,7 @@ func UpdateTaskById(taskId int64, status string) {
 	}
 }
 
-func GetOwaspZapResultById(taskId int64) *string {
+func GetOwaspZapResultById(taskId int64, html bool) *string {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -298,7 +298,10 @@ func GetOwaspZapResultById(taskId int64) *string {
 	var task Task
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", taskId}}).Decode(&task)
-	return &task.OwaspZapResult
+	if html {
+		return &task.OwaspZapHtmlResult
+	}
+	return &task.OwaspZapJsonResult
 }
 
 func GetTaskStatusById(taskId int64) (*string, *int) {
@@ -320,6 +323,7 @@ func GetTaskStatusById(taskId int64) (*string, *int) {
 func dontReassign(category string) bool {
 	switch category {
 	case
+		"openvas_vulnerability_scan",
 		"dast",
 		"get_screen_shot",
 		"url_inspection":
