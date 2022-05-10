@@ -26,6 +26,7 @@ func main() {
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	setModeBool := flag.Bool("mode", false, "Change the mode to running")
 	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
+	dastHtml := flag.Bool("dastHtml", false, "Choose this for html file output.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -49,7 +50,7 @@ func main() {
 	docker.GetImages()
 	database.StartDatabase()
 	if *dastConfig != "" {
-		scannerCli(dastConfig)
+		scannerCli(dastConfig, dastHtml)
 	}
 	// todo: if current status is maintenance, finish maintenance first
 	ScannerMain()
@@ -124,7 +125,8 @@ func ScannerMain() {
 				{"percent", 0},
 				{"nmap_result", nil},
 				{"openvas_result", nil},
-				{"owasp_zap_result", nil},
+				{"owasp_zap_json_result", nil},
+				{"owasp_zap_html_result", nil},
 				{"sast_result", nil},
 				{"dns_result", nil},
 				{"osint_result", nil},
@@ -149,7 +151,7 @@ func ScannerMain() {
 	}
 }
 
-func scannerCli(dastConfigPath *string) {
+func scannerCli(dastConfigPath *string, dastHtml *bool) {
 	fmt.Println("")
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -179,7 +181,8 @@ func scannerCli(dastConfigPath *string) {
 		{"percent", 0},
 		{"nmap_result", nil},
 		{"openvas_result", nil},
-		{"owasp_zap_result", nil},
+		{"owasp_zap_json_result", nil},
+		{"owasp_zap_html_result", nil},
 		{"sast_result", nil},
 		{"dns_result", nil},
 		{"osint_result", nil},
@@ -210,9 +213,15 @@ func scannerCli(dastConfigPath *string) {
 		fmt.Println("################\n")
 		time.Sleep(20 * time.Second)
 	}
-	results := database.GetOwaspZapResultById(taskId)
-	fmt.Println("")
-	fmt.Println(*results)
+	if *dastHtml {
+		results := database.GetOwaspZapResultById(taskId, true)
+		fmt.Println("")
+		fmt.Println(*results)
+	} else {
+		results := database.GetOwaspZapResultById(taskId, false)
+		fmt.Println("")
+		fmt.Println(*results)
+	}
 	database.DeleteTaskById(taskId)
 	os.Exit(0)
 }
