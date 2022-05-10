@@ -79,8 +79,18 @@ func TaskManagerMain() {
 	}
 	for {
 		NewlyAssignedTasks, NewlyAssignedTasksFindError := tasksCollection.Find(context.TODO(), bson.D{{"status", "ASSIGNED"}})
+		ProgressingTasks, ProgressingTasksFindError := tasksCollection.Find(context.TODO(), bson.D{{"status", "PROGRESS"}})
 		if NewlyAssignedTasksFindError != nil {
 			err := fmt.Errorf("taskmanager find error %v", NewlyAssignedTasksFindError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			MongoClient.Disconnect(context.TODO())
+			return
+		}
+		if ProgressingTasksFindError != nil {
+			err := fmt.Errorf("taskmanager find error %v", ProgressingTasksFindError)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -104,7 +114,6 @@ func TaskManagerMain() {
 				go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
 				break
 			case task.Content.Function == "dast":
-				// go owaspzap.Scan(&task.Content.Args.DastConfigList, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
 				go owaspzap.Scan(task.Content.DastConfigList[0], &task.ID)
 				break
 			case task.Content.Function == "get_screen_shot":
@@ -123,10 +132,27 @@ func TaskManagerMain() {
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
-				go gvm.VulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
+				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
 				break
 			case task.Content.Function == "nmap_port_scan":
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
+				break
+			}
+		}
+		for ProgressingTasks.Next(context.TODO()) {
+			var task database.Task
+			ProgressingTasksErr := ProgressingTasks.Decode(&task)
+			if ProgressingTasksErr != nil {
+				err := fmt.Errorf("taskmanager error %v", ProgressingTasksErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				continue
+			}
+			switch {
+			case task.Content.Function == "openvas_vulnerability_scan":
+				go gvm.CheckVulnerabilityScan(&task.ID)
 				break
 			}
 		}
