@@ -241,7 +241,6 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		_, spiderScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", taskId}},
 			bson.D{{"$set", bson.D{
-				{"owasp_zap_result", ""},
 				{"status", "PROGRESS"},
 				{"percent", int(percent)}}}},
 		)
@@ -294,7 +293,6 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		_, activeScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", taskId}},
 			bson.D{{"$set", bson.D{
-				{"owasp_zap_result", ""},
 				{"status", "PROGRESS"},
 				{"percent", int(percent)}}}},
 		)
@@ -321,10 +319,20 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		log.Println(err)
 		return
 	}
+	htmlReportResp, htmlReportErr := htmlReport(&proxyPort)
+	if htmlReportErr != nil {
+		err := fmt.Errorf("owasp zap htmlReport error %v", htmlReportErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return
+	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"owasp_zap_result", *jsonReportResp},
+			{"owasp_zap_json_result", *jsonReportResp},
+			{"owasp_zap_html_result", *htmlReportResp},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
@@ -637,6 +645,21 @@ func importContext(proxyPort *string, contextConfiguration *ContextConfiguration
 func jsonReport(proxyPort *string) (*string, error) {
 	baseUrl := "http://127.0.0.1:" + *proxyPort
 	urlPath := "/OTHER/core/other/jsonreport/"
+	method := "GET"
+	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, nil, &method)
+	if respErr != nil {
+		log.Println(respErr.Error())
+		return nil, nil
+	}
+	defer resp.Body.Close()
+	respBody, _ := ioutil.ReadAll(resp.Body)
+	result := base64.StdEncoding.EncodeToString(respBody)
+	return &result, nil
+}
+
+func htmlReport(proxyPort *string) (*string, error) {
+	baseUrl := "http://127.0.0.1:" + *proxyPort
+	urlPath := "/OTHER/core/other/htmlreport/"
 	method := "GET"
 	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, nil, &method)
 	if respErr != nil {

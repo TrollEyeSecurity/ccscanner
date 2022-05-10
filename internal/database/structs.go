@@ -13,27 +13,28 @@ type ConfigFields struct {
 }
 
 type Task struct {
-	ID               primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	Name             string             `json:"name"`
-	TaskId           int64              `bson:"task_id" json:"task_id"`
-	TaskType         string             `bson:"task_type" json:"task_type"`
-	Status           string             `json:"status"`
-	ContainerId      string             `bson:"container_id" json:"container_id"`
-	Content          TaskContent        `json:"content"`
-	SecretData       TaskSecret         `bson:"secret_data" json:"secret_data"`
-	NmapResult       string             `bson:"nmap_result" json:"nmap_result"`
-	OpenvasResult    string             `bson:"openvas_result" json:"openvas_result"`
-	OwaspZapResult   string             `bson:"owasp_zap_result" json:"owasp_zap_result"`
-	SastResult       SastResults        `bson:"sast_result" json:"sast_result"`
-	OpenvasTaskId    string             `bson:"openvas_task_id" json:"openvas_task_id"`
-	DnsResult        []DnsResults       `bson:"dns_result" json:"dns_result"`
-	OsintResult      []OsintResults     `bson:"osint_result" json:"osint_result"`
-	UrlInsResult     []UrlData          `bson:"url_ins_result" json:"url_ins_result"`
-	ScreenShotResult []string           `bson:"screen_shot_result" json:"screen_shot_result"`
-	NameInfo         string             `bson:"name_info" json:"name_info"`
-	ServiceUrlData   string             `bson:"service_url_data" json:"service_url_data"`
-	Percent          int                `json:"percent"`
-	SshPort          string             `bson:"ssh_port" json:"ssh_port"`
+	ID                 primitive.ObjectID `bson:"_id" json:"id,omitempty"`
+	Name               string             `json:"name"`
+	TaskId             int64              `bson:"task_id" json:"task_id"`
+	TaskType           string             `bson:"task_type" json:"task_type"`
+	Status             string             `json:"status"`
+	ContainerId        string             `bson:"container_id" json:"container_id"`
+	Content            TaskContent        `json:"content"`
+	SecretData         TaskSecret         `bson:"secret_data" json:"secret_data"`
+	NmapResult         string             `bson:"nmap_result" json:"nmap_result"`
+	OpenvasResult      string             `bson:"openvas_result" json:"openvas_result"`
+	OwaspZapJsonResult string             `bson:"owasp_zap_json_result" json:"owasp_zap_json_result"`
+	OwaspZapHtmlResult string             `bson:"owasp_zap_html_result" json:"owasp_zap_html_result"`
+	SastResult         SastResults        `bson:"sast_result" json:"sast_result"`
+	OpenvasTaskId      string             `bson:"openvas_task_id" json:"openvas_task_id"`
+	DnsResult          []DnsResults       `bson:"dns_result" json:"dns_result"`
+	OsintResult        []OsintResults     `bson:"osint_result" json:"osint_result"`
+	UrlInsResult       []UrlData          `bson:"url_ins_result" json:"url_ins_result"`
+	ScreenShotResult   []string           `bson:"screen_shot_result" json:"screen_shot_result"`
+	NameInfo           string             `bson:"name_info" json:"name_info"`
+	ServiceUrlData     string             `bson:"service_url_data" json:"service_url_data"`
+	Percent            int                `json:"percent"`
+	SshPort            string             `bson:"ssh_port" json:"ssh_port"`
 }
 
 /*
