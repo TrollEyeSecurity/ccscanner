@@ -243,56 +243,6 @@ func Maintenance() {
 		}
 		time.Sleep(3 * time.Minute)
 	}
-
-	/*
-		updateSystemCmd := exec.Command(
-			"apt",
-			"-qq",
-			"update")
-
-		updateSystemCmdErr := updateSystemCmd.Start()
-
-		if updateSystemCmdErr != nil {
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(updateSystemCmdErr)
-			}
-			log.Fatal(updateSystemCmdErr)
-		}
-		waitUpdateSystemCmdErr := updateSystemCmd.Wait()
-		if waitUpdateSystemCmdErr != nil {
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(waitUpdateSystemCmdErr)
-			}
-			log.Fatal(waitUpdateSystemCmdErr)
-		}
-
-		upgradeSystemCmd := exec.Command(
-			"DEBIAN_FRONTEND=noninteractive",
-			"apt",
-			"-qq",
-			"-o Dpkg::Options::=\"--force-confnew\"",
-			"--allow-downgrades",
-			"--allow-remove-essential",
-			"--allow-change-held-packages ",
-			"dist-upgrade",
-			"-y")
-
-		upgradeSystemCmdErr := upgradeSystemCmd.Start()
-		if upgradeSystemCmdErr != nil {
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(upgradeSystemCmdErr)
-			}
-			log.Fatal(upgradeSystemCmdErr)
-		}
-
-		waitUpgradeSystemCmdErr := upgradeSystemCmd.Wait()
-		if waitUpgradeSystemCmdErr != nil {
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(waitUpgradeSystemCmdErr)
-			}
-			log.Fatal(waitUpgradeSystemCmdErr)
-		}
-	*/
 	_, ConfigurationError1 := systemCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", "configuration"}},
 		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "running"}}}},
