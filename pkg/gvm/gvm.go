@@ -10,7 +10,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"golang.org/x/crypto/ssh"
+	"io/ioutil"
 	"log"
 	"math/rand"
 	"os/exec"
@@ -39,44 +39,8 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	if VulnerabilityScanTask.Status == "STOPPED" || VulnerabilityScanTask.Status == "SUCCESS" {
 		return
 	}
-	baseCmd := "gvm-cli --gmp-username admin --gmp-password admin socket --socketpath=/var/run/gvm/gvmd.sock --xml "
-	username := "gvm_user"
-	host := "127.0.0.1"
-	pass := "gvm_user"
-	sshConfig := &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{ssh.Password(pass)},
-	}
-	sshConfig.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-	sshDest := host + ":" + VulnerabilityScanTask.SshPort
-	sshClient, sshClientErr := ssh.Dial("tcp", sshDest, sshConfig)
-	if sshClientErr != nil {
-		err := fmt.Errorf("gvm ssh-client error %v: %v", sshClientErr, sshClient)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		return
-	}
-	stopTaskSshSession, stopTaskSshSessionErr := sshClient.NewSession()
-	if stopTaskSshSessionErr != nil {
-		err := fmt.Errorf("gvm stop-task-ssh-session error %v: %v", stopTaskSshSessionErr, stopTaskSshSession)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		return
-	}
 	stopTaskXml := "<stop_task task_id='" + VulnerabilityScanTask.OpenvasTaskId + "'/>"
-	stopTaskOutPut, stopTaskOutErr := stopTaskSshSession.CombinedOutput(baseCmd + "\"" + stopTaskXml + "\"")
-	if stopTaskOutErr != nil {
-		err := fmt.Errorf("gvm stop-task-output error %v: %v", stopTaskOutErr, string(stopTaskOutPut))
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		return
-	}
+	stopTask(&stopTaskXml)
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", VulnerabilityScanTask.TaskId}},
 		bson.D{{"$set", bson.D{
@@ -168,22 +132,21 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 		s := strings.Join(hostsArray, ",")
 		newHosts := &s
 		createTargetXml := "<create_target><name>target-" + taskId.Hex() + "</name><hosts>" + *newHosts + "</hosts><alive_tests>Consider Alive</alive_tests><port_list id='33d0cd82-57c6-11e1-8ed1-406186ea4fc5'></port_list></create_target>"
-		// createTargetXml := "<create_target><name>target-" + taskId.Hex() + "</name><hosts>" + *newHosts + "</hosts><alive_tests>Consider Alive</alive_tests><port_list id='4a4717fe-57d2-11e1-9a26-406186ea4fc5'></port_list></create_target>"
+		// TCP 33d0cd82-57c6-11e1-8ed1-406186ea4fc5
+		// UDP 4a4717fe-57d2-11e1-9a26-406186ea4fc5
 		createConfigXml := "<create_config><copy>" + *configuration + "</copy><name>config-" + taskId.Hex() + "</name></create_config>"
 		targetResp := createTarget(&createTargetXml)
 		configResp := createConfig(&createConfigXml)
-		/*
-			if len(*disabledNvts) > 0 {
-				for k, v := range *disabledNvts {
-					var nvts string
-					for _, nvt := range v {
-						nvts += "<nvt oid='" + nvt + "'/>"
-					}
-					modifyConfigXml := "<modify_config config_id='" + *configId + "'><nvt_selection><family>" + k + "</family>" + nvts + "</nvt_selection></modify_config>"
-					modifyConfig(&modifyConfigXml)
+		if len(*disabledNvts) > 0 {
+			for k, v := range *disabledNvts {
+				var nvts string
+				for _, nvt := range v {
+					nvts += "<nvt oid='" + nvt + "'/>"
 				}
+				modifyConfigXml := "<modify_config config_id='" + configResp.ID + "'><nvt_selection><family>" + k + "</family>" + nvts + "</nvt_selection></modify_config>"
+				modifyConfig(&modifyConfigXml)
 			}
-		*/
+		}
 		createTaskXml := "<create_task><name>task-" + taskId.Hex() + "</name><comment></comment><config id='" + configResp.ID + "'/><target id='" + targetResp.ID + "'/></create_task>"
 		createTaskOutput := createTask(&createTaskXml)
 		if createTaskOutput == nil {
@@ -219,173 +182,6 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 		startTaskXml := "<start_task task_id='" + createTaskOutput.ID + "'/>"
 		startTask(&startTaskXml)
 	}
-	/*
-
-			createTaskOutPut, createTaskOutPutErr := createTaskSshSession.CombinedOutput(baseCmd + "\"" + createTaskXml + "\"")
-			if createTaskOutPutErr != nil {
-				err := fmt.Errorf("gvm create-task-output error %v: %v", createTaskOutPutErr, string(createTaskOutPut))
-				noConfig := "Response Error 404. Failed to find config"
-				if strings.Contains(err.Error(), noConfig) {
-					sshClient.Close()
-					cli.Close()
-					_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
-						bson.D{{"_id", *taskId}},
-						bson.D{{"$set", bson.D{
-							{"openvas_result", noConfig},
-							{"status", "FAILURE"},
-							{"percent", 100}}}},
-					)
-					if updateError2 != nil {
-						err := fmt.Errorf("gvm mongo-update error %v", updateError2)
-						if sentry.CurrentHub().Client() != nil {
-							sentry.CaptureException(err)
-						}
-						log.Println(err)
-						return
-					}
-					MongoClient.Disconnect(context.TODO())
-					return
-				}
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-				return
-			}
-			CreateTaskResponseData := &CreateTaskResponse{} // Create and initialise a data variablgo as a PostData struct
-			CreateTaskResponseDataErr := xml.Unmarshal(createTaskOutPut, CreateTaskResponseData)
-			if CreateTaskResponseDataErr != nil {
-				return
-			}
-			defer createTaskSshSession.Close()
-			tasksCollection.UpdateOne(context.TODO(),
-				bson.D{{"_id", *taskId}},
-				bson.D{{"$set", bson.D{
-					{"openvas_task_id", CreateTaskResponseData.ID}}}},
-			)
-			startTaskSshSession, startTaskSshSessionErr := sshClient.NewSession()
-			if startTaskSshSessionErr != nil {
-				err := fmt.Errorf("gvm start-task-ssh-session error %v", startTaskSshSessionErr)
-
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-				return
-			}
-			startTaskXml := "<start_task task_id='" + CreateTaskResponseData.ID + "'/>"
-			startTaskOutPut, startTaskOutErr := startTaskSshSession.CombinedOutput(baseCmd + "\"" + startTaskXml + "\"")
-			if startTaskOutErr != nil {
-				err := fmt.Errorf("gvm start-task-out error %v: %v", startTaskOutErr, string(startTaskOutPut))
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-				return
-			}
-			StartTaskResponseData := &StartTaskResponse{} // Create and initialise a data variablgo as a PostData struct
-			StartTaskResponseDataErr := xml.Unmarshal(startTaskOutPut, StartTaskResponseData)
-			if StartTaskResponseDataErr != nil {
-				err := fmt.Errorf("gvm start-task-response-data error %v", StartTaskResponseDataErr)
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-				return
-			}
-			defer startTaskSshSession.Close()
-			for {
-				getTaskSshSession, getTaskSshSessionErr := sshClient.NewSession()
-				if getTaskSshSessionErr != nil {
-					err := fmt.Errorf("gvm get-task-ssh-session error %v", getTaskSshSessionErr)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					return
-				}
-				getTaskXml := "<get_tasks task_id='" + CreateTaskResponseData.ID + "'/>"
-				getTaskOutPut, getTaskOutPutErr := getTaskSshSession.CombinedOutput(baseCmd + "\"" + getTaskXml + "\"")
-				if getTaskOutPutErr != nil {
-					err := fmt.Errorf("gvm get-task-output error %v: %v", getTaskOutPutErr, string(getTaskOutPut))
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					return
-				}
-				GetTasksResponseData := &GetTasksResponse{} // Create and initialise a data variablgo as a PostData struct
-				GetTaskResponseDataErr := xml.Unmarshal(getTaskOutPut, GetTasksResponseData)
-				defer getTaskSshSession.Close()
-				if GetTaskResponseDataErr != nil {
-					err := fmt.Errorf("gvm get-task-response-data error %v", GetTaskResponseDataErr)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					return
-				}
-				if GetTasksResponseData.Task.Status == "Interrupted" || GetTasksResponseData.Task.Status == "Done" || GetTasksResponseData.Task.Status == "Stopped" {
-					break
-				}
-				percent, _ := strconv.Atoi(GetTasksResponseData.Task.Progress.Text)
-				_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
-					bson.D{{"_id", *taskId}},
-					bson.D{{"$set", bson.D{{"percent", percent}}}},
-				)
-				if updateError2 != nil {
-					err := fmt.Errorf("gvm mongo-update error %v", updateError2)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					return
-				}
-				time.Sleep(15 * time.Second)
-			}
-			getReportsSshSession, getReportsSshSessionErr := sshClient.NewSession()
-			if getReportsSshSessionErr != nil {
-				err := fmt.Errorf("gvm get-reports-ssh-ession error %v", getReportsSshSessionErr)
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-				return
-			}
-			getReportsXml := "<get_reports report_id='" + StartTaskResponseData.ReportID + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
-			getReportsOutPut, getReportsOutPutErr := getReportsSshSession.CombinedOutput(baseCmd + "\"" + getReportsXml + "\"")
-			if getReportsOutPutErr != nil {
-				err := fmt.Errorf("gvm get-reports-output error %v: %v", getReportsOutPutErr, string(getReportsOutPut))
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Println(err)
-			}
-			GetReportsResponseData := &GetReportsResponse{} // Create and initialise a data variablgo as a PostData struct
-			GetReportsResponseDataErr := xml.Unmarshal(getReportsOutPut, GetReportsResponseData)
-			if GetReportsResponseDataErr != nil {
-				return
-			}
-			defer getReportsSshSession.Close()
-			sshClient.Close()
-
-
-		_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
-			bson.D{{"_id", *taskId}},
-			bson.D{{"$set", bson.D{
-				{"openvas_result", ""},
-				{"status", "SUCCESS"},
-				{"percent", 100}}}},
-		)
-		if updateError2 != nil {
-			err := fmt.Errorf("gvm mongo-update error %v", updateError2)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println(err)
-			return
-		}
-	*/
 	cli.Close()
 	return
 }
@@ -417,7 +213,14 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 		return
 	}
 	if getTasksResponseData.Task.Status == "Interrupted" || getTasksResponseData.Task.Status == "Done" || getTasksResponseData.Task.Status == "Stopped" {
-		reportData := getReports(&getTasksResponseData.Task.CurrentReport.Report.ID)
+		var reportId string
+		if getTasksResponseData.Task.LastReport.Report.ID != "" {
+			reportId = getTasksResponseData.Task.LastReport.Report.ID
+		}
+		if getTasksResponseData.Task.CurrentReport.Report.ID != "" {
+			reportId = getTasksResponseData.Task.CurrentReport.Report.ID
+		}
+		reportData := getReports(&reportId)
 		_, updateTaskIdError := MongoClient.Database("core").Collection("tasks").UpdateOne(context.TODO(),
 			bson.D{{"_id", *taskId}},
 			bson.D{{"$set", bson.D{{"openvas_result", reportData.Report.Text}, {"status", "SUCCESS"}, {"percent", 100}}}},
@@ -498,9 +301,9 @@ func createConfig(xmlString *string) *CreateConfigResponse {
 
 func modifyConfig(xmlString *string) *string {
 	var s string
-	modifyConfigCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	modifyConfigCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString, "--pretty")
 	modifyConfigCmdByts, _ := modifyConfigCmd.CombinedOutput()
-	ModifyConfigResponseData := &CreateTaskResponse{} // Create and initialise a data variablgo as a PostData struct
+	ModifyConfigResponseData := &ModifyConfigResponse{} // Create and initialise a data variablgo as a PostData struct
 	ModifyConfigResponseDataErr := xml.Unmarshal(modifyConfigCmdByts, ModifyConfigResponseData)
 	if ModifyConfigResponseDataErr != nil {
 		err := fmt.Errorf("gvm unmarshal modify-config error %v", ModifyConfigResponseDataErr)
@@ -510,7 +313,7 @@ func modifyConfig(xmlString *string) *string {
 		log.Println(err)
 		return &s
 	}
-	return &ModifyConfigResponseData.ID
+	return &ModifyConfigResponseData.Status
 }
 
 func createTask(xmlString *string) *CreateTaskResponse {
@@ -545,6 +348,22 @@ func startTask(xmlString *string) *StartTaskResponse {
 	return StartTaskResponseData
 }
 
+func stopTask(xmlString *string) *StopTaskResponse {
+	stopTaskCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	stopTaskCmdByts, _ := stopTaskCmd.CombinedOutput()
+	StopTaskResponseData := &StopTaskResponse{} // Create and initialise a data variablgo as a PostData struct
+	StopTaskResponseDataErr := xml.Unmarshal(stopTaskCmdByts, StopTaskResponseData)
+	if StopTaskResponseDataErr != nil {
+		err := fmt.Errorf("gvm unmarshal stop-task error %v", StopTaskResponseDataErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return nil
+	}
+	return StopTaskResponseData
+}
+
 func isGvmReady() bool {
 	getFeedsCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_feeds/>")
 	getFeedsCmdByts, _ := getFeedsCmd.CombinedOutput()
@@ -559,8 +378,8 @@ func isGvmReady() bool {
 		return false
 	}
 	for _, feed := range getFeedsResponseData.Feed {
-		if feed.CurrentlySyncing.Text == "" {
-			break
+		if feed.CurrentlySyncing.Timestamp == "" {
+			continue
 		} else {
 			return false
 		}
@@ -613,13 +432,22 @@ func Initialize() {
 			}
 			exec.Command("python3", "-m", "pip", "install", "--user", "gvm-tools")
 			if gvmdCreateUserCmdStatus == 0 || gvmdUpdateUserCmdStatus == 0 {
+				b := []byte("[gmp]\nusername=ccscanner\npassword=" + *password + "\n")
+				writeErr := ioutil.WriteFile("~/.config/gvm-tools.conf", b, 0644)
+				if writeErr != nil {
+					err1 := fmt.Errorf("update gvm configuration error %v", writeErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err1)
+					}
+					log.Fatalf("GVM Configuration Error: %s", writeErr)
+				}
 				_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
-					bson.D{{"_id", "configuration"}}, bson.D{{"$set", bson.D{{"_id", "configuration"}, {"gvm_initialized", true}, {"gvm_creds", bson.D{{"username", "ccscanner"}, {"password", *password}}}}}},
+					bson.D{{"_id", "configuration"}}, bson.D{{"$set", bson.D{{"_id", "configuration"}, {"gvm_initialized", true}}}},
 				)
 				if ConfigurationError != nil {
-					err := fmt.Errorf("update gvm configuration error %v", ConfigurationError)
+					err2 := fmt.Errorf("update gvm configuration error %v", ConfigurationError)
 					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
+						sentry.CaptureException(err2)
 					}
 					log.Fatalf("GVM Configuration Error: %s", ConfigurationError)
 				}
