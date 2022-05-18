@@ -433,7 +433,7 @@ func Initialize() {
 			exec.Command("python3", "-m", "pip", "install", "--user", "gvm-tools")
 			if gvmdCreateUserCmdStatus == 0 || gvmdUpdateUserCmdStatus == 0 {
 				b := []byte("[gmp]\nusername=ccscanner\npassword=" + *password + "\n")
-				writeErr := ioutil.WriteFile("~/.config/gvm-tools.conf", b, 0644)
+				writeErr := ioutil.WriteFile("/etc/ccscanner/.config/gvm-tools.conf", b, 0600)
 				if writeErr != nil {
 					err1 := fmt.Errorf("update gvm configuration error %v", writeErr)
 					if sentry.CurrentHub().Client() != nil {
