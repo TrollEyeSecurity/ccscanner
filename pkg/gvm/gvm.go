@@ -412,7 +412,7 @@ func Initialize() {
 		cursor, _ := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
 		var results []bson.M
 		cursor.All(context.TODO(), &results)
-		if results[0]["gvm_initialized"] == false {
+		if results[0]["gvm_initialized"] == false || results[0]["gvm_initialized"] == nil {
 			fmt.Println("need to init")
 			password := randomString(18)
 			gvmdCreateUserCmd := exec.Command("/usr/local/sbin/gvmd", "--create-user=ccscanner", "--password="+*password)
