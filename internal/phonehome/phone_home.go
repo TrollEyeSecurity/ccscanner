@@ -70,28 +70,28 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	response, linkError := HttpClientRequest(&baseUrl, &path, bytesRepresentation, &method, &token)
 	if linkError != nil {
 		fmt.Println(linkError)
-		return &cr, nil
+		return nil, nil
 	}
 	if response == nil {
 		fmt.Println("No response from server.")
-		return &cr, nil
+		return nil, nil
 	}
 	if response.Status == "403 Forbidden" {
 		response.Body.Close()
 		fmt.Println("403 Forbidden, likely a bad key.")
-		return &cr, nil
+		return nil, nil
 	} else if response.Status == "500 Internal Server Error" {
 		response.Body.Close()
 		fmt.Println("500 Internal Server Error.")
-		return &cr, nil
+		return nil, nil
 	} else if response.Status == "404 Not Found" {
 		response.Body.Close()
 		fmt.Println("404 Not Found.")
-		return &cr, nil
+		return nil, nil
 	} else if response.Status == "401 Unauthorized" {
 		response.Body.Close()
 		fmt.Println("401 Unauthorized - You may want to re-link to Command Center")
-		return &cr, nil
+		return nil, nil
 	}
 	NewDecoderError := json.NewDecoder(response.Body).Decode(&cr)
 	if NewDecoderError != nil {

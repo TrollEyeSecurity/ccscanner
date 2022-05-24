@@ -94,6 +94,10 @@ func ScannerMain() {
 			time.Sleep(30 * time.Second)
 			continue
 		}
+		if response == nil {
+			time.Sleep(10 * time.Second)
+			continue
+		}
 		taskResults := &response.Results
 		newTasks := &response.NewTasks
 		allowedUsers := &response.AllowedUsers
