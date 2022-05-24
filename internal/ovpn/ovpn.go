@@ -9,7 +9,7 @@ import (
 )
 
 func ProcessOvpnConfig(ovpnConfig phonehome.OvpnConfig) {
-	cmd := exec.Command("systemctl", "status", "openvpn@client.service")
+	cmd := exec.Command("systemctl", "status", "--no-pager", "openvpn@client.service")
 	_, err := cmd.CombinedOutput()
 	status := 0
 	if err != nil {
@@ -32,44 +32,44 @@ func ProcessOvpnConfig(ovpnConfig phonehome.OvpnConfig) {
 		}
 	}
 	if status == 0 && ovpnConfig.OvpnConnect == false {
-		stopCmd := exec.Command("sudo", "systemctl", "stop", "openvpn@client.service")
-		disableCmd := exec.Command("sudo", "systemctl", "disable", "openvpn@client.service")
-		rmCmd := exec.Command("sudo", "rm", "-rf", "/etc/openvpn/client.conf")
-		stopCmd.Run()
+		disableCmd := exec.Command("sudo", "systemctl", "disable", "--now", "openvpn@client.service")
 		disableCmd.Run()
-		rmCmd.Run()
 		return
 	}
 	statusCodes := map[int]bool{
 		3: true,
 		4: true,
 	}
-	if statusCodes[status] {
-		if ovpnConfig.OvpnConnect == true {
-			writeOvpnConfig(&ovpnConfig.OvpnConfig)
-			enableCmd := exec.Command("sudo", "systemctl", "enable", "--now", "openvpn@client.service")
-			enableCmd.Run()
+	if statusCodes[status] && ovpnConfig.OvpnConnect == true {
+		e := writeOvpnConfig(&ovpnConfig.OvpnConfig)
+		if e != nil {
 			return
 		}
+		enableCmd := exec.Command("sudo", "systemctl", "enable", "--now", "openvpn@client.service")
+		enableCmd.Run()
+		return
 	}
 }
 
-func writeOvpnConfig(data *string) {
+func writeOvpnConfig(data *string) error {
 	echoDataCmd := exec.Command("echo", *data)
 	ovpnClientFile, err := os.Create("/tmp/client.conf")
 	if err != nil {
 		log.Println(err)
+		return err
 	}
 	echoDataCmd.Stdout = ovpnClientFile
 	echoDataCmdError := echoDataCmd.Run()
 	if echoDataCmdError != nil {
 		log.Println(echoDataCmdError)
+		return echoDataCmdError
 	}
 	ovpnClientFile.Close()
 	mvCmd := exec.Command("sudo", "mv", "/tmp/client.conf", "/etc/openvpn/client.conf")
 	mvCmdError := mvCmd.Run()
 	if mvCmdError != nil {
 		log.Println(mvCmdError)
+		return mvCmdError
 	}
-
+	return nil
 }
