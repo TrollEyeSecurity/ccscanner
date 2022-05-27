@@ -35,6 +35,7 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	VulnerabilityScanTaskError := tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", ScanTaskId}}).Decode(&VulnerabilityScanTask)
 	if VulnerabilityScanTaskError != nil {
 		log.Println(VulnerabilityScanTaskError)
+		return
 	}
 	if VulnerabilityScanTask.Status == "STOPPED" || VulnerabilityScanTask.Status == "SUCCESS" {
 		return
