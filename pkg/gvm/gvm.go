@@ -405,7 +405,8 @@ func Initialize() {
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
-			log.Fatalf("MongoClient Error: %s", MongoClientError)
+			log.Println("MongoClient Error: %s", MongoClientError)
+			return
 		}
 		systemCollection := MongoClient.Database("core").Collection("system")
 		opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
@@ -439,7 +440,8 @@ func Initialize() {
 					if sentry.CurrentHub().Client() != nil {
 						sentry.CaptureException(err1)
 					}
-					log.Fatalf("GVM Configuration Error: %s", writeErr)
+					log.Println("GVM Configuration Error: %s", writeErr)
+					return
 				}
 				_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
 					bson.D{{"_id", "configuration"}}, bson.D{{"$set", bson.D{{"_id", "configuration"}, {"gvm_initialized", true}}}},
@@ -449,7 +451,8 @@ func Initialize() {
 					if sentry.CurrentHub().Client() != nil {
 						sentry.CaptureException(err2)
 					}
-					log.Fatalf("GVM Configuration Error: %s", ConfigurationError)
+					log.Println("GVM Configuration Error: %s", ConfigurationError)
+					return
 				}
 			}
 		}
