@@ -367,10 +367,10 @@ func stopTask(xmlString *string) *StopTaskResponse {
 func isGvmReady() bool {
 	getFeedsCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_feeds/>")
 	getFeedsCmdByts, _ := getFeedsCmd.CombinedOutput()
-	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variablgo as a PostData struct
+	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variable as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(getFeedsCmdByts, getFeedsResponseData)
 	if StartTaskResponseDataErr != nil {
-		err := fmt.Errorf("gvm unmarshal error %v", StartTaskResponseDataErr)
+		err := fmt.Errorf("gvm unmarshal error: %v", string(getFeedsCmdByts))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
