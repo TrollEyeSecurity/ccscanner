@@ -432,6 +432,9 @@ func Initialize() {
 				}
 				gvmdUpdateUserCmdStatus = 0
 			}
+			exec.Command("python3", "-m", "pip", "install", "--user", "lxml>=4.5.2")
+			exec.Command("python3", "-m", "pip", "install", "--user", "packaging>=20.4")
+			exec.Command("python3", "-m", "pip", "install", "--user", "redis>=3.5.3")
 			exec.Command("python3", "-m", "pip", "install", "--user", "gvm-tools")
 			if gvmdCreateUserCmdStatus == 0 || gvmdUpdateUserCmdStatus == 0 {
 				b := []byte("[gmp]\nusername=ccscanner\npassword=" + *password + "\n")
