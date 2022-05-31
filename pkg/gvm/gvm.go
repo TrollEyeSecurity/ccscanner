@@ -201,7 +201,7 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 	task := database.Task{}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	tasksCollection.FindOne(context.TODO(), bson.D{{"_id", taskId}}).Decode(&task)
-	getTasksCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_tasks task_id='"+task.OpenvasTaskId+"'/>")
+	getTasksCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_tasks task_id='"+task.OpenvasTaskId+"'/>")
 	getTasksCmdByts, _ := getTasksCmd.CombinedOutput()
 	getTasksResponseData := &GetTasksResponse{} // Create and initialise a data variablgo as a PostData struct
 	getTasksResponseDataErr := xml.Unmarshal(getTasksCmdByts, getTasksResponseData)
@@ -253,7 +253,7 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 
 func getReports(reportId *string) *GetReportsResponse {
 	getReportsXml := "<get_reports report_id='" + *reportId + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
-	getReportsCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", getReportsXml)
+	getReportsCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", getReportsXml)
 	getReportsCmdByts, _ := getReportsCmd.CombinedOutput()
 	getReportsResponseData := &GetReportsResponse{} // Create and initialise a data variablgo as a PostData struct
 	getReportsResponseDataErr := xml.Unmarshal(getReportsCmdByts, getReportsResponseData)
@@ -269,7 +269,7 @@ func getReports(reportId *string) *GetReportsResponse {
 }
 
 func createTarget(xmlString *string) *CreateTargetResponse {
-	createTargetCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTargetCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
 	createTargetCmdByts, _ := createTargetCmd.CombinedOutput()
 	createTargetResponseData := &CreateTargetResponse{} // Create and initialise a data variablgo as a PostData struct
 	createTargetResponseDataErr := xml.Unmarshal(createTargetCmdByts, createTargetResponseData)
@@ -285,7 +285,7 @@ func createTarget(xmlString *string) *CreateTargetResponse {
 }
 
 func createConfig(xmlString *string) *CreateConfigResponse {
-	createConfigCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createConfigCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
 	createConfigCmdByts, _ := createConfigCmd.CombinedOutput()
 	CreateConfigResponseData := &CreateConfigResponse{}
 	CreateConfigResponseDataErr := xml.Unmarshal(createConfigCmdByts, CreateConfigResponseData)
@@ -302,7 +302,7 @@ func createConfig(xmlString *string) *CreateConfigResponse {
 
 func modifyConfig(xmlString *string) *string {
 	var s string
-	modifyConfigCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString, "--pretty")
+	modifyConfigCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString, "--pretty")
 	modifyConfigCmdByts, _ := modifyConfigCmd.CombinedOutput()
 	ModifyConfigResponseData := &ModifyConfigResponse{} // Create and initialise a data variablgo as a PostData struct
 	ModifyConfigResponseDataErr := xml.Unmarshal(modifyConfigCmdByts, ModifyConfigResponseData)
@@ -318,7 +318,7 @@ func modifyConfig(xmlString *string) *string {
 }
 
 func createTask(xmlString *string) *CreateTaskResponse {
-	createTaskCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
 	createTaskCmdByts, _ := createTaskCmd.CombinedOutput()
 	CreateTaskResponseData := &CreateTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	CreateTaskResponseDataErr := xml.Unmarshal(createTaskCmdByts, CreateTaskResponseData)
@@ -334,7 +334,7 @@ func createTask(xmlString *string) *CreateTaskResponse {
 }
 
 func startTask(xmlString *string) *StartTaskResponse {
-	createTaskCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
 	createTaskCmdByts, _ := createTaskCmd.CombinedOutput()
 	StartTaskResponseData := &StartTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(createTaskCmdByts, StartTaskResponseData)
@@ -350,7 +350,7 @@ func startTask(xmlString *string) *StartTaskResponse {
 }
 
 func stopTask(xmlString *string) *StopTaskResponse {
-	stopTaskCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	stopTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
 	stopTaskCmdByts, _ := stopTaskCmd.CombinedOutput()
 	StopTaskResponseData := &StopTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StopTaskResponseDataErr := xml.Unmarshal(stopTaskCmdByts, StopTaskResponseData)
@@ -366,7 +366,7 @@ func stopTask(xmlString *string) *StopTaskResponse {
 }
 
 func isGvmReady() bool {
-	getFeedsCmd := exec.Command("gvm-cli", "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_feeds/>")
+	getFeedsCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_feeds/>")
 	getFeedsCmdByts, _ := getFeedsCmd.CombinedOutput()
 	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variable as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(getFeedsCmdByts, getFeedsResponseData)
