@@ -255,7 +255,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	taskIdMatch := taskIdRex.FindAllStringSubmatch(string(sonarByteValue), -1)
 	var sonarScanIdSlice []string
 	for _, v := range taskIdMatch {
-		sonarScanIdSlice = append(sonarScanIdSlice, v[1])
+		sonarScanIdSlice = append(sonarScanIdSlice, v[2])
 	}
 	sonarScanIds := strings.Join(sonarScanIdSlice, ",")
 	SastResults.SonarScanId = sonarScanIds
