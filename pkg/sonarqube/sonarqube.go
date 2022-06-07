@@ -251,7 +251,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	taskIdRex := regexp.MustCompile(`(task\?id\=)(.*)`)
+	taskIdRex := regexp.MustCompile(`(task\?id=)(.*)`)
 	taskIdMatch := taskIdRex.FindAllStringSubmatch(string(sonarByteValue), -1)
 	var sonarScanIdSlice []string
 	for _, v := range taskIdMatch {
