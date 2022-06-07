@@ -1,4 +1,4 @@
-VERSION=1.1.36
+VERSION=1.1.37
 GOCMD=go
 GOBUILD=$(GOCMD) build
 SCANNER=ccscanner.go
