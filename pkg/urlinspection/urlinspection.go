@@ -197,8 +197,15 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 }
 
 func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]bool, ClientErrorCodes map[int]bool, ServerErrorCodes map[int]bool) (*database.UrlData, error) {
-	timeout := 2 * time.Second
+	urlData := database.UrlData{}
+	//proxyStr := "http://127.0.0.1:8080"
+	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
+	//if ProxyURLErr != nil {
+	//	return &urlData, ProxyURLErr
+	//}
+	timeout := 20 * time.Second
 	transport := &http.Transport{
+		//Proxy:             http.ProxyURL(proxyURL),
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 		DisableKeepAlives: true,
 	}
@@ -206,7 +213,6 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 		Transport: transport,
 		Timeout:   timeout,
 	}
-	urlData := database.UrlData{}
 	var urlList []string
 	var urlCodesList []int
 	var finalLocation string
