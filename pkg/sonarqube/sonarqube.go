@@ -139,13 +139,13 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		docker.RemoveContainers(idArray)
 		return
 	}
-	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID)
-	if sonarErrCh != nil {
-		err := fmt.Errorf("sast scan error %v", sonarErrCh)
+	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, "")
+	if err := <-sonarErrCh; err != nil {
+		errMsg := fmt.Errorf("sast scan error %v", err)
 		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+			sentry.CaptureException(errMsg)
 		}
-		log.Println(err)
+		log.Println(errMsg)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
 		cli.Close()
@@ -168,13 +168,13 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 
-	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID)
-	if depErrCh != nil {
-		err := fmt.Errorf("sast scan error %v", depErrCh)
+	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID, "")
+	if err := <-depErrCh; err != nil {
+		errMsg := fmt.Errorf("sast scan error %v", err)
 		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+			sentry.CaptureException(errMsg)
 		}
-		log.Println(err)
+		log.Println(errMsg)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
 		cli.Close()

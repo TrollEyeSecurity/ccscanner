@@ -72,7 +72,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
-		err := fmt.Errorf("nmap scan error %v", MongoClientError)
+		err := fmt.Errorf("nmap mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -87,7 +87,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		bson.D{{"$set", bson.D{{"container_id", NmapContainer.ID}, {"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("nmap scan error %v", updateError)
+		err := fmt.Errorf("nmap update-task error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -97,13 +97,13 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		cli.Close()
 		return
 	}
-	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
-	if errCh != nil {
-		err := fmt.Errorf("nmap scan error %v", errCh)
+	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID, "next-exit")
+	if err := <-errCh; err != nil {
+		errMsg := fmt.Errorf("nmap container-wait error %v", err)
 		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+			sentry.CaptureException(errMsg)
 		}
-		log.Println(err)
+		log.Println(errMsg)
 		docker.RemoveContainers(idArray)
 		MongoClient.Disconnect(context.TODO())
 		cli.Close()
@@ -114,7 +114,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		Follow:     true,
 	})
 	if ContainerLogsErr != nil {
-		err := fmt.Errorf("nmap scan error %v: %v", ContainerLogsErr, reader)
+		err := fmt.Errorf("nmap container-logs error %v: %v", ContainerLogsErr, reader)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -235,7 +235,7 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
-	docker.RemoveContainers(idArray)
+	//docker.RemoveContainers(idArray)
 	cli.Close()
 	if update2Error != nil {
 		err := fmt.Errorf("nmap scan error %v", update2Error)

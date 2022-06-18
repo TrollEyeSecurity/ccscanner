@@ -195,10 +195,15 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 		return nil, nil, StartContainerErr
 	}
 	idArray = append(idArray, screenShotContainer.ID)
-	_, errCh := cli.ContainerWait(ctx, screenShotContainer.ID)
-	if errCh != nil {
+	_, errCh := cli.ContainerWait(ctx, screenShotContainer.ID, "")
+	if err := <-errCh; err != nil {
 		cli.Close()
-		return nil, &idArray, errCh
+		errMsg := fmt.Errorf("screen-shot chan-error %v", err)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(errMsg)
+		}
+		log.Println(errMsg)
+		return nil, &idArray, errMsg
 	}
 	fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, screenShotContainer.ID, filePath)
 	if fileReaderErr != nil {

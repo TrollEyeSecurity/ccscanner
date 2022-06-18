@@ -91,13 +91,13 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			log.Println(err)
 			continue
 		}
-		_, errCh := cli.ContainerWait(ctx, DnsreconContainer.ID)
-		if errCh != nil {
-			err := fmt.Errorf("dns analyze-domain-names error %v", errCh)
+		_, errCh := cli.ContainerWait(ctx, DnsreconContainer.ID, "")
+		if err := <-errCh; err != nil {
+			errMsg := fmt.Errorf("dns analyze-domain-names error %v", err)
 			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+				sentry.CaptureException(errMsg)
 			}
-			log.Println(err)
+			log.Println(errMsg)
 			continue
 		}
 		fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, DnsreconContainer.ID, filePath)
@@ -159,13 +159,13 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			continue
 		}
 		idArray = append(idArray, DigContainer.ID)
-		_, dirErrCh := cli.ContainerWait(ctx, DigContainer.ID)
-		if dirErrCh != nil {
-			err := fmt.Errorf("dns analyze-domain-names error %v", dirErrCh)
+		_, dirErrCh := cli.ContainerWait(ctx, DigContainer.ID, "")
+		if err := <-dirErrCh; err != nil {
+			errMsg := fmt.Errorf("dns analyze-domain-names error %v", err)
 			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+				sentry.CaptureException(errMsg)
 			}
-			log.Println(err)
+			log.Println(errMsg)
 			continue
 		}
 		reader, ContainerLogsErr := cli.ContainerLogs(ctx, DigContainer.ID, types.ContainerLogsOptions{
