@@ -2,6 +2,7 @@ package database
 
 import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"net"
 )
 
 type ConfigFields struct {
@@ -26,6 +27,7 @@ type Task struct {
 	OwaspZapJsonResult string             `bson:"owasp_zap_json_result" json:"owasp_zap_json_result"`
 	OwaspZapHtmlResult string             `bson:"owasp_zap_html_result" json:"owasp_zap_html_result"`
 	SastResult         SastResults        `bson:"sast_result" json:"sast_result"`
+	NetReconResult     string             `bson:"net_recon_result" json:"net_recon_result"`
 	OpenvasTaskId      string             `bson:"openvas_task_id" json:"openvas_task_id"`
 	DnsResult          []DnsResults       `bson:"dns_result" json:"dns_result"`
 	OsintResult        []OsintResults     `bson:"osint_result" json:"osint_result"`
@@ -52,6 +54,11 @@ type TaskContent struct {
 	Tech            string       `json:"tech"`
 	Args            TaskArg      `json:"args"`
 	DastConfigList  []DastConfig `json:"dast_config_list"`
+	Ip              net.IP       `json:"ip"`
+	Hostname        string       `json:"hostname"`
+	Api             bool         `json:"api"`
+	Tls             bool         `json:"tls"`
+	Ssh             bool         `json:"ssh"`
 }
 
 type TaskSecret struct {
@@ -59,6 +66,8 @@ type TaskSecret struct {
 	Repouser   string       `bson:"repouser" json:"repouser"`
 	SastSecret SastSecret   `bson:"sast_secret" json:"sast_secret"`
 	Data       SecretData   `bson:"data" json:"data"`
+	Username   string       `bson:"username" json:"username"`
+	Password   string       `bson:"password" json:"password"`
 }
 
 type SecretData struct {
