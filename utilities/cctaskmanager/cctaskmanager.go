@@ -8,6 +8,7 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/dns"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/netrecon"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/nmap"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/osint"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/owaspzap"
@@ -110,6 +111,9 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
+			case task.Content.Function == "infrastructure_discovery" && task.Content.Ssh == true:
+				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID)
+				break
 			case task.Content.Function == "sast":
 				go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
 				break

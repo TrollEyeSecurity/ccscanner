@@ -3,7 +3,6 @@ package netrecon
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
@@ -16,11 +15,10 @@ import (
 	"io/ioutil"
 	"log"
 	"strconv"
-	"strings"
 	"time"
 )
 
-func Recon(taskId *primitive.ObjectID) {
+func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
@@ -32,12 +30,20 @@ func Recon(taskId *primitive.ObjectID) {
 		log.Println(err)
 		return
 	}
-	cmd := ""
-	cmdS := strings.Split(cmd, " ")
+	var netReconHost string
+	if content.Hostname != "" {
+		netReconHost = content.Hostname
+	} else {
+		netReconHost = content.Ip.String()
+	}
 	imageName := docker.NetReconImage
 	config := &container.Config{
+		Env: []string{
+			"NETRECON_HOST=" + netReconHost,
+			"NETRECON_USERNAME=" + secretData.Username,
+			"NETRECON_PASSWORD=" + secretData.Password,
+		},
 		Image:        imageName,
-		Cmd:          cmdS,
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
@@ -53,7 +59,7 @@ func Recon(taskId *primitive.ObjectID) {
 	containerName := "nmap-" + strconv.FormatInt(now.Unix(), 10) + "-" + taskId.Hex()
 	NmapContainer, StartContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
 	if StartContainerErr != nil {
-		err := fmt.Errorf("nmap scan error %v: %v", StartContainerErr, NmapContainer)
+		err := fmt.Errorf("net-recon start-container error %v: %v", StartContainerErr, NmapContainer)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -65,7 +71,7 @@ func Recon(taskId *primitive.ObjectID) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
-		err := fmt.Errorf("nmap scan error %v", MongoClientError)
+		err := fmt.Errorf("net-recon mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -80,7 +86,7 @@ func Recon(taskId *primitive.ObjectID) {
 		bson.D{{"$set", bson.D{{"container_id", NmapContainer.ID}, {"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("nmap scan error %v", updateError)
+		err := fmt.Errorf("net-recon update-task error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -92,7 +98,7 @@ func Recon(taskId *primitive.ObjectID) {
 	}
 	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
 	if errCh != nil {
-		err := fmt.Errorf("nmap scan error %v", errCh)
+		err := fmt.Errorf("net-recon container-wait error %v", errCh)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -107,7 +113,7 @@ func Recon(taskId *primitive.ObjectID) {
 		Follow:     true,
 	})
 	if ContainerLogsErr != nil {
-		err := fmt.Errorf("netrecon scan error %v: %v", ContainerLogsErr, reader)
+		err := fmt.Errorf("netrecon container-logs error %v: %v", ContainerLogsErr, reader)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -121,7 +127,7 @@ func Recon(taskId *primitive.ObjectID) {
 	byteValue, ioutilReadAllError := ioutil.ReadAll(reader)
 	reader.Close()
 	if ioutilReadAllError != nil {
-		err := fmt.Errorf("netrecon scan ioutil error %v", ioutilReadAllError)
+		err := fmt.Errorf("netrecon ioutil error %v", ioutilReadAllError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -131,24 +137,11 @@ func Recon(taskId *primitive.ObjectID) {
 		cli.Close()
 		return
 	}
-	jsonData, jsonDataError := json.Marshal(byteValue)
-	if jsonDataError != nil {
-		// do I really want to know about all of these?
-		err := fmt.Errorf("netrecon scan json-marshal error %v", jsonDataError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
-	}
-	result := base64.StdEncoding.EncodeToString(jsonData)
+	result := base64.StdEncoding.EncodeToString(byteValue)
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"netrecon_result", result},
+			{"net_recon_result", result},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
