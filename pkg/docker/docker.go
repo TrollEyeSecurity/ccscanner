@@ -43,7 +43,7 @@ func RemoveContainers(idArray []string) {
 }
 
 func GetImages() {
-	images := []string{KaliLinuxImage, DnsReconImage, MongoDbDockerImage, OwaspZapImage, SastImage}
+	images := []string{KaliLinuxImage, DnsReconImage, MongoDbDockerImage, OwaspZapImage, SastImage, NetReconImage}
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewEnvClient()
 	if NewEnvClientErr != nil {

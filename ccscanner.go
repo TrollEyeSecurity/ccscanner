@@ -132,6 +132,7 @@ func ScannerMain() {
 				{"owasp_zap_json_result", nil},
 				{"owasp_zap_html_result", nil},
 				{"sast_result", nil},
+				{"net_recon_result", nil},
 				{"dns_result", nil},
 				{"osint_result", nil},
 				{"container_id", nil},
