@@ -49,7 +49,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	proxyPort := "8080"
 	var contextConfiguration ContextConfiguration
 	t := time.Now().Unix()
-	contextName := fmt.Sprintf(" %d", t)
+	contextName := fmt.Sprintf("%d", t)
 	if dastConfig.WebappZapContext != "" {
 		xml.Unmarshal([]byte(dastConfig.WebappZapContext), &contextConfiguration)
 	} else {
@@ -94,7 +94,16 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	time.Sleep(10 * time.Second)
 	contextId, newContextErr := newContext(&proxyPort, &contextName)
 	if newContextErr != nil {
-		err := fmt.Errorf("zap scan error %v", newContextErr)
+		err := fmt.Errorf("zap new-context error %v", newContextErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		docker.RemoveContainers(idArray)
+		return
+	}
+	if contextId == nil {
+		err := fmt.Errorf("zap context-id error %v", &contextName)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
