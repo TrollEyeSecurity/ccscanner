@@ -304,7 +304,7 @@ func GetOwaspZapResultById(taskId int64, html bool) *string {
 	return &task.OwaspZapJsonResult
 }
 
-func GetTaskStatusById(taskId int64) (*string, *int) {
+func GetTaskStatusByTaskId(taskId int64) (*string, *int) {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
