@@ -103,7 +103,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	if contextId == nil {
-		err := fmt.Errorf("zap context-id error %v", &contextName)
+		err := fmt.Errorf("zap context-id error %v", contextName)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
