@@ -279,6 +279,11 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			log.Println(errLogg)
 			return
 		}
+
+		if activeScanStatusResp == nil {
+			break
+		}
+
 		intStrconvActiveScanStatusResp, strconvActiveScanStatusRespErr := strconv.Atoi(*activeScanStatusResp)
 		if strconvActiveScanStatusRespErr != nil {
 			errLogg := fmt.Errorf("zap strconvActiveScanStatusRespErr error %v", strconvActiveScanStatusRespErr)
