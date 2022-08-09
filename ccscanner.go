@@ -27,6 +27,7 @@ func main() {
 	setModeBool := flag.Bool("mode", false, "Change the mode to running")
 	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
 	dastHtml := flag.Bool("dastHtml", false, "Choose this for html file output.")
+	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -50,7 +51,8 @@ func main() {
 	docker.GetImages()
 	database.StartDatabase()
 	if *dastConfig != "" {
-		scannerCli(dastConfig, dastHtml)
+		scannerCli(dastConfig, dastRootUrl, dastHtml)
+		return
 	}
 	// todo: if current status is maintenance, finish maintenance first
 	ScannerMain()
@@ -156,8 +158,7 @@ func ScannerMain() {
 	}
 }
 
-func scannerCli(dastConfigPath *string, dastHtml *bool) {
-	fmt.Println("")
+func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *bool) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -168,17 +169,16 @@ func scannerCli(dastConfigPath *string, dastHtml *bool) {
 		log.Println(err)
 		return
 	}
-	dastConfig := config.LoadDastConfiguration(*dastConfigPath)
-	taskId := int64(123333444)
-	s := strconv.Itoa(int(taskId))
+	dastConfig := config.LoadDastConfiguration(dastConfigPath, dastRootUrl)
+	taskId := time.Now().Unix()
 	content := database.TaskContent{
-		DastConfigList: []database.DastConfig{dastConfig},
+		DastConfigList: []database.DastConfig{*dastConfig},
 		Function:       "dast",
 	}
 	secretData := database.SecretData{}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
-		{"name", dastConfig.WebappName + "-" + s},
+		{"name", "cli DAST Scan" + fmt.Sprintf(" %d", taskId)},
 		{"task_id", taskId},
 		{"status", "ASSIGNED"},
 		{"content", content},
@@ -208,7 +208,7 @@ func scannerCli(dastConfigPath *string, dastHtml *bool) {
 	}
 	time.Sleep(2 * time.Second)
 	for {
-		status, pct := database.GetTaskStatusById(taskId)
+		status, pct := database.GetTaskStatusByTaskId(taskId)
 		if *status == "SUCCESS" || *status == "FAILURE" {
 			break
 		}
