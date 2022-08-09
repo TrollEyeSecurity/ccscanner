@@ -47,41 +47,15 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	proxyPort := "8080"
-	/*
-		attempts := 0
-		for {
-			rand.Seed(time.Now().UnixNano())
-			min := 88888
-			max := 88908
-			proxyPort = strconv.Itoa(rand.Intn(max-min+1) + min)
-			fmt.Println(proxyPort)
-			listenPort, listenPortErr := net.Listen("tcp", ":"+proxyPort)
-			if listenPortErr != nil {
-				attempts++
-				if attempts > 9 {
-					err := fmt.Errorf("owasp zap listen-port error %v: %v", listenPortErr, "ZAP Scan listenPortErr - Cannot find an open port for web proxy")
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					cli.Close()
-					return
-				}
-			}
-			if listenPort != nil {
-				listenPort.Close()
-				break
-			}
-			time.Sleep(3 * time.Second)
-		}
-	*/
 	var contextConfiguration ContextConfiguration
+	t := time.Now().Unix()
+	contextName := fmt.Sprintf(" %d", t)
 	if dastConfig.WebappZapContext != "" {
 		xml.Unmarshal([]byte(dastConfig.WebappZapContext), &contextConfiguration)
 	} else {
 
 	}
-	ZapContainerId, StartZapErr := StartZap(taskId, &contextConfiguration.Context.Name, &proxyPort)
+	ZapContainerId, StartZapErr := StartZap(taskId, &contextName, &proxyPort)
 	if StartZapErr != nil {
 		err := fmt.Errorf("zap start-zap error %v: %v", StartZapErr, ZapContainerId)
 		if sentry.CurrentHub().Client() != nil {
@@ -118,7 +92,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	}
 	idArray = append(idArray, *ZapContainerId)
 	time.Sleep(10 * time.Second)
-	contextId, newContextErr := newContext(&proxyPort, &contextConfiguration.Context.Name)
+	contextId, newContextErr := newContext(&proxyPort, &contextName)
 	if newContextErr != nil {
 		err := fmt.Errorf("zap scan error %v", newContextErr)
 		if sentry.CurrentHub().Client() != nil {
@@ -129,7 +103,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	for _, urlRegex := range contextConfiguration.Context.Incregexes {
-		_, err := includeInContext(&proxyPort, &contextConfiguration.Context.Name, &urlRegex)
+		_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
 		if err != nil {
 			errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
 			if sentry.CurrentHub().Client() != nil {
@@ -139,7 +113,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			continue
 		}
 	}
-	_, setInScopeErr := setInScope(&proxyPort, &contextConfiguration.Context.Name, &contextConfiguration.Context.Inscope)
+	_, setInScopeErr := setInScope(&proxyPort, &contextName, &contextConfiguration.Context.Inscope)
 	if setInScopeErr != nil {
 		errLogg := fmt.Errorf("zap setInScope error %v", setInScopeErr)
 		if sentry.CurrentHub().Client() != nil {
@@ -207,7 +181,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	rootUrl := dastConfig.WebappRooturl
 	spiderScanPct := 0
 	activeScanPct := 0
-	spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextConfiguration.Context.Name, &rootUrl)
+	spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &rootUrl)
 	if spiderScanErr != nil {
 		errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
 		if sentry.CurrentHub().Client() != nil {
