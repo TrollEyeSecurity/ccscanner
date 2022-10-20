@@ -47,6 +47,33 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	proxyPort := "8080"
+	/*var proxyPort string
+	attempts := 0
+	for {
+		rand.Seed(time.Now().UnixNano())
+		min := 8080
+		max := 8090
+		proxyPort = strconv.Itoa(rand.Intn(max-min+1) + min)
+		listenPort, listenPortErr := net.Listen("tcp", ":"+proxyPort)
+		if listenPortErr != nil {
+			attempts++
+			if attempts > 9 {
+				err := fmt.Errorf("owaspzap listen-port error %v: %v", listenPortErr, "ZapScan listenPortErr - Cannot find an open port for the proxy")
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				cli.Close()
+				return
+			}
+		}
+		if listenPort != nil {
+			listenPort.Close()
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
+	*/
 	var contextConfiguration ContextConfiguration
 	t := time.Now().Unix()
 	contextName := fmt.Sprintf("%d", t)
@@ -67,11 +94,11 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			bson.D{{"$set", bson.D{{"container_id", nil}, {"status", "FAILURE"}}}},
 		)
 		if updateError != nil {
-			err := fmt.Errorf("zap mongo-update error %v", updateError)
+			err1 := fmt.Errorf("zap mongo-update error %v", updateError)
 			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+				sentry.CaptureException(err1)
 			}
-			log.Println(err)
+			log.Println(err1)
 			cli.Close()
 			return
 		}
