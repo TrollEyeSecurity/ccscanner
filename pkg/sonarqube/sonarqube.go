@@ -52,11 +52,11 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	switch {
 	case content.IntegrationType == "gitlab" || content.IntegrationType == "github":
 		repoUrlSplit := strings.Split(content.Repourl, "//")
-		repoUrl = "https://x-token-auth:" + secretData.Data.Token + "@" + repoUrlSplit[1]
+		repoUrl = "https://x-token-auth:" + secretData.Token + "@" + repoUrlSplit[1]
 		break
 	case content.IntegrationType == "bitbucket":
 		repoUrlSplit := strings.Split(content.Repourl, "@")
-		token := getBitbucketToken(&secretData.Data)
+		token := getBitbucketToken(secretData)
 		repoUrl = "https://x-token-auth:{" + *token + "}@" + repoUrlSplit[1]
 		break
 	}
@@ -313,7 +313,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	return
 }
 
-func getBitbucketToken(secretData *database.SecretData) *string {
+func getBitbucketToken(secretData *database.TaskSecret) *string {
 	b := []byte("grant_type=client_credentials")
 	auth := base64.StdEncoding.EncodeToString([]byte(secretData.Key + ":" + secretData.Secret))
 	httpClient := &http.Client{

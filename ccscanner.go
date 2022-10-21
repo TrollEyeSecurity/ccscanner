@@ -175,7 +175,7 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *bool) {
 		DastConfigList: []database.DastConfig{*dastConfig},
 		Function:       "dast",
 	}
-	secretData := database.SecretData{}
+	secretData := database.TaskSecret{}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
 		{"name", "cli DAST Scan" + fmt.Sprintf(" %d", taskId)},
