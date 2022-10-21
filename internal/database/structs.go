@@ -65,15 +65,11 @@ type TaskSecret struct {
 	Osint      OsintSecrets `bson:"osint" json:"osint"`
 	Repouser   string       `bson:"repouser" json:"repouser"`
 	SastSecret SastSecret   `bson:"sast_secret" json:"sast_secret"`
-	Data       SecretData   `bson:"data" json:"data"`
 	Username   string       `bson:"username" json:"username"`
 	Password   string       `bson:"password" json:"password"`
-}
-
-type SecretData struct {
-	Token  string `bson:"token" json:"token"`
-	Key    string `bson:"key" json:"key"`
-	Secret string `bson:"secret" json:"secret"`
+	Token      string       `bson:"token" json:"token"`
+	Key        string       `bson:"key" json:"key"`
+	Secret     string       `bson:"secret" json:"secret"`
 }
 
 type SastSecret struct {
