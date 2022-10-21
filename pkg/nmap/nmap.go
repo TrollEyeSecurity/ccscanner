@@ -186,7 +186,14 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		}
 		for _, port := range host.Ports.Port {
 			var urls []string
-			if port.Service.Name == "http" || port.Service.Name == "https" || port.Service.Name == "https-alt" || port.Service.Name == "ipp" || port.Service.Name == "ssl" || port.Service.Name == "unicall" || port.Service.Name == "snet-sensor-mgmt" {
+			if port.Service.Name == "http" ||
+				port.Service.Name == "https" ||
+				port.Service.Name == "https-alt" ||
+				port.Service.Name == "ipp" ||
+				port.Service.Name == "ssl" ||
+				port.Service.Name == "unicall" ||
+				port.Service.Name == "snet-sensor-mgmt" {
+
 				protocol := "http://"
 				if port.Service.Tunnel != "" && port.Portid != "80" {
 					protocol = "https://"
