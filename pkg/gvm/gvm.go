@@ -5,14 +5,13 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"io/ioutil"
 	"log"
-	"math/rand"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -69,7 +68,7 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("gvm new-client error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -201,7 +200,7 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 	task := database.Task{}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	tasksCollection.FindOne(context.TODO(), bson.D{{"_id", taskId}}).Decode(&task)
-	getTasksCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_tasks task_id='"+task.OpenvasTaskId+"'/>")
+	getTasksCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", "<get_tasks task_id='"+task.OpenvasTaskId+"'/>")
 	getTasksCmdByts, _ := getTasksCmd.CombinedOutput()
 	getTasksResponseData := &GetTasksResponse{} // Create and initialise a data variablgo as a PostData struct
 	getTasksResponseDataErr := xml.Unmarshal(getTasksCmdByts, getTasksResponseData)
@@ -253,7 +252,7 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 
 func getReports(reportId *string) *GetReportsResponse {
 	getReportsXml := "<get_reports report_id='" + *reportId + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
-	getReportsCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", getReportsXml)
+	getReportsCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", getReportsXml)
 	getReportsCmdByts, _ := getReportsCmd.CombinedOutput()
 	getReportsResponseData := &GetReportsResponse{} // Create and initialise a data variablgo as a PostData struct
 	getReportsResponseDataErr := xml.Unmarshal(getReportsCmdByts, getReportsResponseData)
@@ -269,7 +268,7 @@ func getReports(reportId *string) *GetReportsResponse {
 }
 
 func createTarget(xmlString *string) *CreateTargetResponse {
-	createTargetCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTargetCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString)
 	createTargetCmdByts, _ := createTargetCmd.CombinedOutput()
 	createTargetResponseData := &CreateTargetResponse{} // Create and initialise a data variablgo as a PostData struct
 	createTargetResponseDataErr := xml.Unmarshal(createTargetCmdByts, createTargetResponseData)
@@ -285,7 +284,7 @@ func createTarget(xmlString *string) *CreateTargetResponse {
 }
 
 func createConfig(xmlString *string) *CreateConfigResponse {
-	createConfigCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createConfigCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString)
 	createConfigCmdByts, _ := createConfigCmd.CombinedOutput()
 	CreateConfigResponseData := &CreateConfigResponse{}
 	CreateConfigResponseDataErr := xml.Unmarshal(createConfigCmdByts, CreateConfigResponseData)
@@ -302,7 +301,7 @@ func createConfig(xmlString *string) *CreateConfigResponse {
 
 func modifyConfig(xmlString *string) *string {
 	var s string
-	modifyConfigCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString, "--pretty")
+	modifyConfigCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString, "--pretty")
 	modifyConfigCmdByts, _ := modifyConfigCmd.CombinedOutput()
 	ModifyConfigResponseData := &ModifyConfigResponse{} // Create and initialise a data variablgo as a PostData struct
 	ModifyConfigResponseDataErr := xml.Unmarshal(modifyConfigCmdByts, ModifyConfigResponseData)
@@ -318,7 +317,7 @@ func modifyConfig(xmlString *string) *string {
 }
 
 func createTask(xmlString *string) *CreateTaskResponse {
-	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString)
 	createTaskCmdByts, _ := createTaskCmd.CombinedOutput()
 	CreateTaskResponseData := &CreateTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	CreateTaskResponseDataErr := xml.Unmarshal(createTaskCmdByts, CreateTaskResponseData)
@@ -334,7 +333,7 @@ func createTask(xmlString *string) *CreateTaskResponse {
 }
 
 func startTask(xmlString *string) *StartTaskResponse {
-	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	createTaskCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString)
 	createTaskCmdByts, _ := createTaskCmd.CombinedOutput()
 	StartTaskResponseData := &StartTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(createTaskCmdByts, StartTaskResponseData)
@@ -350,7 +349,7 @@ func startTask(xmlString *string) *StartTaskResponse {
 }
 
 func stopTask(xmlString *string) *StopTaskResponse {
-	stopTaskCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", *xmlString)
+	stopTaskCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", *xmlString)
 	stopTaskCmdByts, _ := stopTaskCmd.CombinedOutput()
 	StopTaskResponseData := &StopTaskResponse{} // Create and initialise a data variablgo as a PostData struct
 	StopTaskResponseDataErr := xml.Unmarshal(stopTaskCmdByts, StopTaskResponseData)
@@ -366,7 +365,7 @@ func stopTask(xmlString *string) *StopTaskResponse {
 }
 
 func isGvmReady() bool {
-	getFeedsCmd := exec.Command(gvmCli, "socket", "--socketpath=/run/gvmd/gvmd.sock", "--xml", "<get_feeds/>")
+	getFeedsCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", "<get_feeds/>")
 	getFeedsCmdByts, _ := getFeedsCmd.CombinedOutput()
 	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variable as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(getFeedsCmdByts, getFeedsResponseData)
@@ -397,123 +396,31 @@ func Find(slice []string, val string) (int, bool) {
 	return -1, false
 }
 
-func Initialize() {
-	if *CheckStatus() {
-		MongoClient, MongoClientError := database.GetMongoClient()
-		defer MongoClient.Disconnect(context.TODO())
-		if MongoClientError != nil {
-			err := fmt.Errorf("database initialize gvm error %v", MongoClient)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println("MongoClient Error: %s", MongoClientError)
-			return
-		}
-		systemCollection := MongoClient.Database("core").Collection("system")
-		opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
-		cursor, _ := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
-		var results []bson.M
-		cursor.All(context.TODO(), &results)
-		if results[0]["gvm_initialized"] == false || results[0]["gvm_initialized"] == nil {
-			fmt.Println("need to init")
-			password := randomString(18)
-			gvmdCreateUserCmd := exec.Command("/usr/local/sbin/gvmd", "--create-user=ccscanner", "--password="+*password)
-			_, gvmdCreateUserCmdErr := gvmdCreateUserCmd.CombinedOutput()
-			gvmdCreateUserCmdStatus := 99
-			gvmdUpdateUserCmdStatus := 99
-			if gvmdCreateUserExitErr, ok := gvmdCreateUserCmdErr.(*exec.ExitError); ok {
-				gvmdCreateUserCmdStatus = gvmdCreateUserExitErr.ExitCode()
-			}
-			if gvmdCreateUserCmdStatus == 1 {
-				gvmdUpdateUserCmd := exec.Command("/usr/local/sbin/gvmd", "--user=ccscanner", "--new-password="+*password)
-				_, gvmdUpdateUserCmdErr := gvmdUpdateUserCmd.CombinedOutput()
-				if exitErr, ok := gvmdUpdateUserCmdErr.(*exec.ExitError); ok {
-					gvmdUpdateUserCmdStatus = exitErr.ExitCode()
-				}
-				gvmdUpdateUserCmdStatus = 0
-			}
-			if gvmdCreateUserCmdStatus == 0 || gvmdUpdateUserCmdStatus == 0 {
-				b := []byte("[gmp]\nusername=ccscanner\npassword=" + *password + "\n")
-				writeErr := ioutil.WriteFile("/etc/ccscanner/.config/gvm-tools.conf", b, 0640)
-				if writeErr != nil {
-					err1 := fmt.Errorf("update gvm configuration error %v", writeErr)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err1)
-					}
-					log.Println("GVM Configuration Error: %s", writeErr)
-					return
-				}
-				_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
-					bson.D{{"_id", "configuration"}}, bson.D{{"$set", bson.D{{"_id", "configuration"}, {"gvm_initialized", true}}}},
-				)
-				if ConfigurationError != nil {
-					err2 := fmt.Errorf("update gvm configuration error %v", ConfigurationError)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err2)
-					}
-					log.Println("GVM Configuration Error: %s", ConfigurationError)
-					return
-				}
-			}
-		}
-	}
-}
-
-func randomString(length int) *string {
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, length)
-	rand.Read(b)
-	resp := fmt.Sprintf("%x", b)[:length]
-	return &resp
-}
-
 func CheckStatus() *bool {
 	isGvmAvailable := false
-	gvmdCmd := exec.Command("systemctl", "status", "gvmd.service")
-	_, gvmdCmdErr := gvmdCmd.CombinedOutput()
-	gvmdCmdStatus := 0
-	if gvmdCmdErr != nil {
-		if exitErr, ok := gvmdCmdErr.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 1 {
-				gvmdCmdStatus = 1
+	cli, NewEnvClientErr := client.NewClientWithOpts()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("gvm check status error %v: %v", NewEnvClientErr, cli)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return &isGvmAvailable
+	}
+	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
+	if err != nil {
+		panic(err)
+	}
+	var containerCount int32
+	for _, container := range containers {
+		gvmContainer := strings.Contains(container.Names[0], "greenbone-community-edition")
+		if gvmContainer {
+			if container.State == "running" {
+				containerCount += 1
 			}
-			if exitErr.ExitCode() == 2 {
-				gvmdCmdStatus = 2
-			}
-			if exitErr.ExitCode() == 3 {
-				gvmdCmdStatus = 3
-			}
-			if exitErr.ExitCode() == 4 {
-				gvmdCmdStatus = 4
-			}
-		} else {
-			gvmdCmdStatus = 99
-			fmt.Printf("failed to run systemctl: %v", gvmdCmdErr)
 		}
 	}
-	ospdCmd := exec.Command("systemctl", "status", "ospd-openvas.service")
-	_, ospdCmdErr := ospdCmd.CombinedOutput()
-	ospdCmdStatus := 0
-	if ospdCmdErr != nil {
-		if exitErr, ok := ospdCmdErr.(*exec.ExitError); ok {
-			if exitErr.ExitCode() == 1 {
-				ospdCmdStatus = 1
-			}
-			if exitErr.ExitCode() == 2 {
-				ospdCmdStatus = 2
-			}
-			if exitErr.ExitCode() == 3 {
-				ospdCmdStatus = 3
-			}
-			if exitErr.ExitCode() == 4 {
-				ospdCmdStatus = 4
-			}
-		} else {
-			ospdCmdStatus = 99
-			fmt.Printf("failed to run systemctl: %v", ospdCmdErr)
-		}
-	}
-	if gvmdCmdStatus == 0 && ospdCmdStatus == 0 {
+	if containerCount == 7 {
 		isGvmAvailable = true
 	}
 	return &isGvmAvailable
