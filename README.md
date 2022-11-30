@@ -4,12 +4,12 @@ Docker containers.
 
 
 ## Installing from dpkg file ##
-The only officially supported  operating system is Ubuntu 20.04 LTS (Focal Fossa)
+The only officially supported  operating system is Ubuntu 22.04 LTS
 
 Assuming a minimal base server install was successful, do the following.
 
-### Example using version 1.1.4 as the latest ###
-`export latest=1.1.4`
+### Example using version 2.0 as the latest ###
+`export latest=2.0`
 
 `curl -L https://github.com/TrollEyeSecurity/ccscanner/releases/download/v$latest/ccscanner_$latest-0ubuntu_amd64.deb -O`
 
