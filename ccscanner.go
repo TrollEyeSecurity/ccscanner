@@ -104,7 +104,6 @@ func ScannerMain() {
 		newTasks := &response.NewTasks
 		allowedUsers := &response.AllowedUsers
 		Ovpn := &response.Ovpn
-		go gvm.Initialize()
 		go users.ProcessUsers(*allowedUsers)
 		go ovpn.ProcessOvpnConfig(*Ovpn)
 		tasksCollection := MongoClient.Database("core").Collection("tasks")
