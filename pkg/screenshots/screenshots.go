@@ -157,7 +157,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 	var idArray []string
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		return nil, nil, NewEnvClientErr
 	}
@@ -195,10 +195,14 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 		return nil, nil, StartContainerErr
 	}
 	idArray = append(idArray, screenShotContainer.ID)
-	_, errCh := cli.ContainerWait(ctx, screenShotContainer.ID)
-	if errCh != nil {
-		cli.Close()
-		return nil, &idArray, errCh
+	statusCh, errCh := cli.ContainerWait(ctx, screenShotContainer.ID, container.WaitConditionNextExit)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			cli.Close()
+			return nil, &idArray, err
+		}
+	case <-statusCh:
 	}
 	fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, screenShotContainer.ID, filePath)
 	if fileReaderErr != nil {

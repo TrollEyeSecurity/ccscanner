@@ -21,7 +21,7 @@ import (
 func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
 	var idArray []string
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("netrecon scan error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -96,17 +96,21 @@ func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskI
 		cli.Close()
 		return
 	}
-	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
-	if errCh != nil {
-		err := fmt.Errorf("net-recon container-wait error %v", errCh)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+	statusCh, errCh := cli.ContainerWait(ctx, NmapContainer.ID, container.WaitConditionNextExit)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			errMsg := fmt.Errorf("net-recon container-wait error %v", err)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errMsg)
+			}
+			log.Println(errMsg)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+			return
 		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
+	case <-statusCh:
 	}
 	reader, ContainerLogsErr := cli.ContainerLogs(ctx, NmapContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,

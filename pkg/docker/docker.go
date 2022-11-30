@@ -86,7 +86,7 @@ func StartContainer(
 	config *container.Config,
 	hostConfig *container.HostConfig) (*container.ContainerCreateCreatedBody, error) {
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		return nil, NewEnvClientErr
 	}
@@ -109,10 +109,12 @@ func StartContainer(
 			return nil, nil
 		}
 	}
+
 	Container, err := cli.ContainerCreate(
 		ctx,
 		config,
 		hostConfig,
+		nil,
 		nil,
 		*containerName,
 	)

@@ -26,7 +26,7 @@ import (
 func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 	var idArray []string
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("dns analyze-domain-names error new-env-client %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -91,14 +91,19 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			log.Println(err)
 			continue
 		}
-		_, errCh := cli.ContainerWait(ctx, DnsreconContainer.ID)
-		if errCh != nil {
-			err := fmt.Errorf("dns analyze-domain-names container-wait error %v", errCh)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+		statusCh, errCh := cli.ContainerWait(ctx, DnsreconContainer.ID, container.WaitConditionNextExit)
+		select {
+		case err := <-errCh:
+			if err != nil {
+				errStr := <-errCh
+				errMsg := fmt.Errorf("dns analyze-domain-names container-wait error %v", errStr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errMsg)
+				}
+				log.Println(errMsg)
+				continue
 			}
-			log.Println(err)
-			continue
+		case <-statusCh:
 		}
 		fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, DnsreconContainer.ID, filePath)
 		if fileReaderErr != nil {
@@ -159,14 +164,18 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 			continue
 		}
 		idArray = append(idArray, DigContainer.ID)
-		_, dirErrCh := cli.ContainerWait(ctx, DigContainer.ID)
-		if dirErrCh != nil {
-			err := fmt.Errorf("dns analyze-domain-names container-wait error %v", dirErrCh)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+		statusCh, dirErrCh := cli.ContainerWait(ctx, DigContainer.ID, container.WaitConditionNextExit)
+		select {
+		case err := <-dirErrCh:
+			if err != nil {
+				errMsg := fmt.Errorf("dns analyze-domain-names container-wait error %v", err)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errMsg)
+				}
+				log.Println(errMsg)
+				continue
 			}
-			log.Println(err)
-			continue
+		case <-statusCh:
 		}
 		reader, ContainerLogsErr := cli.ContainerLogs(ctx, DigContainer.ID, types.ContainerLogsOptions{
 			ShowStdout: true,

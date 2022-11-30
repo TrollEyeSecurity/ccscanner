@@ -39,7 +39,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -139,9 +139,10 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		docker.RemoveContainers(idArray)
 		return
 	}
-	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID)
+	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, container.WaitConditionNextExit)
 	if sonarErrCh != nil {
-		err := fmt.Errorf("sast scan error %v", sonarErrCh)
+		errStr := <-sonarErrCh
+		err := fmt.Errorf("sast scan error %v", errStr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -151,7 +152,22 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		cli.Close()
 		return
 	}
-
+	statusCh, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, container.WaitConditionNextExit)
+	select {
+	case err := <-sonarErrCh:
+		if err != nil {
+			errMsg := fmt.Errorf("sast scan error %v", err)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errMsg)
+			}
+			log.Println(errMsg)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+			return
+		}
+	case <-statusCh:
+	}
 	_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"percent", 50}}}},
@@ -168,9 +184,10 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 
-	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID)
+	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID, container.WaitConditionNextExit)
 	if depErrCh != nil {
-		err := fmt.Errorf("sast scan error %v", depErrCh)
+		errStr := <-depErrCh
+		err := fmt.Errorf("sast scan error %v", errStr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}

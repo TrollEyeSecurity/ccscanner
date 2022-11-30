@@ -22,10 +22,10 @@ import (
 	"time"
 )
 
-func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitive.ObjectID, shodanKey *string) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, shodanKey *string) {
 	var idArray []string
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -36,9 +36,9 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 	}
 	var cmd string
 	if *excludes == "" {
-		cmd = "nmap -oX - --stats-every 30s " + *nmap_params + " " + *hosts
+		cmd = "nmap -oX - --stats-every 30s " + *nmapParams + " " + *hosts
 	} else {
-		cmd = "nmap -oX - --stats-every 30s " + *nmap_params + " " + *hosts + " --exclude " + *excludes
+		cmd = "nmap -oX - --stats-every 30s " + *nmapParams + " " + *hosts + " --exclude " + *excludes
 	}
 	cmdS := strings.Split(cmd, " ")
 	imageName := docker.KaliLinuxImage
@@ -97,17 +97,21 @@ func Scan(nmap_params *string, hosts *string, excludes *string, taskId *primitiv
 		cli.Close()
 		return
 	}
-	_, errCh := cli.ContainerWait(ctx, NmapContainer.ID)
-	if errCh != nil {
-		err := fmt.Errorf("nmap scan error %v", errCh)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+	statusCh, errCh := cli.ContainerWait(ctx, NmapContainer.ID, container.WaitConditionNextExit)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			errMsg := fmt.Errorf("nmap scan error %v", err)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errMsg)
+			}
+			log.Println(errMsg)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+			return
 		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
+	case <-statusCh:
 	}
 	reader, ContainerLogsErr := cli.ContainerLogs(ctx, NmapContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
