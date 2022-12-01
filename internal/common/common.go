@@ -297,3 +297,31 @@ func SetModeRunning() {
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
 }
+
+func SetModeMaintenance() {
+	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
+	if MongoClientError != nil {
+		err := fmt.Errorf("maintenance error %v", MongoClientError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
+	systemCollection := MongoClient.Database("core").Collection("system")
+	cursor, _ := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
+	var results []bson.M
+	cursor.All(context.TODO(), &results)
+	_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", "configuration"}},
+		bson.D{{"$set", bson.D{{"_id", "configuration"}, {"mode", "maintenance"}}}},
+	)
+	if ConfigurationError != nil {
+		err := fmt.Errorf("maintenance error %v", ConfigurationError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Configuration Error: %s", ConfigurationError)
+	}
+}

@@ -23,7 +23,8 @@ import (
 func main() {
 	configFile := flag.String("config", "", "Enter the path to the config file.")
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
-	setModeBool := flag.Bool("mode", false, "Change the mode to running")
+	setModeRunBool := flag.Bool("mode_running", false, "Change the mode to running")
+	setModeMaintBool := flag.Bool("mode_maintenance", false, "Change the mode to maintenance")
 	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
 	dastHtml := flag.Bool("dastHtml", false, "Choose this for html file output.")
 	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
@@ -32,8 +33,12 @@ func main() {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
 		return
 	}
-	if *setModeBool {
+	if *setModeRunBool {
 		common.SetModeRunning()
+		return
+	}
+	if *setModeMaintBool {
+		common.SetModeMaintenance()
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)
