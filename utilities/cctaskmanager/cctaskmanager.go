@@ -37,7 +37,6 @@ func main() {
 		}
 		defer sentry.Flush(2 * time.Second)
 	}
-	database.StartDatabase()
 	TaskManagerMain()
 }
 

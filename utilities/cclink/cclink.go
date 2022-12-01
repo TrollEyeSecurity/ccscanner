@@ -18,7 +18,6 @@ func main() {
 	baseUrl := flag.String("url", "", "Enter the base url for your instance of Command Center.")
 	linkingToken := flag.String("token", "", "The linking token can be found in the Scanner Group you are trying to join.")
 	flag.Parse()
-	database.StartDatabase()
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {

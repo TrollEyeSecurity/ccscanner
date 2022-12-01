@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
-	"io"
-	"io/ioutil"
 	"log"
 )
 
@@ -38,44 +35,6 @@ func RemoveContainers(idArray []string) {
 			}
 			log.Println(err)
 		}
-	}
-	cli.Close()
-}
-
-func GetImages() {
-	images := []string{KaliLinuxImage, DnsReconImage, MongoDbDockerImage, OwaspZapImage, SastImage, NetReconImage}
-	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
-	if NewEnvClientErr != nil {
-		err := fmt.Errorf("docker image-pull error %v", NewEnvClientErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-	}
-	options := &types.ImagePullOptions{}
-	for _, image := range images {
-		out, ImagePullErr := cli.ImagePull(ctx, image, *options)
-		if ImagePullErr != nil {
-			err := fmt.Errorf("docker image-pull error %v", ImagePullErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println(err)
-			continue
-		}
-		io.Copy(ioutil.Discard, out)
-		out.Close()
-	}
-	pruneFilter := filters.NewArgs()
-	pruneFilter.Add("dangling", "true")
-	_, ImagesPruneErr := cli.ImagesPrune(ctx, pruneFilter)
-	if ImagesPruneErr != nil {
-		err := fmt.Errorf("docker images-prune error %v", ImagesPruneErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
 	}
 	cli.Close()
 }

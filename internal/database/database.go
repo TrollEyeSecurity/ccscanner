@@ -4,75 +4,19 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/docker/go-connections/nat"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 	"time"
 )
-
-func StartDatabase() {
-	imageName := docker.MongoDbDockerImage
-	containerName := "mongoDB"
-	config := &container.Config{
-		ExposedPorts: nat.PortSet{"27017/tcp": struct{}{}},
-		Image:        imageName,
-	}
-	resources := &container.Resources{
-		Memory: 2.048e+9,
-	}
-	hostConfig := &container.HostConfig{
-		PortBindings: nat.PortMap{
-			"27017/tcp": []nat.PortBinding{
-				{
-					HostIP:   "127.0.0.1",
-					HostPort: "27017",
-				},
-			},
-		},
-		Resources: *resources,
-	}
-	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
-	if NewEnvClientErr != nil {
-		err := fmt.Errorf("database new-client error %v", NewEnvClientErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Fatalf("Start Database Error: %s", err)
-	}
-	imagePullOptions := &types.ImagePullOptions{}
-	out, ImagePullErr := cli.ImagePull(ctx, imageName, *imagePullOptions)
-	if ImagePullErr != nil {
-		err := fmt.Errorf("database image-pull error %v", ImagePullErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Fatalf("Start Database Error: %s", err)
-	}
-	io.Copy(ioutil.Discard, out)
-	out.Close()
-	_, StartContainerErr := docker.StartContainer(&imageName, &containerName, config, hostConfig)
-	if StartContainerErr != nil {
-		err := fmt.Errorf("database start-container error %v", StartContainerErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Fatalf("Start Database Error: %s", err)
-	}
-	return
-}
 
 func GetMongoClient() (*mongo.Client, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -111,7 +55,7 @@ func GetCurrentTasks() *[]Task {
 			}
 			continue
 		}
-		cli, NewEnvClientErr := client.NewEnvClient()
+		cli, NewEnvClientErr := client.NewClientWithOpts()
 		if NewEnvClientErr != nil {
 			err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
 			if sentry.CurrentHub().Client() != nil {
@@ -138,7 +82,7 @@ func GetCurrentTasks() *[]Task {
 			if len(TaskContainer) == 0 {
 				ReassignTask(tasksCollection, &task)
 			} else if TaskContainer[0].State == "exited" {
-				cli, NewEnvClientErr := client.NewEnvClient()
+				cli, NewEnvClientErr := client.NewClientWithOpts()
 				if NewEnvClientErr != nil {
 					err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
 					if sentry.CurrentHub().Client() != nil {

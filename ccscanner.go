@@ -10,7 +10,6 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/internal/ovpn"
 	"github.com/TrollEyeSecurity/ccscanner/internal/phonehome"
 	"github.com/TrollEyeSecurity/ccscanner/internal/users"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -48,8 +47,6 @@ func main() {
 		}
 		defer sentry.Flush(2 * time.Second)
 	}
-	docker.GetImages()
-	database.StartDatabase()
 	if *dastConfig != "" {
 		scannerCli(dastConfig, dastRootUrl, dastHtml)
 		return
