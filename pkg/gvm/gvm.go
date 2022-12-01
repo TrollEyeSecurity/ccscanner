@@ -2,6 +2,8 @@ package gvm
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
@@ -221,9 +223,11 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 			reportId = getTasksResponseData.Task.CurrentReport.Report.ID
 		}
 		reportData := getReports(&reportId)
+		jsonData, _ := json.Marshal(reportData)
+		result := base64.StdEncoding.EncodeToString(jsonData)
 		_, updateTaskIdError := MongoClient.Database("core").Collection("tasks").UpdateOne(context.TODO(),
 			bson.D{{"_id", *taskId}},
-			bson.D{{"$set", bson.D{{"openvas_result", reportData.Report.Text}, {"status", "SUCCESS"}, {"percent", 100}}}},
+			bson.D{{"$set", bson.D{{"openvas_result", result}, {"status", "SUCCESS"}, {"percent", 100}}}},
 		)
 		if updateTaskIdError != nil {
 			err := fmt.Errorf("gvm status mongo-update error %v", updateTaskIdError)
@@ -251,11 +255,13 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
 }
 
 func getReports(reportId *string) *GetReportsResponse {
-	getReportsXml := "<get_reports report_id='" + *reportId + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='c1645568-627a-11e3-a660-406186ea4fc5'/>"
+	getReportsXml := "<get_reports report_id='" + *reportId + "' details='1' ignore_pagination='1' filter='levels=hml' format_id='a994b278-1f62-11e1-96ac-406186ea4fc5'/>"
 	getReportsCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", getReportsXml)
 	getReportsCmdByts, _ := getReportsCmd.CombinedOutput()
+
 	getReportsResponseData := &GetReportsResponse{} // Create and initialise a data variablgo as a PostData struct
 	getReportsResponseDataErr := xml.Unmarshal(getReportsCmdByts, getReportsResponseData)
+
 	if getReportsResponseDataErr != nil {
 		err := fmt.Errorf("gvm unmarshal get-reports error %v", getReportsResponseDataErr)
 		if sentry.CurrentHub().Client() != nil {
