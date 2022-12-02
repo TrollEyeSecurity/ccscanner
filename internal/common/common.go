@@ -68,7 +68,7 @@ func GetScannerData() (*ScannerData, error) {
 		Uuid:     *uuid,
 		Load:     *cpuStatus,
 		Mode:     *database.GetCurrentMode(),
-		Gvm:      *gvm.CheckStatus(),
+		Gvm:      gvm.IsGvmReady(),
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
 		Ram:      m.TotalAlloc,

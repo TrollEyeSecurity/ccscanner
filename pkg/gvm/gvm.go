@@ -7,7 +7,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -92,7 +91,7 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 	}
 	for cursor.Next(context.TODO()) {
 		for {
-			if isGvmReady() {
+			if IsGvmReady() {
 				break
 			}
 			_, updateError1 := tasksCollection.UpdateOne(context.TODO(),
@@ -370,7 +369,7 @@ func stopTask(xmlString *string) *StopTaskResponse {
 	return StopTaskResponseData
 }
 
-func isGvmReady() bool {
+func IsGvmReady() bool {
 	getFeedsCmd := exec.Command(gvmCli, "socket", "--socketpath="+socketPath, "--xml", "<get_feeds/>")
 	getFeedsCmdByts, _ := getFeedsCmd.CombinedOutput()
 	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variable as a PostData struct
@@ -400,34 +399,4 @@ func Find(slice []string, val string) (int, bool) {
 		}
 	}
 	return -1, false
-}
-
-func CheckStatus() *bool {
-	isGvmAvailable := false
-	cli, NewEnvClientErr := client.NewClientWithOpts()
-	if NewEnvClientErr != nil {
-		err := fmt.Errorf("gvm check status error %v: %v", NewEnvClientErr, cli)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		return &isGvmAvailable
-	}
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
-	if err != nil {
-		panic(err)
-	}
-	var containerCount int32
-	for _, container := range containers {
-		gvmContainer := strings.Contains(container.Names[0], "greenbone-community-edition")
-		if gvmContainer {
-			if container.State == "running" {
-				containerCount += 1
-			}
-		}
-	}
-	if containerCount == 7 {
-		isGvmAvailable = true
-	}
-	return &isGvmAvailable
 }
