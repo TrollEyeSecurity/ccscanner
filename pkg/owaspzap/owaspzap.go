@@ -15,6 +15,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -36,7 +37,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	var idArray []string
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -118,7 +119,25 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	idArray = append(idArray, *ZapContainerId)
-	time.Sleep(10 * time.Second)
+	checks := 0
+	maxChecks := 3
+	time.Sleep(15 * time.Second)
+	for {
+		if checks == maxChecks {
+			log.Println("### Max checks reached for OwaspZap container status to go healthy. ###")
+			docker.RemoveContainers(idArray)
+			return
+		}
+		waitForHealthy, containerInspectErr := cli.ContainerInspect(context.TODO(), *ZapContainerId)
+		if containerInspectErr != nil {
+		}
+
+		if waitForHealthy.State.Health.Status == "healthy" {
+			break
+		}
+		checks += 1
+		time.Sleep(10 * time.Second)
+	}
 	contextId, newContextErr := newContext(&proxyPort, &contextName)
 	if newContextErr != nil {
 		err := fmt.Errorf("zap new-context error %v", newContextErr)
@@ -414,7 +433,7 @@ func newUser(proxyPort *string, contextId *string, userName *string) (*string, e
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.UserID != "" {
@@ -434,7 +453,7 @@ func newContext(proxyPort *string, contextName *string) (*string, error) {
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.ContextID != "" {
@@ -454,7 +473,7 @@ func includeInContext(proxyPort *string, contextName *string, regex *string) (*s
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -474,7 +493,7 @@ func setInScope(proxyPort *string, contextName *string, inScope *string) (*strin
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -494,7 +513,7 @@ func setAuthenticationMethod(proxyPort *string, contextId *string, authMethodNam
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -514,7 +533,7 @@ func setAuthenticationCredentials(proxyPort *string, contextId *string, newUserI
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -534,7 +553,7 @@ func setUserEnabled(proxyPort *string, contextId *string, newUserId *string, ena
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -554,7 +573,7 @@ func setLoggedInIndicator(proxyPort *string, contextId *string, loggedInIndicato
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Result == "OK" {
@@ -566,7 +585,7 @@ func setLoggedInIndicator(proxyPort *string, contextId *string, loggedInIndicato
 func spiderScan(proxyPort *string, contextName *string, url *string) (*string, error) {
 	baseUrl := "http://127.0.0.1:" + *proxyPort
 	urlPath := "/JSON/spider/action/scan/"
-	body := []byte("url=" + *url + "&maxChildren=10&recurse=true&contextName=" + *contextName + "&subtreeOnly=true")
+	body := []byte("url=" + *url + "&maxChildren=25&recurse=true&contextName=" + *contextName + "&subtreeOnly=true")
 	method := "POST"
 	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, &body, &method)
 	if respErr != nil {
@@ -574,7 +593,7 @@ func spiderScan(proxyPort *string, contextName *string, url *string) (*string, e
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Scan != "" {
@@ -593,7 +612,7 @@ func spiderScanStatus(proxyPort *string, scanId *string) (*string, error) {
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Status != "" {
@@ -613,7 +632,7 @@ func activeScan(proxyPort *string, contextId *string, url *string) (*string, err
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Scan != "" {
@@ -632,7 +651,7 @@ func activeScanStatus(proxyPort *string, scanId *string) (*string, error) {
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result jsonResponse
 	json.Unmarshal(respBody, &result)
 	if result.Status != "" {
@@ -667,7 +686,7 @@ func jsonReport(proxyPort *string) (*string, error) {
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	result := base64.StdEncoding.EncodeToString(respBody)
 	return &result, nil
 }
@@ -682,13 +701,13 @@ func htmlReport(proxyPort *string) (*string, error) {
 		return nil, nil
 	}
 	defer resp.Body.Close()
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	result := base64.StdEncoding.EncodeToString(respBody)
 	return &result, nil
 }
 
 func HttpClientRequest(baseURL *string, path *string, data *[]byte, method *string) (*http.Response, error) {
-	//proxyStr := "http://127.0.0.1:8181"
+	//proxyStr := "http://127.0.0.1:8081"
 	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
 	//if ProxyURLErr != nil {
 	//	return &http.Response{}, ProxyURLErr
@@ -704,7 +723,7 @@ func HttpClientRequest(baseURL *string, path *string, data *[]byte, method *stri
 	}
 	myClient := &http.Client{
 		Transport: transport,
-		Timeout:   time.Second * 20,
+		Timeout:   time.Second * 60,
 	}
 	//generating the HTTP GET request
 	if data == nil {
