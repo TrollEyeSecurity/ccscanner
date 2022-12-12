@@ -16,12 +16,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -136,7 +136,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			break
 		}
 		checks += 1
-		time.Sleep(10 * time.Second)
+		time.Sleep(15 * time.Second)
 	}
 	contextId, newContextErr := newContext(&proxyPort, &contextName)
 	if newContextErr != nil {
@@ -157,15 +157,48 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		docker.RemoveContainers(idArray)
 		return
 	}
-	for _, urlRegex := range contextConfiguration.Context.Incregexes {
-		_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
-		if err != nil {
-			errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
+	var urlList []string
+	if dastConfig.UrlList != nil {
+		for _, dastUrl := range dastConfig.UrlList {
+			u, urlParsErr := url.Parse(dastUrl)
+			if urlParsErr != nil {
+				continue
 			}
-			log.Println(errLogg)
-			continue
+			s := u.Scheme + "://" + u.Host
+			urlRegex := fmt.Sprintf("%s.*", s)
+			urlList = append(urlList, urlRegex)
+		}
+	}
+	uniqueUrlList := uniqueSlice(urlList)
+	if uniqueUrlList != nil {
+		for _, dastUrl := range uniqueUrlList {
+			u, urlParsErr := url.Parse(dastUrl)
+			if urlParsErr != nil {
+				continue
+			}
+			s := u.Scheme + "://" + u.Host
+			urlRegex := fmt.Sprintf("%s.*", s)
+			_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
+			if err != nil {
+				errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
+			}
+		}
+	} else {
+		for _, urlRegex := range contextConfiguration.Context.Incregexes {
+			_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
+			if err != nil {
+				errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
+			}
 		}
 	}
 	_, setInScopeErr := setInScope(&proxyPort, &contextName, &contextConfiguration.Context.Inscope)
@@ -233,62 +266,40 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			return
 		}
 	}
-	rootUrl := dastConfig.WebappRooturl
-	spiderScanPct := 0
+	var spiderSIds []string
 	activeScanPct := 0
-	spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &rootUrl)
-	if spiderScanErr != nil {
-		errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(errLogg)
+	spiderScanPct := 0
+	if dastConfig.UrlList != nil {
+		for _, v := range dastConfig.UrlList {
+			spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &v, &dastConfig.MaxChildren)
+			if spiderScanErr != nil {
+				errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				return
+			}
+			spiderSIds = append(spiderSIds, *spiderSId)
 		}
-		log.Println(errLogg)
-		return
+	} else {
+		rootUrl := dastConfig.WebappRooturl
+		spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &rootUrl, &dastConfig.MaxChildren)
+		if spiderScanErr != nil {
+			errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errLogg)
+			}
+			log.Println(errLogg)
+			return
+		}
+		spiderSIds = append(spiderSIds, *spiderSId)
 	}
 	time.Sleep(1 * time.Second)
-	for {
-		spiderScanStatusResp, spiderScanStatusErr := spiderScanStatus(&proxyPort, spiderSId)
-		if spiderScanStatusErr != nil {
-			errLogg := fmt.Errorf("zap spiderScanStatusErr error %v", spiderScanStatusErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
-			}
-			log.Println(errLogg)
-			return
-		}
-		intSpiderScanStatusResp, strconvSpiderScanStatusRespErr := strconv.Atoi(*spiderScanStatusResp)
-		if strconvSpiderScanStatusRespErr != nil {
-			errLogg := fmt.Errorf("zap strconvSpiderScanStatusRespErr error %v", strconvSpiderScanStatusRespErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
-			}
-			log.Println(errLogg)
-			return
-		}
-		spiderScanPct = intSpiderScanStatusResp
-		percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100
-		_, spiderScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
-			bson.D{{"_id", taskId}},
-			bson.D{{"$set", bson.D{
-				{"status", "PROGRESS"},
-				{"percent", int(percent)}}}},
-		)
-		if spiderScanPctUpdateError != nil {
-			err := fmt.Errorf("owasp zap spiderScanPctUpdate error %v", spiderScanPctUpdateError)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
-			return
-		}
-		if *spiderScanStatusResp == "100" {
-			break
-		}
-		time.Sleep(10 * time.Second)
-	}
+	checkSpiderScans(&spiderSIds, &proxyPort)
+	spiderScanPct = 100
 	time.Sleep(3 * time.Second)
-	activeScanId, activeScanErr := activeScan(&proxyPort, contextId, &rootUrl)
+	activeScanId, activeScanErr := activeScan(&proxyPort, contextId)
 	if activeScanErr != nil {
 		errLogg := fmt.Errorf("zap activeScanErr error %v", activeScanErr)
 		if sentry.CurrentHub().Client() != nil {
@@ -308,11 +319,9 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			log.Println(errLogg)
 			return
 		}
-
 		if activeScanStatusResp == nil {
 			break
 		}
-
 		intStrconvActiveScanStatusResp, strconvActiveScanStatusRespErr := strconv.Atoi(*activeScanStatusResp)
 		if strconvActiveScanStatusRespErr != nil {
 			errLogg := fmt.Errorf("zap strconvActiveScanStatusRespErr error %v", strconvActiveScanStatusRespErr)
@@ -582,10 +591,11 @@ func setLoggedInIndicator(proxyPort *string, contextId *string, loggedInIndicato
 	return nil, nil
 }
 
-func spiderScan(proxyPort *string, contextName *string, url *string) (*string, error) {
+func spiderScan(proxyPort *string, contextName *string, url *string, maxChildren *int) (*string, error) {
 	baseUrl := "http://127.0.0.1:" + *proxyPort
 	urlPath := "/JSON/spider/action/scan/"
-	body := []byte("url=" + *url + "&maxChildren=25&recurse=true&contextName=" + *contextName + "&subtreeOnly=true")
+	maxChildrenString := fmt.Sprintf("&maxChildren=%d", *maxChildren)
+	body := []byte("url=" + *url + maxChildrenString + "&recurse=true&contextName=" + *contextName + "&subtreeOnly=true")
 	method := "POST"
 	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, &body, &method)
 	if respErr != nil {
@@ -621,10 +631,10 @@ func spiderScanStatus(proxyPort *string, scanId *string) (*string, error) {
 	return nil, nil
 }
 
-func activeScan(proxyPort *string, contextId *string, url *string) (*string, error) {
+func activeScan(proxyPort *string, contextId *string) (*string, error) {
 	baseUrl := "http://127.0.0.1:" + *proxyPort
 	urlPath := "/JSON/ascan/action/scan/"
-	body := []byte("url=" + *url + "&recurse=true&inScopeOnly=true&scanPolicyName=&method=&postData=&contextId=" + *contextId)
+	body := []byte("recurse=true&inScopeOnly=true&scanPolicyName=&method=&postData=&contextId=" + *contextId)
 	method := "POST"
 	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, &body, &method)
 	if respErr != nil {
@@ -658,22 +668,6 @@ func activeScanStatus(proxyPort *string, scanId *string) (*string, error) {
 		return &result.Status, nil
 	}
 	return nil, nil
-}
-
-func importContext(proxyPort *string, contextConfiguration *ContextConfiguration) {
-	file, _ := xml.MarshalIndent(&contextConfiguration, "", " ")
-	_ = ioutil.WriteFile("/tmp/context-configuration.xml", file, 0644)
-
-	baseUrl := "http://127.0.0.1:" + *proxyPort
-	urlPath := "/JSON/context/action/importContext/"
-	body := []byte("contextFile=" + "/tmp/cc/context-configuration.xml")
-	method := "POST"
-	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, &body, &method)
-	if respErr != nil {
-		log.Println(respErr.Error())
-		return
-	}
-	defer resp.Body.Close()
 }
 
 func jsonReport(proxyPort *string) (*string, error) {
@@ -745,4 +739,75 @@ func HttpClientRequest(baseURL *string, path *string, data *[]byte, method *stri
 		return nil, ClientErr
 	}
 	return response, nil
+}
+
+func checkSpiderScans(scanIds *[]string, proxyPort *string) {
+	var wg sync.WaitGroup
+	wg.Add(len(*scanIds))
+	for _, spiderSId := range *scanIds {
+		spiderFunc(&wg, &spiderSId, proxyPort)
+
+		/*
+			intSpiderScanStatusResp, strconvSpiderScanStatusRespErr := strconv.Atoi(*spiderScanStatusResp)
+			if strconvSpiderScanStatusRespErr != nil {
+				errLogg := fmt.Errorf("zap strconvSpiderScanStatusRespErr error %v", strconvSpiderScanStatusRespErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				return
+			}
+
+			spiderScanPct = intSpiderScanStatusResp
+			percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100
+			_, spiderScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", taskId}},
+				bson.D{{"$set", bson.D{
+					{"status", "PROGRESS"},
+					{"percent", int(percent)}}}},
+			)
+			if spiderScanPctUpdateError != nil {
+				err := fmt.Errorf("owasp zap spiderScanPctUpdate error %v", spiderScanPctUpdateError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				MongoClient.Disconnect(context.TODO())
+				return
+			}
+		*/
+	}
+
+	wg.Wait()
+}
+
+func spiderFunc(wg *sync.WaitGroup, spiderSId *string, proxyPort *string) {
+	defer wg.Done()
+	for {
+		spiderScanStatusResp, spiderScanStatusErr := spiderScanStatus(proxyPort, spiderSId)
+		if spiderScanStatusErr != nil {
+			errLogg := fmt.Errorf("zap spiderScanStatusErr error %v", spiderScanStatusErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errLogg)
+			}
+			log.Println(errLogg)
+			return
+		}
+		if *spiderScanStatusResp == "100" {
+			break
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+func uniqueSlice(intSlice []string) []string {
+	keys := make(map[string]bool)
+	var list []string
+	for _, entry := range intSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }
