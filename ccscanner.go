@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/common"
@@ -26,7 +27,7 @@ func main() {
 	setModeRunBool := flag.Bool("mode_running", false, "Change the mode to running")
 	setModeMaintBool := flag.Bool("mode_maintenance", false, "Change the mode to maintenance")
 	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
-	dastHtml := flag.Bool("dastHtml", false, "Choose this for html file output.")
+	dastHtml := flag.String("dastHtml", "", "Name of the html file to write.")
 	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
 	flag.Parse()
 	if *versionBool {
@@ -159,7 +160,7 @@ func ScannerMain() {
 	}
 }
 
-func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *bool) {
+func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -219,10 +220,22 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *bool) {
 		fmt.Println("################\n")
 		time.Sleep(20 * time.Second)
 	}
-	if *dastHtml {
+	if *dastHtml != "" {
 		results := database.GetOwaspZapResultById(taskId, true)
-		fmt.Println("")
-		fmt.Println(*results)
+		file1, openErr := os.Create(*dastHtml)
+		defer file1.Close()
+		if openErr != nil {
+			fmt.Println(openErr.Error())
+			return
+		}
+		rString, decodeErr := base64.StdEncoding.DecodeString(*results)
+		if decodeErr != nil {
+			fmt.Println(decodeErr.Error())
+			return
+		}
+		file1.Write(rString)
+		file1.Sync()
+		fmt.Println("OWASPZap Scan is complete.")
 	} else {
 		results := database.GetOwaspZapResultById(taskId, false)
 		fmt.Println("")
