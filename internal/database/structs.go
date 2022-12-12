@@ -188,4 +188,6 @@ type DastConfig struct {
 	WebappUsers                   []string `json:"webapp_users"`
 	SecretList                    []string `json:"secret_list"`
 	ID                            int      `json:"id"`
+	MaxChildren                   int      `json:"max_children"`
+	UrlList                       []string `json:"url_list"`
 }
