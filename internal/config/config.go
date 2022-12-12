@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
-	"io/ioutil"
 	"os"
 )
 
@@ -27,7 +26,7 @@ func LoadConfiguration(file string) Config {
 func LoadDastConfiguration(file *string, rootUrl *string) *database.DastConfig {
 	var config database.DastConfig
 	if *file != "" {
-		configFile, err := ioutil.ReadFile(*file)
+		configFile, err := os.ReadFile(*file)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
