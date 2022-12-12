@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"flag"
@@ -16,6 +17,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -29,6 +31,8 @@ func main() {
 	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
 	dastHtml := flag.String("dastHtml", "", "Name of the html file to write.")
 	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
+	maxChildren := flag.Int("maxChildren", 0, "How deep should the spider go?")
+	urlList := flag.String("urlList", "", "Pat to a list of URL's (one per line) to spider and scan.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -54,7 +58,7 @@ func main() {
 		defer sentry.Flush(2 * time.Second)
 	}
 	if *dastConfig != "" {
-		scannerCli(dastConfig, dastRootUrl, dastHtml)
+		scannerCli(dastConfig, dastRootUrl, dastHtml, maxChildren, urlList)
 		return
 	}
 	// todo: if current status is maintenance, finish maintenance first
@@ -160,7 +164,7 @@ func ScannerMain() {
 	}
 }
 
-func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string) {
+func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, maxChildren *int, urlList *string) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -172,6 +176,11 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string) {
 		return
 	}
 	dastConfig := config.LoadDastConfiguration(dastConfigPath, dastRootUrl)
+	dastConfig.MaxChildren = *maxChildren
+	urls := buildUrlList(urlList)
+	if urls != nil {
+		dastConfig.UrlList = *urls
+	}
 	taskId := time.Now().Unix()
 	content := database.TaskContent{
 		DastConfigList: []database.DastConfig{*dastConfig},
@@ -243,4 +252,27 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string) {
 	}
 	database.DeleteTaskById(taskId)
 	os.Exit(0)
+}
+
+func buildUrlList(filePath *string) *[]string {
+	var urlList []string
+	readFile, err := os.Open(*filePath)
+	if err != nil {
+		return &urlList
+	}
+	defer readFile.Close()
+	fileScanner := bufio.NewScanner(readFile)
+	fileScanner.Split(bufio.ScanLines)
+	var fileLines []string
+	for fileScanner.Scan() {
+		fileLines = append(fileLines, fileScanner.Text())
+	}
+	for _, line := range fileLines {
+		_, urlParseErr := url.Parse(line)
+		if urlParseErr != nil {
+			panic(urlParseErr)
+		}
+		urlList = append(urlList, line)
+	}
+	return &urlList
 }
