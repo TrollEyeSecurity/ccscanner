@@ -17,6 +17,7 @@ import (
 func main() {
 	baseUrl := flag.String("url", "", "Enter the base url for your instance of Command Center.")
 	linkingToken := flag.String("token", "", "The linking token can be found in the Scanner Group you are trying to join.")
+	fakeLink := flag.Bool("fakeLink", false, "This flag is used to fake a link to Command Center for stanalone use.")
 	flag.Parse()
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -50,18 +51,31 @@ func main() {
 			}
 		}
 	}
-	lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
-	if lrError != nil {
-		err := fmt.Errorf("link error %v", lrError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+	var token *string
+	var shodan *string
+	if *fakeLink {
+		*baseUrl = "https://www.trolleyesecurity.com/cybersecurity-risk-management/"
+		t := "info@trolleyesecurity.com"
+		s := "info@trolleyesecurity.com"
+		token = &t
+		shodan = &s
+
+	} else {
+		lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
+		if lrError != nil {
+			err := fmt.Errorf("link error %v", lrError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Fatalf("Link Error: %s", lrError)
 		}
-		log.Fatalf("Link Error: %s", lrError)
+		token = &lr.Token
+		shodan = &lr.Shodan
 	}
 	if len(results) > 0 {
 		_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", "configuration"}},
-			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", &lr.Token}, {"shodan", &lr.Shodan}, {"mode", "running"}}}},
+			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", token}, {"shodan", shodan}, {"mode", "running"}}}},
 		)
 		if ConfigurationError != nil {
 			err := fmt.Errorf("link error %v", ConfigurationError)
@@ -70,12 +84,11 @@ func main() {
 			}
 			log.Fatalf("Configuration Error: %s", ConfigurationError)
 		}
-
 	} else {
 		_, ConfigurationError := systemCollection.InsertOne(context.TODO(), bson.D{
 			{"_id", "configuration"},
 			{"baseurl", *baseUrl},
-			{"token", &lr.Token},
+			{"token", token},
 			{"mode", "running"}},
 		)
 		if ConfigurationError != nil {
