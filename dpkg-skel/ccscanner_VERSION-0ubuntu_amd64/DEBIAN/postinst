@@ -1,0 +1,58 @@
+#!/bin/bash
+
+id -u ccscanner &>/dev/null || useradd ccscanner --system --shell=/usr/sbin/nologin --home-dir=/etc/ccscanner
+usermod -aG docker ccscanner
+
+CONFIG=config.json
+CONFIG_DIR=/etc/ccscanner/
+CONFIG_FILE=/tmp/ccscanner/$CONFIG
+if [[ -f "$CONFIG_FILE" ]];
+then
+    cp "$CONFIG_FILE" $CONFIG_DIR$CONFIG
+else
+  mkdir -p $CONFIG_DIR
+  echo '{"sentry_io_dsn": ""}' > $CONFIG_DIR$CONFIG
+fi
+mkdir -p $CONFIG_DIR/.config
+mkdir -p $CONFIG_DIR/.gvm
+chown ccscanner:ccscanner -R $CONFIG_DIR
+chmod 777 -R $CONFIG_DIR/.gvm/
+cat << EOF > /tmp/sudoers.new
+#
+# This file MUST be edited with the 'visudo' command as root.
+#
+# Please consider adding local content in /etc/sudoers.d/ instead of
+# directly modifying this file.
+#
+# See the man page for details on how to write a sudoers file.
+#
+Defaults    env_reset
+Defaults    mail_badpass
+Defaults    secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin"
+
+# Host alias specification
+
+# User alias specification
+
+# Cmnd alias specification
+
+# User privilege specification
+root    ALL=(ALL:ALL) ALL
+ccscanner ALL = NOPASSWD: /usr/bin/apt, /usr/sbin/reboot, /usr/bin/useradd, /usr/sbin/useradd, /usr/bin/usermod, /usr/sbin/usermod, /usr/bin/chown, /usr/sbin/chown, /usr/bin/mkdir, /usr/bin/systemctl, /usr/bin/mv, /usr/bin/rm, /usr/sbin/dmidecode, /usr/sbin/userdel
+# Members of the admin group may gain root privileges
+%admin ALL=(ALL) ALL
+
+# Allow members of group sudo to execute any command
+%sudo   ALL=(ALL) NOPASSWD:ALL
+
+# Allow members of group gvm to execute openvas
+%gvm ALL = NOPASSWD: /usr/local/sbin/openvas
+
+# See sudoers(5) for more information on "#include" directives:
+
+#includedir /etc/sudoers.d
+EOF
+if visudo -c -f /tmp/sudoers.new;
+then
+    cp /tmp/sudoers.new /etc/sudoers;
+fi

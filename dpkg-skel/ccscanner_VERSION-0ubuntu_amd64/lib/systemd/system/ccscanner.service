@@ -1,0 +1,12 @@
+[Unit]
+Description=command center scanner service
+After=network.target
+
+[Service]
+Restart=always
+RestartSec=1
+User=ccscanner
+ExecStart=/usr/bin/ccscanner --config=/etc/ccscanner/config.json
+
+[Install]
+WantedBy=multi-user.target
