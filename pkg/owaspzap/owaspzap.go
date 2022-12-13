@@ -119,23 +119,19 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	idArray = append(idArray, *ZapContainerId)
-	checks := 0
-	maxChecks := 3
 	time.Sleep(15 * time.Second)
 	for {
-		if checks == maxChecks {
-			log.Println("### Max checks reached for OwaspZap container status to go healthy. ###")
+		waitForHealthy, containerInspectErr := cli.ContainerInspect(context.TODO(), *ZapContainerId)
+		if containerInspectErr != nil {
+			log.Println(containerInspectErr)
 			docker.RemoveContainers(idArray)
 			return
 		}
-		waitForHealthy, containerInspectErr := cli.ContainerInspect(context.TODO(), *ZapContainerId)
-		if containerInspectErr != nil {
-		}
-
 		if waitForHealthy.State.Health.Status == "healthy" {
+			log.Println("OWASP ZAP container health status: " + waitForHealthy.State.Health.Status)
 			break
 		}
-		checks += 1
+		log.Println("OWASP ZAP container health status: " + waitForHealthy.State.Health.Status)
 		time.Sleep(15 * time.Second)
 	}
 	contextId, newContextErr := newContext(&proxyPort, &contextName)
@@ -157,7 +153,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		docker.RemoveContainers(idArray)
 		return
 	}
-	var urlList []string
+	var baseUrlList []string
 	if dastConfig.UrlList != nil {
 		for _, dastUrl := range dastConfig.UrlList {
 			u, urlParsErr := url.Parse(dastUrl)
@@ -166,12 +162,12 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 			}
 			s := u.Scheme + "://" + u.Host
 			urlRegex := fmt.Sprintf("%s.*", s)
-			urlList = append(urlList, urlRegex)
+			baseUrlList = append(baseUrlList, urlRegex)
 		}
 	}
-	uniqueUrlList := uniqueSlice(urlList)
-	if uniqueUrlList != nil {
-		for _, dastUrl := range uniqueUrlList {
+	uniqueBaseUrlList := uniqueSlice(baseUrlList)
+	if uniqueBaseUrlList != nil {
+		for _, dastUrl := range uniqueBaseUrlList {
 			u, urlParsErr := url.Parse(dastUrl)
 			if urlParsErr != nil {
 				continue
@@ -270,7 +266,8 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	activeScanPct := 0
 	spiderScanPct := 0
 	if dastConfig.UrlList != nil {
-		for _, v := range dastConfig.UrlList {
+		uniqueUrlList := uniqueSlice(dastConfig.UrlList)
+		for _, v := range uniqueUrlList {
 			spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &v, &dastConfig.MaxChildren)
 			if spiderScanErr != nil {
 				errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
@@ -403,7 +400,7 @@ func StartZap(taskId *primitive.ObjectID, contextName *string, proxyPort *string
 		AttachStderr: true,
 		User:         "zap",
 		Entrypoint:   bash,
-		Cmd:          []string{"mkdir ~/.ZAP/contexts && echo " + *contextName + " | tee ~/.ZAP/contexts/context.xml && zap.sh -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true"},
+		Cmd:          []string{"mkdir ~/.ZAP/contexts && echo " + *contextName + " | tee ~/.ZAP/contexts/context.xml && zap.sh -addonupdate -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true"},
 		ExposedPorts: nat.PortSet{
 			"8080/tcp": struct{}{},
 		},
