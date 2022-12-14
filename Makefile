@@ -20,3 +20,4 @@ build:
 	cp bin/cc* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin/
 	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_amd64/* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/
 	dpkg-deb --build dpkg/ccscanner_$(VERSION)-0ubuntu_amd64
+	mv dpkg/ccscanner_$(VERSION)-0ubuntu_amd64.deb .
