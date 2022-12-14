@@ -15,5 +15,13 @@ pipeline {
                 }
             }
         }
+        stage("Clean up") {
+            steps {
+                echo "Compiling and packaging the dpkg file."
+                    script {
+                        sh "rm -rf *"
+                }
+            }
+        }
     }
 }
