@@ -8,7 +8,6 @@ pipeline {
     stages {
         stage("Build and push dpkg") {
             steps {
-                echo "Compiling and packaging the dpkg file."
                 script {
                     sh "make build"
                     sh "curl -F package=@ccscanner_2.0.2-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/"
@@ -17,9 +16,8 @@ pipeline {
         }
         stage("Clean up") {
             steps {
-                echo "Compiling and packaging the dpkg file."
-                    script {
-                        sh "rm -rf *"
+                script {
+                    sh "rm -rf *"
                 }
             }
         }
