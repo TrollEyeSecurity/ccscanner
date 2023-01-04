@@ -10,7 +10,7 @@ pipeline {
             steps {
                 script {
                     sh "make build"
-                    sh "curl -F package=@ccscanner_2.0.2-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/"
+                    sh "curl -F package=@ccscanner_2.0.3-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/"
                 }
             }
         }
