@@ -131,7 +131,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		bson.D{{"$set", bson.D{{"container_id", depContainer.ID}, {"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("nmap sast error %v", updateError)
+		err := fmt.Errorf("sast error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -139,20 +139,8 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		docker.RemoveContainers(idArray)
 		return
 	}
-	_, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, container.WaitConditionNextExit)
-	if sonarErrCh != nil {
-		errStr := <-sonarErrCh
-		err := fmt.Errorf("sast scan error %v", errStr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
-	}
-	statusCh, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, container.WaitConditionNextExit)
+
+	sonarStatusCh, sonarErrCh := cli.ContainerWait(ctx, sonarContainer.ID, container.WaitConditionNextExit)
 	select {
 	case err := <-sonarErrCh:
 		if err != nil {
@@ -166,7 +154,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			cli.Close()
 			return
 		}
-	case <-statusCh:
+	case <-sonarStatusCh:
 	}
 	_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
@@ -183,19 +171,22 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-
-	_, depErrCh := cli.ContainerWait(ctx, depContainer.ID, container.WaitConditionNextExit)
-	if depErrCh != nil {
-		errStr := <-depErrCh
-		err := fmt.Errorf("sast scan error %v", errStr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+	depStatusCh, depErrCh := cli.ContainerWait(ctx, depContainer.ID, container.WaitConditionNextExit)
+	select {
+	case err := <-depErrCh:
+		if err != nil {
+			errStr := <-depErrCh
+			err := fmt.Errorf("sast scan error %v", errStr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+			return
 		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
+	case <-depStatusCh:
 	}
 
 	_, updateError3 := tasksCollection.UpdateOne(context.TODO(),
