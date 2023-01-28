@@ -137,6 +137,26 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 		// UDP 4a4717fe-57d2-11e1-9a26-406186ea4fc5
 		createConfigXml := "<create_config><copy>" + *configuration + "</copy><name>config-" + taskId.Hex() + "</name></create_config>"
 		targetResp := createTarget(&createTargetXml)
+		if targetResp == nil {
+			err := fmt.Errorf("gvm could not create target for %s", *newHosts)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			_, updateProgressError1 := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", *taskId}},
+				bson.D{{"$set", bson.D{{"status", "FAILURE"}}}},
+			)
+			if updateProgressError1 != nil {
+				err1 := fmt.Errorf("gvm status mongo-update error %v", updateProgressError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err1)
+				}
+				log.Println(err1)
+				return
+			}
+			return
+		}
 		configResp := createConfig(&createConfigXml)
 		if len(*disabledNvts) > 0 {
 			for k, v := range *disabledNvts {
