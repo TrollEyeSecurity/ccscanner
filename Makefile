@@ -1,4 +1,4 @@
-VERSION=2.0.3
+VERSION=2.0.4
 GOCMD=go
 GOBUILD=$(GOCMD) build
 SCANNER=ccscanner.go
@@ -12,7 +12,7 @@ UTILITIES=utilities/
 clean:
 	rm -rf bin/*
 
-build:
+build_dpkg:
 	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(SCANNER)
 	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(UTILITIES)$(TASKMANAGER)
 	$(GOBUILD) -o bin/$(CCLINK_BIN) $(UTILITIES)$(LINK)
