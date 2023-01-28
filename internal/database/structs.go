@@ -145,49 +145,49 @@ type SastResults struct {
 }
 
 type DastConfig struct {
-	WebappName                    string   `json:"webapp_name"`
-	WebappAka                     string   `json:"webapp_aka"`
-	WebappRooturl                 string   `json:"webapp_rooturl"`
-	WebappZapContext              string   `json:"webapp_zap_context"`
-	WebappMysql                   bool     `json:"webapp_mysql"`
-	WebappPostgresql              bool     `json:"webapp_postgresql"`
-	WebappMssql                   bool     `json:"webapp_mssql"`
-	WebappOracle                  bool     `json:"webapp_oracle"`
-	WebappSqlite                  bool     `json:"webapp_sqlite"`
-	WebappAccess                  bool     `json:"webapp_access"`
-	WebappFirebird                bool     `json:"webapp_firebird"`
-	WebappMaxdb                   bool     `json:"webapp_maxdb"`
-	WebappSybase                  bool     `json:"webapp_sybase"`
-	WebappDb2                     bool     `json:"webapp_db2"`
-	WebappHypersonicsql           bool     `json:"webapp_hypersonicsql"`
-	WebappMongodb                 bool     `json:"webapp_mongodb"`
-	WebappCouchdb                 bool     `json:"webapp_couchdb"`
-	WebappAsp                     bool     `json:"webapp_asp"`
-	WebappC                       bool     `json:"webapp_c"`
-	WebappJava                    bool     `json:"webapp_java"`
-	WebappJavascript              bool     `json:"webapp_javascript"`
-	WebappJsp                     bool     `json:"webapp_jsp"`
-	WebappPhp                     bool     `json:"webapp_php"`
-	WebappPython                  bool     `json:"webapp_python"`
-	WebappRuby                    bool     `json:"webapp_ruby"`
-	WebappXML                     bool     `json:"webapp_xml"`
-	WebappLinux                   bool     `json:"webapp_linux"`
-	WebappMacos                   bool     `json:"webapp_macos"`
-	WebappWindows                 bool     `json:"webapp_windows"`
-	WebappGit                     bool     `json:"webapp_git"`
-	WebappSvn                     bool     `json:"webapp_svn"`
-	WebappApache                  bool     `json:"webapp_apache"`
-	WebappIis                     bool     `json:"webapp_iis"`
-	WebappTomcat                  bool     `json:"webapp_tomcat"`
-	WebappUrlregex                string   `json:"webapp_urlregex"`
-	WebappAuthmethod              string   `json:"webapp_authmethod"`
-	WebappLoginurl                string   `json:"webapp_loginurl"`
-	WebappLoginrequestdata        string   `json:"webapp_loginrequestdata"`
-	WebappLoggedinindicatorregex  string   `json:"webapp_loggedinindicatorregex"`
-	WebappLoggedoutindicatorregex string   `json:"webapp_loggedoutindicatorregex"`
-	WebappUsers                   []string `json:"webapp_users"`
-	SecretList                    []string `json:"secret_list"`
-	ID                            int      `json:"id"`
-	MaxChildren                   int      `json:"max_children"`
-	UrlList                       []string `json:"url_list"`
+	WebappName                    string   `bson:"webapp_name" json:"webapp_name"`
+	WebappAka                     string   `bson:"webapp_aka" json:"webapp_aka"`
+	WebappRooturl                 string   `bson:"webapp_rooturl" json:"webapp_rooturl"`
+	WebappZapContext              string   `bson:"webapp_zap_context" json:"webapp_zap_context"`
+	WebappMysql                   bool     `bson:"webapp_mysql" json:"webapp_mysql"`
+	WebappPostgresql              bool     `bson:"webapp_postgresql" json:"webapp_postgresql"`
+	WebappMssql                   bool     `bson:"webapp_mssql" json:"webapp_mssql"`
+	WebappOracle                  bool     `bson:"webapp_oracle" json:"webapp_oracle"`
+	WebappSqlite                  bool     `bson:"webapp_sqlite" json:"webapp_sqlite"`
+	WebappAccess                  bool     `bson:"webapp_access" json:"webapp_access"`
+	WebappFirebird                bool     `bson:"webapp_firebird" json:"webapp_firebird"`
+	WebappMaxdb                   bool     `bson:"webapp_maxdb" json:"webapp_maxdb"`
+	WebappSybase                  bool     `bson:"webapp_sybase" json:"webapp_sybase"`
+	WebappDb2                     bool     `bson:"webapp_db2" json:"webapp_db2"`
+	WebappHypersonicsql           bool     `bson:"webapp_hypersonicsql" json:"webapp_hypersonicsql"`
+	WebappMongodb                 bool     `bson:"webapp_mongodb" json:"webapp_mongodb"`
+	WebappCouchdb                 bool     `bson:"webapp_couchdb" json:"webapp_couchdb"`
+	WebappAsp                     bool     `bson:"webapp_asp" json:"webapp_asp"`
+	WebappC                       bool     `bson:"webapp_c" json:"webapp_c"`
+	WebappJava                    bool     `bson:"webapp_java" json:"webapp_java"`
+	WebappJavascript              bool     `bson:"webapp_javascript" json:"webapp_javascript"`
+	WebappJsp                     bool     `bson:"webapp_jsp" json:"webapp_jsp"`
+	WebappPhp                     bool     `bson:"webapp_php" json:"webapp_php"`
+	WebappPython                  bool     `bson:"webapp_python" json:"webapp_python"`
+	WebappRuby                    bool     `bson:"webapp_ruby" json:"webapp_ruby"`
+	WebappXML                     bool     `bson:"webapp_xml" json:"webapp_xml"`
+	WebappLinux                   bool     `bson:"webapp_linux" json:"webapp_linux"`
+	WebappMacos                   bool     `bson:"webapp_macos" json:"webapp_macos"`
+	WebappWindows                 bool     `bson:"webapp_windows" json:"webapp_windows"`
+	WebappGit                     bool     `bson:"webapp_git" json:"webapp_git"`
+	WebappSvn                     bool     `bson:"webapp_svn" json:"webapp_svn"`
+	WebappApache                  bool     `bson:"webapp_apache" json:"webapp_apache"`
+	WebappIis                     bool     `bson:"webapp_iis" json:"webapp_iis"`
+	WebappTomcat                  bool     `bson:"webapp_tomcat" json:"webapp_tomcat"`
+	WebappUrlregex                string   `bson:"webapp_urlregex" json:"webapp_urlregex"`
+	WebappAuthmethod              string   `bson:"webapp_authmethod" json:"webapp_authmethod"`
+	WebappLoginurl                string   `bson:"webapp_loginurl" json:"webapp_loginurl"`
+	WebappLoginrequestdata        string   `bson:"webapp_loginrequestdata" json:"webapp_loginrequestdata"`
+	WebappLoggedinindicatorregex  string   `bson:"webapp_loggedinindicatorregex" json:"webapp_loggedinindicatorregex"`
+	WebappLoggedoutindicatorregex string   `bson:"webapp_loggedoutindicatorregex" json:"webapp_loggedoutindicatorregex"`
+	WebappUsers                   []string `bson:"webapp_users" json:"webapp_users"`
+	SecretList                    []string `bson:"secret_list" json:"secret_list"`
+	ID                            int      `bson:"id" json:"id"`
+	MaxChildren                   int      `bson:"max_children" json:"max_children"`
+	UrlList                       []string `bson:"url_list" json:"url_list"`
 }
