@@ -114,7 +114,25 @@ Now browse to: http://127.0.0.1:9392/login
 
 ccscanner can be used without [Command Center](https://www.trolleyesecurity.com/command-center/).
 
+First you have to tell `ccscanner` it is linked.
 
+`cclink -fakeLink`
+
+### Using ccscanner in a Jenkins pipeline  ###
+
+Enable and start the `cctaskmanager` service.
+
+`sudo systemctl enable --now cctaskmanager.service`
+
+#### Run OWASPZAP using the cli ####
+
+```
+ccscanner -dastRootUrl https://app.example.com \
+            -dastConfig app.example.context \
+            -dastHtml app.example.context.results.html \
+            -maxChildren 5 \
+            -urlList urllist.txt
+```
 
 ---
 
@@ -165,4 +183,11 @@ core> tasks.find()
 tasks.delete({_id: ""})
 
 tasks.deleteMany({})
+```
+
+ccscanner stdout logs to `/var/log/[messages|syslog]` ## depends on standard logs per OS.
+
+```
+sudo tail -f /var/log/messages
+
 ```
