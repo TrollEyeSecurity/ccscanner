@@ -114,14 +114,6 @@ Now browse to: http://127.0.0.1:9392/login
 
 ---
 
-## Standalone mode ##
-
-ccscanner can be used without [Command Center](https://www.trolleyesecurity.com/command-center/).
-
-First you have to tell `ccscanner` it is linked.
-
-`cclink -fakeLink`
-
 ### Run Kali Linux container with open port | (you may need to modify the `ufw`.) ###
 
 ```
@@ -132,6 +124,15 @@ OR
 docker run --rm --net=host -it trolleye/kali-linux:latest
 ```
 
+---
+
+## Standalone mode ##
+
+ccscanner can be used without [Command Center](https://www.trolleyesecurity.com/command-center/).
+
+First you have to tell `ccscanner` it is linked.
+
+`cclink -fakeLink`
 
 ### Using ccscanner in a Jenkins pipeline  ###
 
