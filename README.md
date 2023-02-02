@@ -138,6 +138,17 @@ ccscanner -dastRootUrl https://app.example.com \
             -urlList urllist.txt
 ```
 
+
+#### Run Kali Linux container with tcp 4444 open | (you may need to modify the `ufw`.)
+
+```
+docker run --rm -p 4444:4444 -it trolleye/kali-linux:latest
+
+OR
+
+docker run --rm --net=host -it trolleye/kali-linux:latest
+```
+
 ---
 
 ## Trouble shooting ##
