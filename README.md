@@ -51,6 +51,9 @@ Add the repo information:
 
 `docker-compose -f /etc/ccscanner/docker-compose-core.yml up -d mongoDB`
 
+---
+
+#### steps 7 -12 are optional if you plan to use GVM vulnerability scanning ####
 
 7) Pull all the gvm22.4 images:
 
@@ -89,6 +92,8 @@ password=new-password
 
 `sudo chown ccscanner:ccscanner /etc/ccscanner/.config/gvm-tools.conf`
 
+---
+
 13) Link the scanner to Command Center:
 
 `sudo cclink -url https://ROOT_URL/ -token TOKEN_FROM_ZONE`
@@ -98,6 +103,8 @@ password=new-password
 
 `sudo systemctl enable --now ccscanner.service cctaskmanager.service`
 
+
+---
 To log into the GSA web UI, setup an ssh tunnel to the scanner:
 
 `ssh -L 9392:127.0.0.1:9392 firstname_lastname@scanner_ip`
