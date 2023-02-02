@@ -27,9 +27,6 @@ The following instructions assume you are starting with a base `Ubuntu Server 22
 
 `sudo vim /etc/apt/sources.list.d/trolleyesecurity.list`
 
-`curl -L https://apt.trolleyesecurity.com/gpg.key -O | sudo gpg --dearmor -o /usr/share/keyrings/trolleyesecurity-keyring.gpg`
-
-
 Add the repo information:
 
 `deb [trusted=yes] https://apt.trolleyesecurity.com/ /`
