@@ -192,14 +192,14 @@ Using Mongosh:		1.6.2
 For mongosh info see: https://docs.mongodb.com/mongodb-shell/
 
 test> use core
-switched to db core
+
 core> tasks = db.tasks
-core.tasks
-core> tasks.find()
 
-tasks.delete({_id: ""})
+core> tasks.find({})
 
-tasks.deleteMany({})
+core> tasks.delete({_id: "TASK_ID"})
+
+core> tasks.deleteMany({})
 ```
 
 ccscanner stdout logs to `/var/log/[messages|syslog]` ## depends on standard logs per OS.
