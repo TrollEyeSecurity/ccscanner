@@ -1,5 +1,5 @@
 # Command Center Scanner #
-[Command Center](https://www.trolleyesecurity.com/command-center/) is a vulnerability and attack surface management tool. Command Center Scanner is the client application designed to perform tasks during penetration tests with
+[Command Center](https://www.trolleyesecurity.com/command-center/) is a vulnerability and attack surface management tool. Command Center Scanner is the client application designed to perform tasks using
 containers.
 
 ## Building from source ##
