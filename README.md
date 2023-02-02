@@ -122,7 +122,19 @@ First you have to tell `ccscanner` it is linked.
 
 `cclink -fakeLink`
 
+### Run Kali Linux container with open port | (you may need to modify the `ufw`.) ###
+
+```
+docker run --rm -p 4444:4444 -it trolleye/kali-linux:latest
+
+OR
+
+docker run --rm --net=host -it trolleye/kali-linux:latest
+```
+
+
 ### Using ccscanner in a Jenkins pipeline  ###
+
 
 Enable and start the `cctaskmanager` service.
 
@@ -136,17 +148,6 @@ ccscanner -dastRootUrl https://app.example.com \
             -dastHtml app.example.context.results.html \
             -maxChildren 5 \
             -urlList urllist.txt
-```
-
-
-#### Run Kali Linux container with tcp 4444 open | (you may need to modify the `ufw`.)
-
-```
-docker run --rm -p 4444:4444 -it trolleye/kali-linux:latest
-
-OR
-
-docker run --rm --net=host -it trolleye/kali-linux:latest
 ```
 
 ---
