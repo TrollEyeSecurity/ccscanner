@@ -224,7 +224,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 			cli.Close()
 			return nil, &idArray, err
 		}
-		img, err = ioutil.ReadAll(tr)
+		img, err = io.ReadAll(tr)
 		if err != nil {
 			fileReader.Close()
 			cli.Close()
