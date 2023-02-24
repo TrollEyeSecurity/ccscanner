@@ -11,7 +11,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 	"strconv"
@@ -45,19 +45,21 @@ func GetCurrentTasks() *[]Task {
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	RunningTasks, _ := tasksCollection.Find(context.TODO(), bson.M{"status": bson.M{"$ne": "DONE"}})
+	cli, NewEnvClientErr := client.NewClientWithOpts()
+	defer cli.Close()
+	if NewEnvClientErr != nil {
+		err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return &tasks
+	}
 	for RunningTasks.Next(context.TODO()) {
 		var task Task
 		RunningTasksDecodeErr := RunningTasks.Decode(&task)
 		if RunningTasksDecodeErr != nil {
 			err := fmt.Errorf("database get-current-tasks error %v", RunningTasksDecodeErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			continue
-		}
-		cli, NewEnvClientErr := client.NewClientWithOpts()
-		if NewEnvClientErr != nil {
-			err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -82,15 +84,6 @@ func GetCurrentTasks() *[]Task {
 			if len(TaskContainer) == 0 {
 				ReassignTask(tasksCollection, &task)
 			} else if TaskContainer[0].State == "exited" {
-				cli, NewEnvClientErr := client.NewClientWithOpts()
-				if NewEnvClientErr != nil {
-					err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
-					if sentry.CurrentHub().Client() != nil {
-						sentry.CaptureException(err)
-					}
-					log.Println(err)
-					continue
-				}
 				info, ContainerInspectErr := cli.ContainerInspect(context.Background(), TaskContainer[0].ID)
 				if ContainerInspectErr != nil {
 					err := fmt.Errorf("database get-current-tasks error %v", ContainerInspectErr)
@@ -119,7 +112,6 @@ func GetCurrentTasks() *[]Task {
 						log.Println(err)
 					}
 				}
-				cli.Close()
 			} else if TaskContainer[0].State == "running" {
 				reader, ContainerLogsErr := cli.ContainerLogs(context.Background(), task.ContainerId, types.ContainerLogsOptions{
 					ShowStdout: true,
@@ -132,7 +124,7 @@ func GetCurrentTasks() *[]Task {
 					log.Println(err)
 					continue
 				}
-				byteValue, _ := ioutil.ReadAll(reader)
+				byteValue, _ := io.ReadAll(reader)
 				reader.Close()
 				data := &NmapLogs{}
 				xml.Unmarshal(byteValue, data)
@@ -155,7 +147,6 @@ func GetCurrentTasks() *[]Task {
 				}
 			}
 		}
-		cli.Close()
 		tasks = append(tasks, task)
 	}
 	return &tasks
@@ -229,7 +220,7 @@ func UpdateTaskById(taskId int64, status string) {
 	}
 }
 
-func GetOwaspZapResultById(taskId int64, html bool) *string {
+func GetOwaspZapResultById(taskId int64) *[]ZapResults {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -242,10 +233,7 @@ func GetOwaspZapResultById(taskId int64, html bool) *string {
 	var task Task
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", taskId}}).Decode(&task)
-	if html {
-		return &task.OwaspZapHtmlResult
-	}
-	return &task.OwaspZapJsonResult
+	return &task.OwaspZapResults
 }
 
 func GetTaskStatusByTaskId(taskId int64) (*string, *int) {
