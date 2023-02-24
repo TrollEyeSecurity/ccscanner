@@ -73,4 +73,5 @@ type jsonResponse struct {
 	UserID    string `json:"userId"`
 	Scan      string `json:"scan"`
 	Status    string `json:"status"`
+	Generate  string `json:"generate"`
 }
