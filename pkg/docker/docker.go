@@ -12,7 +12,7 @@ import (
 
 func RemoveContainers(idArray []string) {
 	ctx := context.Background()
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("docker remove-containers error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
