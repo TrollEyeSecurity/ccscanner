@@ -190,6 +190,7 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		for _, port := range host.Ports.Port {
 			var urls []string
+			var url string
 			if port.Service.Name == "http" ||
 				port.Service.Name == "https" ||
 				port.Service.Name == "https-alt" ||
@@ -197,16 +198,25 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 				port.Service.Name == "ssl" ||
 				port.Service.Name == "unicall" ||
 				port.Service.Name == "snet-sensor-mgmt" {
-
 				protocol := "http://"
 				if port.Service.Tunnel != "" && port.Portid != "80" {
 					protocol = "https://"
 				}
-				url := protocol + ip + ":" + port.Portid + "/"
+				if port.Portid == "443" || port.Portid == "80" {
+					url = protocol + ip + "/"
+
+				} else {
+					url = protocol + ip + ":" + port.Portid + "/"
+				}
 				urls = append(urls, url)
 				for _, name := range nameInfoMap[ip].ValidNames {
 					name1 := strings.TrimRight(name, ".")
-					url = protocol + name1 + ":" + port.Portid + "/"
+					if port.Portid == "443" || port.Portid == "80" {
+						url = protocol + name1 + "/"
+
+					} else {
+						url = protocol + name1 + ":" + port.Portid + "/"
+					}
 					urls = append(urls, url)
 				}
 			}
