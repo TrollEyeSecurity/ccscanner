@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/base64"
 	"flag"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/common"
@@ -197,8 +196,7 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 		{"percent", 0},
 		{"nmap_result", nil},
 		{"openvas_result", nil},
-		{"owasp_zap_json_result", nil},
-		{"owasp_zap_html_result", nil},
+		{"owasp_zap_results", nil},
 		{"sast_result", nil},
 		{"dns_result", nil},
 		{"osint_result", nil},
@@ -230,23 +228,24 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 		time.Sleep(20 * time.Second)
 	}
 	if *dastHtml != "" {
-		results := database.GetOwaspZapResultById(taskId, true)
+		results := database.GetOwaspZapResultById(taskId)
 		file1, openErr := os.Create(*dastHtml)
 		defer file1.Close()
 		if openErr != nil {
 			fmt.Println(openErr.Error())
 			return
 		}
-		rString, decodeErr := base64.StdEncoding.DecodeString(*results)
-		if decodeErr != nil {
-			fmt.Println(decodeErr.Error())
-			return
-		}
-		file1.Write(rString)
-		file1.Sync()
+		//rString, decodeErr := base64.StdEncoding.DecodeString(*results)
+		//if decodeErr != nil {
+		//	fmt.Println(decodeErr.Error())
+		//	return
+		//}
+		//file1.Write(rString)
+		//file1.Sync()
+		fmt.Println(results)
 		fmt.Println("OWASPZap Scan is complete.")
 	} else {
-		results := database.GetOwaspZapResultById(taskId, false)
+		results := database.GetOwaspZapResultById(taskId)
 		fmt.Println("")
 		fmt.Println(*results)
 	}
