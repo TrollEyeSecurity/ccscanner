@@ -1,6 +1,7 @@
 package owaspzap
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -25,11 +26,11 @@ import (
 	"time"
 )
 
-func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
+func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
-		err := fmt.Errorf("gvm mongo-client error %v", MongoClientError)
+		err := fmt.Errorf("zap mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -39,7 +40,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	var idArray []string
 	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
-		err := fmt.Errorf("nmap scan error %v: %v", NewEnvClientErr, cli)
+		err := fmt.Errorf("zap scan error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -48,6 +49,7 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	proxyPort := "8080"
+	var reports []map[string]interface{}
 	/*var proxyPort string
 	attempts := 0
 	for {
@@ -75,15 +77,10 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		time.Sleep(3 * time.Second)
 	}
 	*/
-	var contextConfiguration ContextConfiguration
-	t := time.Now().Unix()
-	contextName := fmt.Sprintf("%d", t)
-	if dastConfig.WebappZapContext != "" {
-		xml.Unmarshal([]byte(dastConfig.WebappZapContext), &contextConfiguration)
-	} else {
 
-	}
-	ZapContainerId, StartZapErr := StartZap(taskId, &contextName, &proxyPort)
+	dt := time.Now().Unix()
+	containerName := fmt.Sprintf("%d", dt)
+	ZapContainerId, StartZapErr := StartZap(taskId, &containerName, &proxyPort)
 	if StartZapErr != nil {
 		err := fmt.Errorf("zap start-zap error %v: %v", StartZapErr, ZapContainerId)
 		if sentry.CurrentHub().Client() != nil {
@@ -106,287 +103,449 @@ func Scan(dastConfig database.DastConfig, taskId *primitive.ObjectID) {
 		cli.Close()
 		return
 	}
-	_, updateError := tasksCollection.UpdateOne(context.TODO(),
-		bson.D{{"_id", *taskId}},
-		bson.D{{"$set", bson.D{{"container_id", ZapContainerId}, {"status", "PROGRESS"}}}})
-	if updateError != nil {
-		err := fmt.Errorf("zap scan error %v", updateError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		return
-	}
 	idArray = append(idArray, *ZapContainerId)
-	time.Sleep(15 * time.Second)
-	for {
-		waitForHealthy, containerInspectErr := cli.ContainerInspect(context.TODO(), *ZapContainerId)
-		if containerInspectErr != nil {
-			log.Println(containerInspectErr)
-			docker.RemoveContainers(idArray)
-			return
+	totalNumberOfApps := len(dastConfigList)
+	numberOfAppsComplete := 0
+	for _, dastConfig := range dastConfigList {
+		var contextConfiguration ContextConfiguration
+		t := time.Now().Unix()
+		contextName := fmt.Sprintf("%d", t)
+		if dastConfig.WebappZapContext != "" {
+			xml.Unmarshal([]byte(dastConfig.WebappZapContext), &contextConfiguration)
+		} else {
+			var urlRegexList []string
+			var techIncludes []string
+			for _, x := range strings.Split(dastConfig.WebappUrlregex, ",") {
+				urlRegexList = append(urlRegexList, x)
+			}
+			contextConfiguration.Context.Name = dastConfig.WebappName
+			contextConfiguration.Context.Incregexes = urlRegexList
+			if dastConfig.WebappApache {
+				techIncludes = append(techIncludes, "")
+			}
+			if dastConfig.WebappCouchdb {
+				techIncludes = append(techIncludes, "Db.CouchDB")
+			}
+			if dastConfig.WebappFirebird {
+				techIncludes = append(techIncludes, "Db.Firebird")
+			}
+			if dastConfig.WebappHypersonicsql {
+				techIncludes = append(techIncludes, "Db.HypersonicSQL")
+			}
+			if dastConfig.WebappDb2 {
+				techIncludes = append(techIncludes, "Db.IBM DB2")
+			}
+			if dastConfig.WebappAccess {
+				techIncludes = append(techIncludes, "Db.Microsoft Access")
+			}
+			if dastConfig.WebappMssql {
+				techIncludes = append(techIncludes, "Db.Microsoft SQL Server")
+			}
+			if dastConfig.WebappMongodb {
+				techIncludes = append(techIncludes, "Db.MongoDB")
+			}
+			if dastConfig.WebappMysql {
+				techIncludes = append(techIncludes, "Db.MySQL")
+			}
+			if dastConfig.WebappOracle {
+				techIncludes = append(techIncludes, "Db.Oracle")
+			}
+			if dastConfig.WebappPostgresql {
+				techIncludes = append(techIncludes, "Db.PostgreSQL")
+			}
+			if dastConfig.WebappMaxdb {
+				techIncludes = append(techIncludes, "Db.SAP MaxDB")
+			}
+			if dastConfig.WebappSqlite {
+				techIncludes = append(techIncludes, "Db.SQLite")
+			}
+			if dastConfig.WebappSybase {
+				techIncludes = append(techIncludes, "Db.Sybase")
+			}
+			if dastConfig.WebappAsp {
+				techIncludes = append(techIncludes, "Language.ASP")
+			}
+			if dastConfig.WebappC {
+				techIncludes = append(techIncludes, "Language.C")
+			}
+			if dastConfig.WebappJsp {
+				techIncludes = append(techIncludes, "Language.JSP/Servlet")
+			}
+			if dastConfig.WebappJava {
+				techIncludes = append(techIncludes, "Language.Java")
+			}
+			if dastConfig.WebappJavaSpring {
+				techIncludes = append(techIncludes, "Language.Java.Spring")
+			}
+			if dastConfig.WebappJavascript {
+				techIncludes = append(techIncludes, "Language.JavaScript")
+			}
+			if dastConfig.WebappPhp {
+				techIncludes = append(techIncludes, "Language.PHP")
+			}
+			if dastConfig.WebappPython {
+				techIncludes = append(techIncludes, "Language.Python")
+			}
+			if dastConfig.WebappRuby {
+				techIncludes = append(techIncludes, "Language.Ruby")
+			}
+			if dastConfig.WebappXML {
+				techIncludes = append(techIncludes, "Language.XML")
+			}
+			if dastConfig.WebappLinux {
+				techIncludes = append(techIncludes, "OS.Linux")
+			}
+			if dastConfig.WebappMacos {
+				techIncludes = append(techIncludes, "OS.MacOS")
+			}
+			if dastConfig.WebappWindows {
+				techIncludes = append(techIncludes, "OS.Windows")
+			}
+			if dastConfig.WebappGit {
+				techIncludes = append(techIncludes, "SCM.Git")
+			}
+			if dastConfig.WebappSvn {
+				techIncludes = append(techIncludes, "SCM.SVN")
+			}
+			if dastConfig.WebappPython {
+				techIncludes = append(techIncludes, "WS.Apache")
+			}
+			if dastConfig.WebappPython {
+				techIncludes = append(techIncludes, "WS.IIS")
+			}
+			if dastConfig.WebappPython {
+				techIncludes = append(techIncludes, "WS.Tomcat")
+			}
+			if dastConfig.WebappNginx {
+				techIncludes = append(techIncludes, "WS.Nginx")
+			}
+			contextConfiguration.Context.Inscope = "true"
+			contextConfiguration.Context.Tech.Include = techIncludes
 		}
-		if waitForHealthy.State.Health.Status == "healthy" {
-			log.Println("OWASP ZAP container health status: " + waitForHealthy.State.Health.Status)
-			break
+
+		_, updateError := tasksCollection.UpdateOne(context.TODO(),
+			bson.D{{"_id", *taskId}},
+			bson.D{{"$set", bson.D{{"container_id", ZapContainerId}, {"status", "PROGRESS"}}}})
+		if updateError != nil {
+			err := fmt.Errorf("zap scan error %v", updateError)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
 		}
-		log.Println("OWASP ZAP container health status: " + waitForHealthy.State.Health.Status)
 		time.Sleep(15 * time.Second)
-	}
-	contextId, newContextErr := newContext(&proxyPort, &contextName)
-	if newContextErr != nil {
-		err := fmt.Errorf("zap new-context error %v", newContextErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		return
-	}
-	if contextId == nil {
-		err := fmt.Errorf("zap context-id error %v", contextName)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
-		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		return
-	}
-	var baseUrlList []string
-	if dastConfig.UrlList != nil {
-		for _, dastUrl := range dastConfig.UrlList {
-			u, urlParsErr := url.Parse(dastUrl)
-			if urlParsErr != nil {
+		for {
+			waitForHealthy, containerInspectErr := cli.ContainerInspect(context.TODO(), *ZapContainerId)
+			if containerInspectErr != nil {
+				log.Println(containerInspectErr)
 				continue
 			}
-			s := u.Scheme + "://" + u.Host
-			urlRegex := fmt.Sprintf("%s.*", s)
-			baseUrlList = append(baseUrlList, urlRegex)
-		}
-	}
-	uniqueBaseUrlList := uniqueSlice(baseUrlList)
-	if uniqueBaseUrlList != nil {
-		for _, dastUrl := range uniqueBaseUrlList {
-			u, urlParsErr := url.Parse(dastUrl)
-			if urlParsErr != nil {
-				continue
+			if waitForHealthy.State.Health.Status == "healthy" {
+				break
 			}
-			s := u.Scheme + "://" + u.Host
-			urlRegex := fmt.Sprintf("%s.*", s)
-			_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
-			if err != nil {
-				errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+			time.Sleep(15 * time.Second)
+		}
+		contextId, newContextErr := newContext(&proxyPort, &contextName)
+		if newContextErr != nil {
+			err := fmt.Errorf("zap new-context error %v", newContextErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
+		}
+		if contextId == nil {
+			err := fmt.Errorf("zap context-id error %v", contextName)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
+		}
+		var baseUrlList []string
+		if dastConfig.UrlList != nil {
+			for _, dastUrl := range dastConfig.UrlList {
+				u, urlParsErr := url.Parse(dastUrl)
+				if urlParsErr != nil {
+					continue
+				}
+				s := u.Scheme + "://" + u.Host
+				urlRegex := fmt.Sprintf("%s.*", s)
+				baseUrlList = append(baseUrlList, urlRegex)
+			}
+		}
+		uniqueBaseUrlList := uniqueSlice(baseUrlList)
+		if uniqueBaseUrlList != nil {
+			for _, dastUrl := range uniqueBaseUrlList {
+				u, urlParsErr := url.Parse(dastUrl)
+				if urlParsErr != nil {
+					continue
+				}
+				s := u.Scheme + "://" + u.Host
+				urlRegex := fmt.Sprintf("%s.*", s)
+				_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
+				if err != nil {
+					errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
+			}
+		} else {
+			for _, urlRegex := range contextConfiguration.Context.Incregexes {
+				_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
+				if err != nil {
+					errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
+			}
+		}
+		_, setInScopeErr := setInScope(&proxyPort, &contextName, &contextConfiguration.Context.Inscope)
+		if setInScopeErr != nil {
+			errLogg := fmt.Errorf("zap setInScope error %v", setInScopeErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(errLogg)
+			}
+			log.Println(errLogg)
+			continue
+		}
+
+		if len(contextConfiguration.Context.Users) < 0 {
+			formBasedAuthentication := "formBasedAuthentication"
+			_, setAuthenticationMethodErr := setAuthenticationMethod(&proxyPort, contextId, &formBasedAuthentication, &contextConfiguration.Context.Authentication.Form.Loginurl, &contextConfiguration.Context.Authentication.Form.Loginbody)
+			if setAuthenticationMethodErr != nil {
+				errLogg := fmt.Errorf("zap setAuthenticationMethodErr error %v", setAuthenticationMethodErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(errLogg)
 				}
 				log.Println(errLogg)
 				continue
 			}
-		}
-	} else {
-		for _, urlRegex := range contextConfiguration.Context.Incregexes {
-			_, err := includeInContext(&proxyPort, &contextName, &urlRegex)
-			if err != nil {
-				errLogg := fmt.Errorf("zap urlRegex error %v", urlRegex)
+			_, setLoggedInIndicatorErr := setLoggedInIndicator(&proxyPort, contextId, &contextConfiguration.Context.Authentication.Loggedin)
+			if setLoggedInIndicatorErr != nil {
+				errLogg := fmt.Errorf("zap setLoggedInIndicatorErr error %v", setLoggedInIndicatorErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(errLogg)
 				}
 				log.Println(errLogg)
 				continue
 			}
-		}
-	}
-	_, setInScopeErr := setInScope(&proxyPort, &contextName, &contextConfiguration.Context.Inscope)
-	if setInScopeErr != nil {
-		errLogg := fmt.Errorf("zap setInScope error %v", setInScopeErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(errLogg)
-		}
-		log.Println(errLogg)
-	}
-	formBasedAuthentication := "formBasedAuthentication"
-	_, setAuthenticationMethodErr := setAuthenticationMethod(&proxyPort, contextId, &formBasedAuthentication, &contextConfiguration.Context.Authentication.Form.Loginurl, &contextConfiguration.Context.Authentication.Form.Loginbody)
-	if setAuthenticationMethodErr != nil {
-		errLogg := fmt.Errorf("zap setAuthenticationMethodErr error %v", setAuthenticationMethodErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(errLogg)
-		}
-		log.Println(errLogg)
-		return
-	}
-	_, setLoggedInIndicatorErr := setLoggedInIndicator(&proxyPort, contextId, &contextConfiguration.Context.Authentication.Loggedin)
-	if setLoggedInIndicatorErr != nil {
-		errLogg := fmt.Errorf("zap setLoggedInIndicatorErr error %v", setLoggedInIndicatorErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(errLogg)
-		}
-		log.Println(errLogg)
-		return
-	}
-	for _, user := range contextConfiguration.Context.Users {
-		s := strings.Split(user.User, ";")
-		up := strings.Split(s[4], "~")
-		userName := up[0]
-		userPass := up[1]
-		userNameDecodedText, _ := base64.StdEncoding.DecodeString(userName)
-		userPassDecodedText, _ := base64.StdEncoding.DecodeString(userPass)
-		uns := string(userNameDecodedText)
-		newUserId, newUserErr := newUser(&proxyPort, contextId, &uns)
-		if newUserErr != nil {
-			errLogg := fmt.Errorf("zap newUserErr error %v", newUserErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
+			for _, user := range contextConfiguration.Context.Users {
+				s := strings.Split(user.User, ";")
+				up := strings.Split(s[4], "~")
+				userName := up[0]
+				userPass := up[1]
+				userNameDecodedText, _ := base64.StdEncoding.DecodeString(userName)
+				userPassDecodedText, _ := base64.StdEncoding.DecodeString(userPass)
+				uns := string(userNameDecodedText)
+				newUserId, newUserErr := newUser(&proxyPort, contextId, &uns)
+				if newUserErr != nil {
+					errLogg := fmt.Errorf("zap newUserErr error %v", newUserErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
+				authCredentialsConfigParams := "username=" + string(userNameDecodedText) + "&password=" + string(userPassDecodedText)
+				_, setAuthenticationCredentialsErr := setAuthenticationCredentials(&proxyPort, contextId, newUserId, &authCredentialsConfigParams)
+				if setAuthenticationCredentialsErr != nil {
+					errLogg := fmt.Errorf("zap setAuthenticationCredentials error %v", setAuthenticationCredentialsErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
+				enabled := "true"
+				_, setUserEnabledErr := setUserEnabled(&proxyPort, contextId, newUserId, &enabled)
+				if setUserEnabledErr != nil {
+					errLogg := fmt.Errorf("zap setUserEnabled error %v", setUserEnabledErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
 			}
-			log.Println(errLogg)
-			return
 		}
-		authCredentialsConfigParams := "username=" + string(userNameDecodedText) + "&password=" + string(userPassDecodedText)
-		_, setAuthenticationCredentialsErr := setAuthenticationCredentials(&proxyPort, contextId, newUserId, &authCredentialsConfigParams)
-		if setAuthenticationCredentialsErr != nil {
-			errLogg := fmt.Errorf("zap setAuthenticationCredentials error %v", setAuthenticationCredentialsErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
+
+		var spiderSIds []string
+		activeScanPct := 0
+		spiderScanPct := 0
+		if dastConfig.MaxChildren == 0 {
+			dastConfig.MaxChildren = 10
+		}
+		if dastConfig.UrlList != nil {
+			uniqueUrlList := uniqueSlice(dastConfig.UrlList)
+			for _, v := range uniqueUrlList {
+				spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &v, &dastConfig.MaxChildren)
+				if spiderScanErr != nil {
+					errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errLogg)
+					}
+					log.Println(errLogg)
+					continue
+				}
+				spiderSIds = append(spiderSIds, *spiderSId)
 			}
-			log.Println(errLogg)
-			return
-		}
-		enabled := "true"
-		_, setUserEnabledErr := setUserEnabled(&proxyPort, contextId, newUserId, &enabled)
-		if setUserEnabledErr != nil {
-			errLogg := fmt.Errorf("zap setUserEnabled error %v", setUserEnabledErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
-			}
-			log.Println(errLogg)
-			return
-		}
-	}
-	var spiderSIds []string
-	activeScanPct := 0
-	spiderScanPct := 0
-	if dastConfig.UrlList != nil {
-		uniqueUrlList := uniqueSlice(dastConfig.UrlList)
-		for _, v := range uniqueUrlList {
-			spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &v, &dastConfig.MaxChildren)
+		} else {
+			rootUrl := dastConfig.WebappRooturl
+			spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &rootUrl, &dastConfig.MaxChildren)
 			if spiderScanErr != nil {
 				errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(errLogg)
 				}
 				log.Println(errLogg)
-				return
+				continue
 			}
 			spiderSIds = append(spiderSIds, *spiderSId)
 		}
-	} else {
-		rootUrl := dastConfig.WebappRooturl
-		spiderSId, spiderScanErr := spiderScan(&proxyPort, &contextName, &rootUrl, &dastConfig.MaxChildren)
-		if spiderScanErr != nil {
-			errLogg := fmt.Errorf("zap spiderScanErr error %v", spiderScanErr)
+		time.Sleep(1 * time.Second)
+		checkSpiderScans(&spiderSIds, &proxyPort)
+		spiderScanPct = 100
+		time.Sleep(3 * time.Second)
+		activeScanId, activeScanErr := activeScan(&proxyPort, contextId)
+		if activeScanErr != nil {
+			errLogg := fmt.Errorf("zap activeScanErr error %v", activeScanErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(errLogg)
 			}
 			log.Println(errLogg)
-			return
+			continue
 		}
-		spiderSIds = append(spiderSIds, *spiderSId)
-	}
-	time.Sleep(1 * time.Second)
-	checkSpiderScans(&spiderSIds, &proxyPort)
-	spiderScanPct = 100
-	time.Sleep(3 * time.Second)
-	activeScanId, activeScanErr := activeScan(&proxyPort, contextId)
-	if activeScanErr != nil {
-		errLogg := fmt.Errorf("zap activeScanErr error %v", activeScanErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(errLogg)
-		}
-		log.Println(errLogg)
-		return
-	}
-	time.Sleep(1 * time.Second)
-	for {
-		activeScanStatusResp, activeScanStatusErr := activeScanStatus(&proxyPort, activeScanId)
-		if activeScanStatusErr != nil {
-			errLogg := fmt.Errorf("zap sctiveScanStatusErr error %v", activeScanStatusErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
+		time.Sleep(1 * time.Second)
+		for {
+			activeScanStatusResp, activeScanStatusErr := activeScanStatus(&proxyPort, activeScanId)
+			if activeScanStatusErr != nil {
+				errLogg := fmt.Errorf("zap sctiveScanStatusErr error %v", activeScanStatusErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
 			}
-			log.Println(errLogg)
-			return
-		}
-		if activeScanStatusResp == nil {
-			break
-		}
-		intStrconvActiveScanStatusResp, strconvActiveScanStatusRespErr := strconv.Atoi(*activeScanStatusResp)
-		if strconvActiveScanStatusRespErr != nil {
-			errLogg := fmt.Errorf("zap strconvActiveScanStatusRespErr error %v", strconvActiveScanStatusRespErr)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(errLogg)
+			if activeScanStatusResp == nil {
+				break
 			}
-			log.Println(errLogg)
-			return
+			intStrconvActiveScanStatusResp, strconvActiveScanStatusRespErr := strconv.Atoi(*activeScanStatusResp)
+			if strconvActiveScanStatusRespErr != nil {
+				errLogg := fmt.Errorf("zap strconvActiveScanStatusRespErr error %v", strconvActiveScanStatusRespErr)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
+			}
+			activeScanPct = intStrconvActiveScanStatusResp
+			pct := float64(numberOfAppsComplete) / float64(totalNumberOfApps)
+			percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100 * pct
+			_, activeScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", taskId}},
+				bson.D{{"$set", bson.D{
+					{"status", "PROGRESS"},
+					{"percent", int(percent)}}}},
+			)
+			if activeScanPctUpdateError != nil {
+				err := fmt.Errorf("owasp zap activeScanPctUpdate error %v", activeScanPctUpdateError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				continue
+			}
+			if *activeScanStatusResp == "100" {
+				break
+			}
+			time.Sleep(10 * time.Second)
 		}
-		activeScanPct = intStrconvActiveScanStatusResp
-		percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100
-		_, activeScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
-			bson.D{{"_id", taskId}},
-			bson.D{{"$set", bson.D{
-				{"status", "PROGRESS"},
-				{"percent", int(percent)}}}},
-		)
-		if activeScanPctUpdateError != nil {
-			err := fmt.Errorf("owasp zap activeScanPctUpdate error %v", activeScanPctUpdateError)
+		jsonReportResp, jsonReportErr := jsonReport(&proxyPort, &contextName)
+		if jsonReportErr != nil {
+			err := fmt.Errorf("owasp zap jsonReport error %v", jsonReportErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
-			return
+			continue
 		}
-		if *activeScanStatusResp == "100" {
-			break
+		fileReader, _, fileReaderErr := cli.CopyFromContainer(context.TODO(), *ZapContainerId, *jsonReportResp)
+		if fileReaderErr != nil {
+			cli.Close()
+			if fileReader != nil {
+				fileReader.Close()
+			}
+			err := fmt.Errorf("owasp zap fileReader error %v", jsonReportErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			continue
 		}
-		time.Sleep(10 * time.Second)
-	}
-	jsonReportResp, jsonReportErr := jsonReport(&proxyPort)
-	if jsonReportErr != nil {
-		err := fmt.Errorf("owasp zap jsonReport error %v", jsonReportErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+
+		tr := tar.NewReader(fileReader)
+		var data []byte
+		for {
+			_, err := tr.Next()
+			if err == io.EOF {
+				break // End of archive
+			}
+			if err != nil {
+				fileReader.Close()
+				cli.Close()
+				errLogg := fmt.Errorf("file read error %v", err)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
+			}
+			data, err = io.ReadAll(tr)
+			if err != nil {
+				fileReader.Close()
+				cli.Close()
+				errLogg := fmt.Errorf("file read error %v", err)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(errLogg)
+				}
+				log.Println(errLogg)
+				continue
+			}
 		}
-		log.Println(err)
-		return
-	}
-	htmlReportResp, htmlReportErr := htmlReport(&proxyPort)
-	if htmlReportErr != nil {
-		err := fmt.Errorf("owasp zap htmlReport error %v", htmlReportErr)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+		fileReader.Close()
+		b64data := base64.StdEncoding.EncodeToString(data)
+		report := map[string]interface{}{
+			"app_id": dastConfig.ID,
+			"data":   b64data,
 		}
-		log.Println(err)
-		return
+		reports = append(reports, report)
+		numberOfAppsComplete += 1
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"owasp_zap_json_result", *jsonReportResp},
-			{"owasp_zap_html_result", *htmlReportResp},
+			{"owasp_zap_results", reports},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
-	docker.RemoveContainers(idArray)
-	cli.Close()
 	if update2Error != nil {
 		err := fmt.Errorf("owasp zap scan error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
+	docker.RemoveContainers(idArray)
+	cli.Close()
 	return
 }
 
@@ -667,9 +826,9 @@ func activeScanStatus(proxyPort *string, scanId *string) (*string, error) {
 	return nil, nil
 }
 
-func jsonReport(proxyPort *string) (*string, error) {
+func jsonReport(proxyPort *string, contextName *string) (*string, error) {
 	baseUrl := "http://127.0.0.1:" + *proxyPort
-	urlPath := "/OTHER/core/other/jsonreport/"
+	urlPath := "/JSON/reports/action/generate/?title=" + *contextName + "title&template=traditional-json&theme=&description=&contexts=" + *contextName + "&sites=&sections=&includedConfidences=&includedRisks=&reportFileName=&reportFileNamePattern=&reportDir=&display="
 	method := "GET"
 	resp, respErr := HttpClientRequest(&baseUrl, &urlPath, nil, &method)
 	if respErr != nil {
@@ -678,8 +837,12 @@ func jsonReport(proxyPort *string) (*string, error) {
 	}
 	defer resp.Body.Close()
 	respBody, _ := io.ReadAll(resp.Body)
-	result := base64.StdEncoding.EncodeToString(respBody)
-	return &result, nil
+	var result jsonResponse
+	json.Unmarshal(respBody, &result)
+	if result.Generate != "" {
+		return &result.Generate, nil
+	}
+	return nil, nil
 }
 
 func htmlReport(proxyPort *string) (*string, error) {

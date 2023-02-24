@@ -117,7 +117,7 @@ func TaskManagerMain() {
 				go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
 				break
 			case task.Content.Function == "dast":
-				go owaspzap.Scan(task.Content.DastConfigList[0], &task.ID)
+				go owaspzap.Scan(task.Content.DastConfigList, &task.ID)
 				break
 			case task.Content.Function == "get_screen_shot":
 				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID)
