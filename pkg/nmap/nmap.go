@@ -15,7 +15,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"io/ioutil"
+	"io"
 	"log"
 	"strconv"
 	"strings"
@@ -36,9 +36,9 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 	}
 	var cmd string
 	if *excludes == "" {
-		cmd = "nmap -oX - --stats-every 30s " + *nmapParams + " " + *hosts
+		cmd = "nmap -vv -oX - --stats-every 30s " + *nmapParams + " " + *hosts
 	} else {
-		cmd = "nmap -oX - --stats-every 30s " + *nmapParams + " " + *hosts + " --exclude " + *excludes
+		cmd = "nmap -vv -oX - --stats-every 30s " + *nmapParams + " " + *hosts + " --exclude " + *excludes
 	}
 	cmdS := strings.Split(cmd, " ")
 	imageName := docker.KaliLinuxImage
@@ -129,7 +129,7 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		reader.Close()
 		return
 	}
-	byteValue, ioutilReadAllError := ioutil.ReadAll(reader)
+	byteValue, ioutilReadAllError := io.ReadAll(reader)
 	reader.Close()
 	if ioutilReadAllError != nil {
 		err := fmt.Errorf("nmap scan ioutil error %v", ioutilReadAllError)
