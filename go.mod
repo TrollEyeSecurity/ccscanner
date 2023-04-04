@@ -1,7 +1,7 @@
 module github.com/TrollEyeSecurity/ccscanner
 
 require (
-	github.com/docker/docker v20.10.21+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/getsentry/sentry-go v0.15.0
 	go.mongodb.org/mongo-driver v1.11.0
