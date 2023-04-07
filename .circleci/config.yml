@@ -1,5 +1,10 @@
+version: 2.1
+
 jobs:
-  build:
+  build-and-push-image:
+    environment:
+      PKG_NAME:
+        ccscanner_2.0.5
     docker:
       - image: cimg/go:1.20.3
     steps:
@@ -11,7 +16,7 @@ jobs:
           name: Build and push apt package
           command: |
             make build_dpkg
-            curl -F package=@ccscanner_2.0.5-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
+            curl -F package=@$PKG_NAME-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
 
 workflows:
   version: 2
