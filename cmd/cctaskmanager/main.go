@@ -13,6 +13,7 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/pkg/osint"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/owaspzap"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/screenshots"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/snyk"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/sonarqube"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/urlinspection"
 	"github.com/getsentry/sentry-go"
@@ -114,8 +115,14 @@ func TaskManagerMain() {
 				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID)
 				break
 			case task.Content.Function == "sast":
-				go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
-				break
+				if task.SecretData.SonarSecret != (database.SonarSecret{}) {
+					go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
+					break
+				}
+				if task.SecretData.SnykSecret != (database.SnykSecret{}) {
+					go snyk.Scan(&task.Content, &task.SecretData, &task.ID)
+					break
+				}
 			case task.Content.Function == "dast":
 				go owaspzap.Scan(task.Content.DastConfigList, &task.ID)
 				break

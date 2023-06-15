@@ -1,12 +1,11 @@
 package sonarqube
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/bitBucket"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -14,9 +13,9 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -56,7 +55,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		break
 	case content.IntegrationType == "bitbucket":
 		repoUrlSplit := strings.Split(content.Repourl, "@")
-		token := getBitbucketToken(secretData)
+		token := bitBucket.GetToken(secretData)
 		repoUrl = "https://x-token-auth:{" + *token + "}@" + repoUrlSplit[1]
 		break
 	}
@@ -69,8 +68,8 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			"PROJECTNAME=" + content.ProjectName,
 			"BRANCH=" + content.BranchName,
 			"REPOURL=" + repoUrl,
-			"SONARLOGIN=" + secretData.SastSecret.Sonarlogin,
-			"SONARHOSTURL=" + secretData.SastSecret.Sonarhosturl,
+			"SONARLOGIN=" + secretData.SonarSecret.Sonarlogin,
+			"SONARHOSTURL=" + secretData.SonarSecret.Sonarhosturl,
 		},
 		Cmd:          []string{"run-sonar.sh"},
 		Tty:          true,
@@ -221,10 +220,10 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		sonarReader.Close()
 		return
 	}
-	sonarByteValue, sonarIoutilReadAllError := ioutil.ReadAll(sonarReader)
+	sonarByteValue, sonarIoutilReadAllError := io.ReadAll(sonarReader)
 	sonarReader.Close()
 	SonarOutputResult := base64.StdEncoding.EncodeToString(sonarByteValue)
-	SastResults.SonarOutput = SonarOutputResult
+	SastResults.SonarQubeOutput.SonarOutput = SonarOutputResult
 	if sonarIoutilReadAllError != nil {
 		err := fmt.Errorf("sast scan ioutil error %v", sonarIoutilReadAllError)
 		if sentry.CurrentHub().Client() != nil {
@@ -266,7 +265,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		sonarScanIdSlice = append(sonarScanIdSlice, v[2])
 	}
 	sonarScanIds := strings.Join(sonarScanIdSlice, ",")
-	SastResults.SonarScanId = sonarScanIds
+	SastResults.SonarQubeOutput.SonarScanId = sonarScanIds
 	depReader, depContainerLogsErr := cli.ContainerLogs(ctx, depContainer.ID, types.ContainerLogsOptions{
 		ShowStdout: true,
 		Follow:     true,
@@ -298,7 +297,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	}
 	if len(depByteValue) > 0 {
 		result := base64.StdEncoding.EncodeToString(depByteValue)
-		SastResults.DependencyCheckerResults = result
+		SastResults.SonarQubeOutput.DependencyCheckerResults = result
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
@@ -319,33 +318,4 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 		return
 	}
 	return
-}
-
-func getBitbucketToken(secretData *database.TaskSecret) *string {
-	b := []byte("grant_type=client_credentials")
-	auth := base64.StdEncoding.EncodeToString([]byte(secretData.Key + ":" + secretData.Secret))
-	httpClient := &http.Client{
-		Timeout: time.Second * 10,
-	}
-	req, NewRequestErr := http.NewRequest("POST", "https://bitbucket.org/site/oauth2/access_token", bytes.NewReader(b))
-	if NewRequestErr != nil {
-		log.Println(NewRequestErr)
-		return nil
-	}
-	req.Header.Add("Authorization", "Basic "+auth)
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Connection", "close")
-	req.Close = true
-	resp, httpClientErr := httpClient.Do(req)
-	if httpClientErr != nil {
-		log.Println(httpClientErr)
-		return nil
-	}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Print(err.Error())
-	}
-	var responseObject Response
-	json.Unmarshal(bodyBytes, &responseObject)
-	return &responseObject.AccessToken
 }
