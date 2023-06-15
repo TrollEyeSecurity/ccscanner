@@ -32,6 +32,7 @@ func main() {
 	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
 	maxChildren := flag.Int("maxChildren", 0, "How deep should the spider go?")
 	urlList := flag.String("urlList", "", "Pat to a list of URL's (one per line) to spider and scan.")
+	runningTasks := flag.Bool("runningTasks", false, "Check to see how amy tasks are in queue.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -43,6 +44,10 @@ func main() {
 	}
 	if *setModeMaintBool {
 		common.SetModeMaintenance()
+		return
+	}
+	if *runningTasks {
+		common.CheckRunningTasks()
 		return
 	}
 	os.Setenv("CONFIGFILE", *configFile)

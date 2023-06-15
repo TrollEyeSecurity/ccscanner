@@ -325,3 +325,18 @@ func SetModeMaintenance() {
 		log.Fatalf("Configuration Error: %s", ConfigurationError)
 	}
 }
+
+func CheckRunningTasks() {
+	MongoClient, MongoClientError := database.GetMongoClient()
+	defer MongoClient.Disconnect(context.TODO())
+	if MongoClientError != nil {
+		err := fmt.Errorf("database get-current-tasks error %v", MongoClient)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("MongoClient Error: %s", MongoClientError)
+	}
+	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	RunningTasksCount, _ := tasksCollection.CountDocuments(context.TODO(), bson.M{"status": bson.M{"$ne": "DONE"}})
+	fmt.Println(RunningTasksCount)
+}
