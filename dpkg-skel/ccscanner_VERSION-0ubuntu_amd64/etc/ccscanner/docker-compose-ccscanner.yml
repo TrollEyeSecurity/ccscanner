@@ -6,7 +6,7 @@ services:
     ports:
       - 127.0.0.1:27017:27017
     volumes:
-      - mongodb_socket_vol:/mnt
+      - mongodb_data_vol:/data/db
 
   owaspZap:
     restart: "no"
@@ -204,6 +204,7 @@ services:
       - vulnerability-tests
 
 volumes:
+  mongodb_data_vol:
   gpg_data_vol:
   scap_data_vol:
   cert_data_vol:
@@ -215,4 +216,3 @@ volumes:
   psql_socket_vol:
   ospd_openvas_socket_vol:
   redis_socket_vol:
-  mongodb_socket_vol:
