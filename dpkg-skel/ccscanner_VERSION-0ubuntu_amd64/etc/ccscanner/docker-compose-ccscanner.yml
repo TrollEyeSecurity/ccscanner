@@ -1,4 +1,49 @@
 services:
+
+  mongoDB:
+    restart: always
+    image: docker.io/library/mongo:latest
+    ports:
+      - 127.0.0.1:27017:27017
+    volumes:
+      - mongodb_socket_vol:/mnt
+
+  owaspZap:
+    restart: "no"
+    image: docker.io/owasp/zap2docker-stable
+    profiles:
+      - disable
+
+  sastScanner:
+    restart: "no"
+    image: docker.io/trolleye/sast-scanner:2022-Q3
+    profiles:
+      - disable
+
+  kaliLinux:
+    restart: "no"
+    image: docker.io/trolleye/kali-linux:latest
+    profiles:
+      - disable
+
+  dnsRecon:
+    restart: "no"
+    image: docker.io/trolleye/dnsrecon:latest
+    profiles:
+      - disable
+
+  netRecon:
+    restart: "no"
+    image: docker.io/trolleye/netrecon:latest
+    profiles:
+      - disable
+
+  snyk-cli:
+    restart: "no"
+    image: docker.io/trolleye/snyk-cli:latest
+    profiles:
+      - disable
+
   vulnerability-tests:
     image: greenbone/vulnerability-tests
     environment:
@@ -170,3 +215,4 @@ volumes:
   psql_socket_vol:
   ospd_openvas_socket_vol:
   redis_socket_vol:
+  mongodb_socket_vol:
