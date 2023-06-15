@@ -60,19 +60,25 @@ type TaskContent struct {
 }
 
 type TaskSecret struct {
-	Osint      OsintSecrets `bson:"osint" json:"osint"`
-	Repouser   string       `bson:"repouser" json:"repouser"`
-	SastSecret SastSecret   `bson:"sast_secret" json:"sast_secret"`
-	Username   string       `bson:"username" json:"username"`
-	Password   string       `bson:"password" json:"password"`
-	Token      string       `bson:"token" json:"token"`
-	Key        string       `bson:"key" json:"key"`
-	Secret     string       `bson:"secret" json:"secret"`
+	Osint       OsintSecrets `bson:"osint" json:"osint"`
+	Repouser    string       `bson:"repouser" json:"repouser"`
+	SonarSecret SonarSecret  `bson:"sonar_secret" json:"sonar_secret"`
+	SnykSecret  SnykSecret   `bson:"snyk_secret" json:"snyk_secret"`
+	Username    string       `bson:"username" json:"username"`
+	Password    string       `bson:"password" json:"password"`
+	Token       string       `bson:"token" json:"token"`
+	Key         string       `bson:"key" json:"key"`
+	Secret      string       `bson:"secret" json:"secret"`
 }
 
-type SastSecret struct {
+type SonarSecret struct {
 	Sonarhosturl string `bson:"sonarhosturl" json:"sonarhosturl"`
 	Sonarlogin   string `bson:"sonarlogin" json:"sonarlogin"`
+}
+
+type SnykSecret struct {
+	SnykApiKey string `bson:"snyk_api_key" json:"snyk_api_key"`
+	SnykOrgId  string `bson:"snyk_org_id" json:"snyk_org_id"`
 }
 
 type OsintSecrets struct {
@@ -137,9 +143,19 @@ type FinalLocationUrlData struct {
 }
 
 type SastResults struct {
+	SonarQubeOutput SonarQubeOutput `bson:"sonar_qube_output" json:"sonar_qube_output"`
+	SnykOutput      SnykOutput      `bson:"snyk_output" json:"snyk_output"`
+}
+
+type SonarQubeOutput struct {
 	SonarScanId              string `bson:"sonar_scan_id" json:"sonar_scan_id"`
 	DependencyCheckerResults string `bson:"dependency_checker_results" json:"dependency_checker_results"`
 	SonarOutput              string `bson:"sonar_output" json:"sonar_output"`
+}
+
+type SnykOutput struct {
+	CodeResults       string `bson:"code_results" json:"code_results"`
+	OpenSourceResults string `bson:"open_source_results" json:"open_source_results"`
 }
 
 type DastConfig struct {
