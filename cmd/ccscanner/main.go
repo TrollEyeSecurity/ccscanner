@@ -31,7 +31,7 @@ func main() {
 	dastHtml := flag.String("dastHtml", "", "Name of the html file to write.")
 	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
 	maxChildren := flag.Int("maxChildren", 0, "How deep should the spider go?")
-	urlList := flag.String("urlList", "", "Pat to a list of URL's (one per line) to spider and scan.")
+	urlList := flag.String("urlList", "", "Path to a list of URL's (one per line) to spider and scan.")
 	runningTasks := flag.Bool("runningTasks", false, "Check to see how amy tasks are in queue.")
 	flag.Parse()
 	if *versionBool {
