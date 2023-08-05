@@ -395,6 +395,9 @@ func IsGvmReady() bool {
 	getFeedsResponseData := &GetFeedsResponse{} // Create and initialise a data variable as a PostData struct
 	StartTaskResponseDataErr := xml.Unmarshal(getFeedsCmdByts, getFeedsResponseData)
 	if StartTaskResponseDataErr != nil {
+		if getFeedsCmdByts == nil {
+			return false
+		}
 		err := fmt.Errorf("gvm unmarshal error: %v", string(getFeedsCmdByts))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
