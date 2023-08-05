@@ -14,7 +14,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
@@ -25,7 +24,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 	var ScreenShotDataList []string
 	var uniqueRespBody map[string]string
 	var idArray []string
-	cli, NewEnvClientErr := client.NewEnvClient()
+	cli, NewEnvClientErr := client.NewClientWithOpts()
 	if NewEnvClientErr != nil {
 		err := fmt.Errorf("screenshots new-client error %v: %v", NewEnvClientErr, cli)
 		if sentry.CurrentHub().Client() != nil {
@@ -81,14 +80,14 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
 		resp, respErr := httpClient.Do(req)
 		if respErr != nil {
 			if resp != nil {
-				io.Copy(ioutil.Discard, resp.Body) // WE READ THE BODY
+				io.Copy(io.Discard, resp.Body) // WE READ THE BODY
 				resp.Body.Close()
 			}
 			err := fmt.Errorf("screenshots resp error %v", respErr)
 			log.Println(err)
 			continue
 		}
-		RespBody, RespBodyError := ioutil.ReadAll(resp.Body)
+		RespBody, RespBodyError := io.ReadAll(resp.Body)
 		if RespBodyError != nil {
 			resp.Body.Close()
 			err := fmt.Errorf("screenshots ioutil error %v", RespBodyError)
@@ -163,7 +162,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 	}
 	now := time.Now()
 	imageName := docker.KaliLinuxImage
-	filePath := "url_screen_shot"
+	filePath := "url_screen_shot.png"
 	config := &container.Config{
 		Image: imageName,
 		Cmd: []string{
@@ -173,7 +172,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 			"--hide-scrollbars",
 			"--headless",
 			"--disable-gpu",
-			"--screenshot=url_screen_shot",
+			"--screenshot=" + filePath,
 			"--no-sandbox",
 			"--window-size=1280,768",
 			*url,
