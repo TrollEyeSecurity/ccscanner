@@ -258,7 +258,8 @@ func dontReassign(category string) bool {
 		"openvas_vulnerability_scan",
 		"dast",
 		"get_screen_shot",
-		"url_inspection":
+		"url_inspection",
+		"dns_check":
 		return false
 	}
 	return true
