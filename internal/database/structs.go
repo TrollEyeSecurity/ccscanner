@@ -113,6 +113,7 @@ type DnsResults struct {
 	Dmarc        []string `bson:"dmarc" json:"dmarc"`
 	Spf          []string `bson:"spf" json:"spf"`
 	DnsSec       bool     `json:"dns_sec"`
+	Dnstwist     string   `bson:"dnstwist" json:"dnstwist"`
 }
 
 type OsintResults struct {
