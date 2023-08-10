@@ -44,6 +44,12 @@ services:
     profiles:
       - disable
 
+  dnstwist:
+    restart: "no"
+    image: docker.io/elceef/dnstwist:latest
+    profiles:
+      - disable
+
   vulnerability-tests:
     image: greenbone/vulnerability-tests
     environment:
