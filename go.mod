@@ -36,4 +36,4 @@ require (
 	gotest.tools/v3 v3.5.0 // indirect
 )
 
-go 1.21.0
+go 1.21
