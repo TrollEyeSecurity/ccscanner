@@ -21,6 +21,7 @@ func RemoveContainers(idArray []string) {
 		log.Println(err)
 	}
 	for _, id := range idArray {
+		//stopOptions := container.StopOptions{}
 		if err := cli.ContainerStop(ctx, id, nil); err != nil {
 			log.Printf("Unable to stop container %s: %s", id, err)
 		}
@@ -43,6 +44,7 @@ func StartContainer(
 	imageName *string,
 	containerName *string,
 	config *container.Config,
+	//hostConfig *container.HostConfig) (*container.CreateResponse, error) {
 	hostConfig *container.HostConfig) (*container.ContainerCreateCreatedBody, error) {
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()
@@ -69,7 +71,7 @@ func StartContainer(
 		}
 	}
 
-	Container, err := cli.ContainerCreate(
+	Container, containerCreateErr := cli.ContainerCreate(
 		ctx,
 		config,
 		hostConfig,
@@ -77,13 +79,13 @@ func StartContainer(
 		nil,
 		*containerName,
 	)
-	if err != nil {
+	if containerCreateErr != nil {
 		cli.Close()
-		return nil, err
+		return nil, containerCreateErr
 	}
-	if err := cli.ContainerStart(ctx, Container.ID, types.ContainerStartOptions{}); err != nil {
+	if containerStartErr := cli.ContainerStart(ctx, Container.ID, types.ContainerStartOptions{}); containerStartErr != nil {
 		cli.Close()
-		return nil, err
+		return nil, containerStartErr
 	}
 	cli.Close()
 	return &Container, nil
