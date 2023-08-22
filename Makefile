@@ -12,6 +12,11 @@ CMD=cmd/
 clean:
 	rm -rf bin/*
 
+build:
+	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
+	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(CMD)$(TASKMANAGER)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINK)
+
 build_dpkg:
 	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
 	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(CMD)$(TASKMANAGER)
