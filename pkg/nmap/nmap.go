@@ -1,6 +1,7 @@
 package nmap
 
 import (
+	"archive/tar"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -9,7 +10,6 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/names"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
@@ -35,10 +35,11 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		return
 	}
 	var cmd string
+	filePath := "nmap-scan-results.xml"
 	if *excludes == "" {
-		cmd = "nmap -vv -oX - --stats-every 30s " + *nmapParams + " " + *hosts
+		cmd = "nmap -vv -oX " + filePath + " --stats-every 30s " + *nmapParams + " " + *hosts
 	} else {
-		cmd = "nmap -vv -oX - --stats-every 30s " + *nmapParams + " " + *hosts + " --exclude " + *excludes
+		cmd = "nmap -vv -oX " + filePath + " --stats-every 30s " + *nmapParams + " " + *hosts + " --exclude " + *excludes
 	}
 	cmdS := strings.Split(cmd, " ")
 	imageName := docker.KaliLinuxImage
@@ -113,40 +114,50 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 	case <-statusCh:
 	}
-	reader, ContainerLogsErr := cli.ContainerLogs(ctx, NmapContainer.ID, types.ContainerLogsOptions{
-		ShowStdout: true,
-		Follow:     true,
-	})
-	if ContainerLogsErr != nil {
-		err := fmt.Errorf("nmap scan error %v: %v", ContainerLogsErr, reader)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+
+	fileReader, _, fileReaderErr := cli.CopyFromContainer(ctx, NmapContainer.ID, filePath)
+	if fileReaderErr != nil {
+		if fileReader != nil {
+			fileReader.Close()
+			err1 := fmt.Errorf("nmap scan error %v", fileReader)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err1)
+			}
+			log.Println(err1)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
 		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		reader.Close()
-		return
 	}
-	byteValue, ioutilReadAllError := io.ReadAll(reader)
-	reader.Close()
-	if ioutilReadAllError != nil {
-		err := fmt.Errorf("nmap scan ioutil error %v", ioutilReadAllError)
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(err)
+	tr := tar.NewReader(fileReader)
+	var results []byte
+	for {
+		_, err := tr.Next()
+		if err == io.EOF {
+			break // End of archive
 		}
-		log.Println(err)
-		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
-		return
+		if err != nil {
+			fileReader.Close()
+		}
+		results, err = io.ReadAll(tr)
+		if err != nil {
+			fileReader.Close()
+			err1 := fmt.Errorf("nmap scan error %v", err)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err1)
+			}
+			log.Println(err1)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+		}
 	}
+	fileReader.Close()
+
 	data := &Nmaprun{}
-	XmlUnmarshalErr := xml.Unmarshal(byteValue, data)
+	XmlUnmarshalErr := xml.Unmarshal(results, data)
 	if XmlUnmarshalErr != nil {
-		// do I really want to know about all of these?
-		err := fmt.Errorf("nmap scan xml-unmarshal error %v: %v", XmlUnmarshalErr, string(byteValue))
+		err := fmt.Errorf("nmap scan xml-unmarshal error %v: %v", XmlUnmarshalErr, string(results))
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -158,7 +169,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 	}
 	jsonData, jsonDataError := json.Marshal(data)
 	if jsonDataError != nil {
-		// do I really want to know about all of these?
 		err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
