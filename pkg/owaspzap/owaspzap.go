@@ -18,6 +18,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"io"
 	"log"
+	"math/rand"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -48,15 +50,14 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
-	proxyPort := "8080"
 	var reports []map[string]interface{}
-	/*var proxyPort string
+	var proxyPort string
 	attempts := 0
 	for {
-		rand.Seed(time.Now().UnixNano())
-		min := 8080
-		max := 8090
-		proxyPort = strconv.Itoa(rand.Intn(max-min+1) + min)
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		minPort := 8080
+		maxPort := 8090
+		proxyPort = strconv.Itoa(r.Intn(maxPort-minPort+1) + minPort)
 		listenPort, listenPortErr := net.Listen("tcp", ":"+proxyPort)
 		if listenPortErr != nil {
 			attempts++
@@ -76,8 +77,6 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
 		}
 		time.Sleep(3 * time.Second)
 	}
-	*/
-
 	dt := time.Now().Unix()
 	containerName := fmt.Sprintf("%d", dt)
 	ZapContainerId, StartZapErr := StartZap(taskId, &containerName, &proxyPort)
@@ -449,6 +448,10 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
 			activeScanPct = intStrconvActiveScanStatusResp
 			pct := float64(numberOfAppsComplete) / float64(totalNumberOfApps)
 			percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100 * pct
+			fmt.Println(spiderScanPct)
+			fmt.Println(activeScanPct)
+			fmt.Println(pct)
+			fmt.Println(percent)
 			_, activeScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", taskId}},
 				bson.D{{"$set", bson.D{
@@ -552,16 +555,18 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
 func StartZap(taskId *primitive.ObjectID, contextName *string, proxyPort *string) (*string, error) {
 	imageName := docker.OwaspZapImage
 	bash := strings.Split("/bin/bash -c", " ")
+	port := nat.Port(fmt.Sprintf("%s/tcp", *proxyPort))
 	config := &container.Config{
 		Image:        imageName,
+		Env:          []string{"ZAP_PORT=" + *proxyPort},
 		Tty:          true,
 		AttachStdout: true,
 		AttachStderr: true,
 		User:         "zap",
 		Entrypoint:   bash,
-		Cmd:          []string{"mkdir ~/.ZAP/contexts && echo " + *contextName + " | tee ~/.ZAP/contexts/context.xml && zap.sh -addonupdate -daemon -host 0.0.0.0 -port 8080 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true"},
+		Cmd:          []string{"mkdir ~/.ZAP/contexts && echo " + *contextName + " | tee ~/.ZAP/contexts/context.xml && zap.sh -addonupdate -daemon -host 0.0.0.0 -port " + *proxyPort + " -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true"},
 		ExposedPorts: nat.PortSet{
-			"8080/tcp": struct{}{},
+			port: struct{}{},
 		},
 	}
 	resources := &container.Resources{
@@ -570,7 +575,7 @@ func StartZap(taskId *primitive.ObjectID, contextName *string, proxyPort *string
 	hostConfig := &container.HostConfig{
 		Resources: *resources,
 		PortBindings: nat.PortMap{
-			"8080/tcp": []nat.PortBinding{
+			port: []nat.PortBinding{
 				{
 					HostIP:   "127.0.0.1",
 					HostPort: *proxyPort,
