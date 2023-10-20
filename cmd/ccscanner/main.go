@@ -27,12 +27,12 @@ func main() {
 	versionBool := flag.Bool("version", false, "Show the command center scanner version.")
 	setModeRunBool := flag.Bool("mode_running", false, "Change the mode to running")
 	setModeMaintBool := flag.Bool("mode_maintenance", false, "Change the mode to maintenance")
-	dastConfig := flag.String("dastConfig", "", "Enter the path to the dast config file.")
-	dastHtml := flag.String("dastHtml", "", "Name of the html file to write.")
-	dastRootUrl := flag.String("dastRootUrl", "", "Where to start te spider.")
-	maxChildren := flag.Int("maxChildren", 0, "How deep should the spider go?")
-	urlList := flag.String("urlList", "", "Path to a list of URL's (one per line) to spider and scan.")
-	runningTasks := flag.Bool("runningTasks", false, "Check to see how amy tasks are in queue.")
+	dastConfig := flag.String("dast_config", "", "Enter the path to the dast config file.")
+	dastHtml := flag.String("dast_html", "", "Name of the html file to write.")
+	dastRootUrl := flag.String("dast_root_url", "", "Where to start te spider.")
+	maxChildren := flag.Int("max_children", 0, "How deep should the spider go?")
+	urlList := flag.String("url_list", "", "Path to a list of URL's (one per line) to spider and scan.")
+	runningTasks := flag.Bool("running_tasks", false, "Check to see how amy tasks are in queue.")
 	flag.Parse()
 	if *versionBool {
 		fmt.Printf("command center scanner version: %s\n", common.Version)
@@ -65,7 +65,6 @@ func main() {
 		scannerCli(dastConfig, dastRootUrl, dastHtml, maxChildren, urlList)
 		return
 	}
-	// todo: if current status is maintenance, finish maintenance first
 	ScannerMain()
 }
 
@@ -240,13 +239,6 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 			fmt.Println(openErr.Error())
 			return
 		}
-		//rString, decodeErr := base64.StdEncoding.DecodeString(*results)
-		//if decodeErr != nil {
-		//	fmt.Println(decodeErr.Error())
-		//	return
-		//}
-		//file1.Write(rString)
-		//file1.Sync()
 		fmt.Println(results)
 		fmt.Println("OWASPZap Scan is complete.")
 	} else {
