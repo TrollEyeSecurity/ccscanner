@@ -19,7 +19,7 @@ function docker_commands() {
 
 while :
 do
-  if ccscanner -runningTasks | grep 0; then
+  if ccscanner -running_tasks | grep 0; then
      echo "ready for updates"
      break
   fi
