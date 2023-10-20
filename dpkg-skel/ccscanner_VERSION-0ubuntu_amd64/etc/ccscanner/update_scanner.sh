@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+ccscanner -mode_maintenance
+
+function cleanup_permissions() {
+    sudo chown ccscanner:ccscanner -R /etc/ccscanner/
+    sudo chown 1001:1001 -R /etc/ccscanner/.gvm/
+    sudo chmod 777 -R /etc/ccscanner/.gvm/
+    sudo chown ccscanner:ccscanner /etc/ccscanner/.config/gvm-tools.conf
+}
+
+function docker_commands() {
+    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml stop
+    docker container prune -f
+    docker image prune -af
+    cleanup_permissions
+    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml --profile disable pull
+    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml up -d
+}
+
+while :
+do
+  if ccscanner -runningTasks | grep 0; then
+     echo "ready for updates"
+     break
+  fi
+  sleep 5
+done
+
+sudo systemctl stop ccscanner cctaskmanager
+
+sudo DEBIAN_FRONTEND=noninteractive apt update && sudo DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y
+
+docker_commands
+
+sudo systemctl enable --now ccscanner.service cctaskmanager.service
+
+cleanup_permissions
+
+ccscanner -mode_running
+
+sudo reboot
