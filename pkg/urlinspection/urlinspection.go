@@ -271,13 +271,15 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 			res1 := strings.ToLower(appRedirect)
 			res2 := strings.Replace(res1, " ", "", -1)
 			res3 := strings.Split(res2, "url=")
-			res4 := strings.Replace(res3[1], "\"", "", -1)
-			res5 := strings.Replace(res4, "'", "", -1)
-			fullUrl := strings.Contains(res5, "://")
-			if fullUrl {
-				newUrl = res5
-			} else {
-				newUrl = *myUrl + res5
+			if len(res3) > 1 {
+				res4 := strings.Replace(res3[1], "\"", "", -1)
+				res5 := strings.Replace(res4, "'", "", -1)
+				fullUrl := strings.Contains(res5, "://")
+				if fullUrl {
+					newUrl = res5
+				} else {
+					newUrl = *myUrl + res5
+				}
 			}
 			response.Body.Close()
 		}
