@@ -17,7 +17,6 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"golang.org/x/net/html"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"regexp"
@@ -155,6 +154,22 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
 		if InspectUrlError != nil {
 			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
 			log.Println(err)
+			idx += 1
+			value := PercentageChange(len(urls.UrlList), idx)
+			_, updatePercentError := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", taskId}},
+				bson.D{{"$set", bson.D{
+					{"percent", value}}}},
+			)
+			if updatePercentError != nil {
+				err1 := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err1)
+				}
+				log.Println(err1)
+				MongoClient.Disconnect(context.TODO())
+				return
+			}
 			continue
 		}
 		if SuccessCodes[InspectionResults.StatusCode] {
@@ -233,7 +248,7 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 		}
 		urlList = append(urlList, *myUrl)
 		urlCodesList = append(urlCodesList, response.StatusCode)
-		RespBody, RespBodyError := ioutil.ReadAll(response.Body)
+		RespBody, RespBodyError := io.ReadAll(response.Body)
 		if RespBodyError != nil {
 			return nil, RespBodyError
 		}
@@ -278,7 +293,7 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 				*myUrl = *myUrl + strings.TrimLeft(newLocation, "/")
 			}
 			response.Body.Close()
-			_, DiscardErr := io.Copy(ioutil.Discard, response.Body)
+			_, DiscardErr := io.Copy(io.Discard, response.Body)
 			if DiscardErr != nil {
 				return nil, DiscardErr
 			}
