@@ -26,6 +26,9 @@ do
   sleep 5
 done
 
+echo "sleeping for 60 secs"
+sleep 60
+
 sudo systemctl stop ccscanner cctaskmanager
 
 sudo DEBIAN_FRONTEND=noninteractive apt update && sudo DEBIAN_FRONTEND=noninteractive apt dist-upgrade -y
