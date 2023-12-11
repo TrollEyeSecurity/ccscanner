@@ -19,13 +19,13 @@ import (
 )
 
 func GetMongoClient() (*mongo.Client, error) {
+	serverAPIOptions := options.ServerAPI(options.ServerAPIVersion1)
+	clientOptions := options.Client().
+		ApplyURI("mongodb://127.0.0.1:27017").
+		SetServerAPIOptions(serverAPIOptions)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	MongoClient, err := mongo.NewClient(options.Client().ApplyURI("mongodb://127.0.0.1:27017"))
-	if err != nil {
-		return nil, err
-	}
-	err = MongoClient.Connect(ctx)
+	MongoClient, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		return nil, err
 	}
