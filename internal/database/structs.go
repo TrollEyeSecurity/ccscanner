@@ -44,31 +44,33 @@ type ZapResults struct {
 }
 
 type TaskContent struct {
-	IntegrationType string       `json:"integration_type"`
-	ProjectName     string       `json:"project_name"`
-	Repourl         string       `json:"repourl"`
-	BranchName      string       `json:"branch_name"`
-	Function        string       `json:"function"`
-	Tech            string       `json:"tech"`
-	Args            TaskArg      `json:"args"`
-	DastConfigList  []DastConfig `json:"dast_config_list"`
-	Ip              net.IP       `json:"ip"`
-	Hostname        string       `json:"hostname"`
-	Api             bool         `json:"api"`
-	Tls             bool         `json:"tls"`
-	Ssh             bool         `json:"ssh"`
+	IntegrationType string       `bson:"integration_type" json:"integration_type"`
+	ProjectName     string       `bson:"project_name" json:"project_name"`
+	Repourl         string       `bson:"repourl" json:"repourl"`
+	BranchName      string       `bson:"branch_name" json:"branch_name"`
+	Function        string       `bson:"function" json:"function"`
+	Tech            string       `bson:"tech" json:"tech"`
+	Args            TaskArg      `bson:"args" json:"args"`
+	DastConfigList  []DastConfig `bson:"dast_config_list" json:"dast_config_list"`
+	Ip              net.IP       `bson:"ip" json:"ip"`
+	Port            int          `bson:"port" json:"port"`
+	Hostname        string       `bson:"hostname" json:"hostname"`
+	Api             bool         `bson:"api" json:"api"`
+	Tls             bool         `bson:"tls" json:"tls"`
+	Ssh             bool         `bson:"ssh" json:"ssh"`
 }
 
 type TaskSecret struct {
-	Osint       OsintSecrets `bson:"osint" json:"osint"`
-	Repouser    string       `bson:"repouser" json:"repouser"`
-	SonarSecret SonarSecret  `bson:"sonar_secret" json:"sonar_secret"`
-	SnykSecret  SnykSecret   `bson:"snyk_secret" json:"snyk_secret"`
-	Username    string       `bson:"username" json:"username"`
-	Password    string       `bson:"password" json:"password"`
-	Token       string       `bson:"token" json:"token"`
-	Key         string       `bson:"key" json:"key"`
-	Secret      string       `bson:"secret" json:"secret"`
+	Osint         OsintSecrets `bson:"osint" json:"osint"`
+	Repouser      string       `bson:"repouser" json:"repouser"`
+	SonarSecret   SonarSecret  `bson:"sonar_secret" json:"sonar_secret"`
+	SnykSecret    SnykSecret   `bson:"snyk_secret" json:"snyk_secret"`
+	Username      string       `bson:"username" json:"username"`
+	Password      string       `bson:"password" json:"password"`
+	Token         string       `bson:"token" json:"token"`
+	Key           string       `bson:"key" json:"key"`
+	Secret        string       `bson:"secret" json:"secret"`
+	FortiosApiKey string       `bson:"fortios_api_key" json:"fortios_api_key"`
 }
 
 type SonarSecret struct {
