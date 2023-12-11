@@ -258,18 +258,6 @@ func Maintenance() {
 	return
 }
 
-func Reboot() {
-	rebootCmd := exec.Command("/usr/sbin/shutdown", "-r", "now")
-	startErr := rebootCmd.Start()
-	if startErr != nil {
-		if sentry.CurrentHub().Client() != nil {
-			sentry.CaptureException(startErr)
-		}
-		log.Fatal(startErr)
-	}
-	return
-}
-
 func SetModeRunning() {
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
