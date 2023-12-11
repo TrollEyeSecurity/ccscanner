@@ -7,6 +7,7 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/internal/config"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/dns"
+	"github.com/TrollEyeSecurity/ccscanner/pkg/fortinet"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/netrecon"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/nmap"
@@ -113,6 +114,10 @@ func TaskManagerMain() {
 			switch {
 			case task.Content.Function == "infrastructure_discovery" && task.Content.Ssh == true:
 				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID)
+				break
+
+			case task.Content.Function == "infrastructure_discovery" && task.Content.Api == true && task.Content.IntegrationType == "fortios":
+				go fortinet.Discovery(&task.Content, &task.SecretData, &task.ID)
 				break
 			case task.Content.Function == "sast":
 				if task.SecretData.SonarSecret != (database.SonarSecret{}) {
