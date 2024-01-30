@@ -4,7 +4,7 @@ jobs:
   build-and-push-image:
     environment:
       PKG_NAME:
-        ccscanner_2.0.12
+        ccscanner_2.0.13
     docker:
       - image: cimg/go:1.20.3
     steps:
