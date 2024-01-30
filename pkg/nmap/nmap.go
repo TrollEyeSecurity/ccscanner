@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, shodanKey *string) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID) {
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()
@@ -190,12 +190,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 				break
 			} else {
 				continue
-			}
-		}
-		if ip != "" {
-			NameData := names.DoLookup(&ip, shodanKey)
-			if NameData != nil {
-				nameInfoMap[ip] = *NameData
 			}
 		}
 		for _, port := range host.Ports.Port {
