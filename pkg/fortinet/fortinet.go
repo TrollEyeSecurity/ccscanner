@@ -57,7 +57,7 @@ func Discovery(content *database.TaskContent, secretData *database.TaskSecret, t
 		return
 	}
 	percent = 16
-	firewall.Subnets = *subnetList
+	firewall.SubnetList = *subnetList
 	_, updateError2 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"percent", percent}}}},
@@ -80,7 +80,7 @@ func Discovery(content *database.TaskContent, secretData *database.TaskSecret, t
 		return
 	}
 	percent = 32
-	firewall.System = *system
+	firewall.SystemInfo = *system
 	_, updateError3 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"percent", percent}}}},
@@ -103,7 +103,7 @@ func Discovery(content *database.TaskContent, secretData *database.TaskSecret, t
 		return
 	}
 	percent = 48
-	firewall.SystemIps = *systemsIps
+	firewall.SystemIpList = *systemsIps
 	_, updateError4 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"percent", percent}}}},
@@ -126,7 +126,7 @@ func Discovery(content *database.TaskContent, secretData *database.TaskSecret, t
 		return
 	}
 	percent = 64
-	firewall.Hosts = *hostList
+	firewall.HostList = *hostList
 	_, updateError5 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
 		bson.D{{"$set", bson.D{{"percent", percent}}}},

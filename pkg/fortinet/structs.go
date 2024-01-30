@@ -422,10 +422,10 @@ type Tagging struct {
 }
 
 type Firewall struct {
-	System    System     `bson:"system" json:"system"`
-	Subnets   []Subnet   `bson:"subnets" json:"subnets"`
-	SystemIps []SystemIp `bson:"system_ips" json:"system_ips"`
-	Hosts     []Host     `bson:"hosts" json:"hosts"`
-	Policy    []Policy   `bson:"policy" json:"policy"`
-	Addresses []Address  `bson:"addresses" json:"addresses"`
+	SystemInfo   System     `bson:"system_info" json:"system_info"`
+	SubnetList   []Subnet   `bson:"subnet_list" json:"subnet_list"`
+	SystemIpList []SystemIp `bson:"system_ip_list" json:"system_ip_list"`
+	HostList     []Host     `bson:"host_list" json:"host_list"`
+	Policy       []Policy   `bson:"policy" json:"policy"`
+	Addresses    []Address  `bson:"addresses" json:"addresses"`
 }
