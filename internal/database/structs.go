@@ -29,7 +29,6 @@ type Task struct {
 	NetReconResult   string             `bson:"net_recon_result" json:"net_recon_result"`
 	OpenvasTaskId    string             `bson:"openvas_task_id" json:"openvas_task_id"`
 	DnsResult        []DnsResults       `bson:"dns_result" json:"dns_result"`
-	OsintResult      []OsintResults     `bson:"osint_result" json:"osint_result"`
 	UrlInsResult     []UrlData          `bson:"url_ins_result" json:"url_ins_result"`
 	ScreenShotResult []string           `bson:"screen_shot_result" json:"screen_shot_result"`
 	NameInfo         string             `bson:"name_info" json:"name_info"`
@@ -61,16 +60,15 @@ type TaskContent struct {
 }
 
 type TaskSecret struct {
-	Osint         OsintSecrets `bson:"osint" json:"osint"`
-	Repouser      string       `bson:"repouser" json:"repouser"`
-	SonarSecret   SonarSecret  `bson:"sonar_secret" json:"sonar_secret"`
-	SnykSecret    SnykSecret   `bson:"snyk_secret" json:"snyk_secret"`
-	Username      string       `bson:"username" json:"username"`
-	Password      string       `bson:"password" json:"password"`
-	Token         string       `bson:"token" json:"token"`
-	Key           string       `bson:"key" json:"key"`
-	Secret        string       `bson:"secret" json:"secret"`
-	FortiosApiKey string       `bson:"fortios_api_key" json:"fortios_api_key"`
+	Repouser      string      `bson:"repouser" json:"repouser"`
+	SonarSecret   SonarSecret `bson:"sonar_secret" json:"sonar_secret"`
+	SnykSecret    SnykSecret  `bson:"snyk_secret" json:"snyk_secret"`
+	Username      string      `bson:"username" json:"username"`
+	Password      string      `bson:"password" json:"password"`
+	Token         string      `bson:"token" json:"token"`
+	Key           string      `bson:"key" json:"key"`
+	Secret        string      `bson:"secret" json:"secret"`
+	FortiosApiKey string      `bson:"fortios_api_key" json:"fortios_api_key"`
 }
 
 type SonarSecret struct {
@@ -81,11 +79,6 @@ type SonarSecret struct {
 type SnykSecret struct {
 	SnykApiKey string `bson:"snyk_api_key" json:"snyk_api_key"`
 	SnykOrgId  string `bson:"snyk_org_id" json:"snyk_org_id"`
-}
-
-type OsintSecrets struct {
-	Otx    string `json:"otx"`
-	Shodan string `bson:"shodan" json:"shodan"`
 }
 
 type TaskArg struct {
@@ -116,12 +109,6 @@ type DnsResults struct {
 	Spf          []string `bson:"spf" json:"spf"`
 	DnsSec       bool     `json:"dns_sec"`
 	Dnstwist     string   `bson:"dnstwist" json:"dnstwist"`
-}
-
-type OsintResults struct {
-	Host       string `bson:"host" json:"host"`
-	ShodanData string `bson:"shodan_data" json:"shodan_data"`
-	Reputation string `bson:"reputation" json:"reputation"`
 }
 
 type UrlData struct {
