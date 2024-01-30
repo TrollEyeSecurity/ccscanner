@@ -202,79 +202,82 @@ func AnalyzeDomainNames(dnsnames *[]string, taskId *primitive.ObjectID) {
 				}
 			}
 		}
-		dnstwistImage := docker.DnstwistImage
-		dnstwistCmd := "-a -f json -r " + dnsname
-		dnstwistCmdS := strings.Split(dnstwistCmd, " ")
-		dnstwistConfig := &container.Config{
-			Image:        dnstwistImage,
-			Cmd:          dnstwistCmdS,
-			Tty:          true,
-			AttachStdout: true,
-			AttachStderr: true,
-		}
-		_, update1Error := tasksCollection.UpdateOne(context.TODO(),
-			bson.D{{"_id", taskId}},
-			bson.D{{"$set", bson.D{{"percent", 50}}}},
-		)
-		if update1Error != nil {
-			err := fmt.Errorf("dns analyze-domain-names remove-containers error %v", update1Error)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+
+		/*
+			dnstwistImage := docker.DnstwistImage
+			dnstwistCmd := "-a -f json -r " + dnsname
+			dnstwistCmdS := strings.Split(dnstwistCmd, " ")
+			dnstwistConfig := &container.Config{
+				Image:        dnstwistImage,
+				Cmd:          dnstwistCmdS,
+				Tty:          true,
+				AttachStdout: true,
+				AttachStderr: true,
 			}
-			log.Println(err)
-			continue
-		}
-		dnstwstResources := &container.Resources{
-			Memory: 5.12e+8,
-		}
-		dnstwistHostConfig := &container.HostConfig{
-			Resources:   *dnstwstResources,
-			NetworkMode: "host",
-		}
-		dnstwistConfigContainerName := "dnstwist-" + strconv.FormatInt(now.Unix(), 10)
-		DnstwistContainer, DnstwistContainerErr := docker.StartContainer(&dnstwistImage, &dnstwistConfigContainerName, dnstwistConfig, dnstwistHostConfig)
-		if DnstwistContainerErr != nil {
-			err := fmt.Errorf("dns analyze-domain-names dnstwist-container error %v: %v", DnstwistContainerErr, DnstwistContainer)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println(err)
-			continue
-		}
-		idArray = append(idArray, DnstwistContainer.ID)
-		dnstwistStatusCh, dnstwistErrCh := cli.ContainerWait(ctx, DnstwistContainer.ID, container.WaitConditionNextExit)
-		select {
-		case err := <-dnstwistErrCh:
-			if err != nil {
-				errMsg := fmt.Errorf("dnstwist analyze-domain-names container-wait error %v", err)
+			_, update1Error := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", taskId}},
+				bson.D{{"$set", bson.D{{"percent", 50}}}},
+			)
+			if update1Error != nil {
+				err := fmt.Errorf("dns analyze-domain-names remove-containers error %v", update1Error)
 				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(errMsg)
+					sentry.CaptureException(err)
 				}
-				log.Println(errMsg)
+				log.Println(err)
 				continue
 			}
-		case <-dnstwistStatusCh:
-		}
-		dnsTwistReader, dnstwsistContainerLogsErr := cli.ContainerLogs(ctx, DnstwistContainer.ID, types.ContainerLogsOptions{
-			ShowStdout: true,
-			Follow:     true,
-		})
-		if dnstwsistContainerLogsErr != nil {
-			err := fmt.Errorf("dnstwist analyze-domain-names container-logs error %v: %v", dnstwsistContainerLogsErr, dnsTwistReader)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+			dnstwstResources := &container.Resources{
+				Memory: 5.12e+8,
 			}
-			log.Println(err)
-			continue
-		}
-		dnstwistByteValue, _ := io.ReadAll(dnsTwistReader)
-		dnsTwistReader.Close()
-		dnstwistResults := base64.StdEncoding.EncodeToString(dnstwistByteValue)
+			dnstwistHostConfig := &container.HostConfig{
+				Resources:   *dnstwstResources,
+				NetworkMode: "host",
+			}
+			dnstwistConfigContainerName := "dnstwist-" + strconv.FormatInt(now.Unix(), 10)
+			DnstwistContainer, DnstwistContainerErr := docker.StartContainer(&dnstwistImage, &dnstwistConfigContainerName, dnstwistConfig, dnstwistHostConfig)
+			if DnstwistContainerErr != nil {
+				err := fmt.Errorf("dns analyze-domain-names dnstwist-container error %v: %v", DnstwistContainerErr, DnstwistContainer)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				continue
+			}
+			idArray = append(idArray, DnstwistContainer.ID)
+			dnstwistStatusCh, dnstwistErrCh := cli.ContainerWait(ctx, DnstwistContainer.ID, container.WaitConditionNextExit)
+			select {
+			case err := <-dnstwistErrCh:
+				if err != nil {
+					errMsg := fmt.Errorf("dnstwist analyze-domain-names container-wait error %v", err)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(errMsg)
+					}
+					log.Println(errMsg)
+					continue
+				}
+			case <-dnstwistStatusCh:
+			}
+			dnsTwistReader, dnstwsistContainerLogsErr := cli.ContainerLogs(ctx, DnstwistContainer.ID, types.ContainerLogsOptions{
+				ShowStdout: true,
+				Follow:     true,
+			})
+			if dnstwsistContainerLogsErr != nil {
+				err := fmt.Errorf("dnstwist analyze-domain-names container-logs error %v: %v", dnstwsistContainerLogsErr, dnsTwistReader)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				continue
+			}
+			dnstwistByteValue, _ := io.ReadAll(dnsTwistReader)
+			dnsTwistReader.Close()
+			dnstwistResults := base64.StdEncoding.EncodeToString(dnstwistByteValue)
+		*/
 		results.Spf = *spf
 		results.Dmarc = *dmarc
 		results.DomainName = dnsname
 		results.DnsReconList = b64Result
-		results.Dnstwist = dnstwistResults
+		//results.Dnstwist = dnstwistResults
 		result = append(result, results)
 	}
 	cli.Close()
