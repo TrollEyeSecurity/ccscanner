@@ -11,7 +11,6 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/netrecon"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/nmap"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/osint"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/owaspzap"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/screenshots"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/snyk"
@@ -140,17 +139,14 @@ func TaskManagerMain() {
 			case task.Content.Function == "dns_check":
 				go dns.AnalyzeDomainNames(&task.Content.Args.Dns, &task.ID)
 				break
-			case task.Content.Function == "osint_discovery":
-				go osint.Discovery(&task.Content.Args.Hosts, &task.ID, &task.SecretData.Osint.Shodan, &task.SecretData.Osint.Otx)
-				break
 			case task.Content.Function == "nmap_host_discovery":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
 				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
 				break
 			case task.Content.Function == "nmap_port_scan":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.SecretData.Osint.Shodan)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
 				break
 			}
 		}
