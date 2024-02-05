@@ -1,4 +1,4 @@
-VERSION=2.0.12
+VERSION=2.0.13
 GOCMD=go
 GOBUILD=$(GOCMD) build
 SCANNER=ccscanner/main.go
