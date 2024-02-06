@@ -34,6 +34,7 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		log.Println(err)
 		return
 	}
+	defer cli.Close()
 	var cmd string
 	filePath := "nmap-scan-results.xml"
 	if *excludes == "" {
@@ -66,7 +67,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		cli.Close()
 		return
 	}
 	idArray = append(idArray, NmapContainer.ID)
@@ -79,7 +79,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		cli.Close()
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -94,8 +93,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
 		return
 	}
 	statusCh, errCh := cli.ContainerWait(ctx, NmapContainer.ID, container.WaitConditionNextExit)
@@ -108,8 +105,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			}
 			log.Println(errMsg)
 			docker.RemoveContainers(idArray)
-			MongoClient.Disconnect(context.TODO())
-			cli.Close()
 			return
 		}
 	case <-statusCh:
@@ -125,8 +120,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			}
 			log.Println(err1)
 			docker.RemoveContainers(idArray)
-			MongoClient.Disconnect(context.TODO())
-			cli.Close()
 		}
 	}
 	tr := tar.NewReader(fileReader)
@@ -148,8 +141,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			}
 			log.Println(err1)
 			docker.RemoveContainers(idArray)
-			MongoClient.Disconnect(context.TODO())
-			cli.Close()
 		}
 	}
 	fileReader.Close()
@@ -163,8 +154,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
 		return
 	}
 	jsonData, jsonDataError := json.Marshal(data)
@@ -175,8 +164,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
-		cli.Close()
 		return
 	}
 	result := base64.StdEncoding.EncodeToString(jsonData)
@@ -235,7 +222,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	jsonServiceUrlDataInfo, jsonServiceUrlDataInfoError := json.Marshal(UrlInfoMap)
@@ -246,7 +232,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		}
 		log.Println(err)
 		docker.RemoveContainers(idArray)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	nameInfo := base64.StdEncoding.EncodeToString(jsonNameInfoData)
@@ -272,8 +257,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			}
 			log.Println(err)
 			docker.RemoveContainers(idArray)
-			MongoClient.Disconnect(context.TODO())
-			cli.Close()
 			return
 		}
 		result = base64.StdEncoding.EncodeToString(jsonData1)
@@ -299,11 +282,10 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
+		docker.RemoveContainers(idArray)
 		return
 	}
 	docker.RemoveContainers(idArray)
-	cli.Close()
 	return
 }
 
