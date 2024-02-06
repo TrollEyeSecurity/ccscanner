@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, taskFunction *string) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID) {
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()
