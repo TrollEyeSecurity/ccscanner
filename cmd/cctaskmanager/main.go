@@ -140,13 +140,13 @@ func TaskManagerMain() {
 				go dns.AnalyzeDomainNames(&task.Content.Args.Dns, &task.ID)
 				break
 			case task.Content.Function == "nmap_host_discovery":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Function)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
 				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
 				break
 			case task.Content.Function == "nmap_port_scan":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Function)
 				break
 			}
 		}
