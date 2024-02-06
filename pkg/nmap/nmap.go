@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, taskFunction *string) {
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()
@@ -251,17 +251,48 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 	}
 	nameInfo := base64.StdEncoding.EncodeToString(jsonNameInfoData)
 	serviceUrlDataInfo := base64.StdEncoding.EncodeToString(jsonServiceUrlDataInfo)
-	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
-		bson.D{{"_id", taskId}},
-		bson.D{{"$set", bson.D{
+
+	bsonData := bson.D{
+		{"$set", bson.D{
 			{"nmap_result", result},
 			{"name_info", nameInfo},
 			{"service_url_data", serviceUrlDataInfo},
 			{"status", "SUCCESS"},
-			{"percent", 100}}}},
+			{"percent", 100}}},
+	}
+
+	// check to see if the nmap data is too large
+	if len(bsonData) >= 16793600 {
+		data = checkIfDown(data)
+		jsonData1, jsonDataError1 := json.Marshal(data)
+		if jsonDataError1 != nil {
+			err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError1)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			docker.RemoveContainers(idArray)
+			MongoClient.Disconnect(context.TODO())
+			cli.Close()
+			return
+		}
+		result = base64.StdEncoding.EncodeToString(jsonData1)
+		bsonData = bson.D{
+			{"$set", bson.D{
+				{"nmap_result", result},
+				{"name_info", nameInfo},
+				{"service_url_data", serviceUrlDataInfo},
+				{"status", "SUCCESS"},
+				{"percent", 100}}},
+		}
+
+	}
+	// -------------------------------------------------------
+
+	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
+		bson.D{{"_id", taskId}},
+		bsonData,
 	)
-	docker.RemoveContainers(idArray)
-	cli.Close()
 	if update2Error != nil {
 		err := fmt.Errorf("nmap scan error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
@@ -271,10 +302,22 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
+	docker.RemoveContainers(idArray)
+	cli.Close()
 	return
 }
 
 type UrlData struct {
 	UrlList  []string `bson:"url_list" json:"url_list"`
 	BodyList []string `bson:"body_list" json:"body_list"`
+}
+
+func checkIfDown(data *Nmaprun) *Nmaprun {
+	for i := len(data.Host) - 1; i >= 0; i-- {
+		host := data.Host[i]
+		if host.Status.State == "down" {
+			data.Host = append(data.Host[:i], data.Host[i+1:]...)
+		}
+	}
+	return data
 }
