@@ -246,32 +246,6 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 			{"percent", 100}}},
 	}
 
-	// check to see if the nmap data is too large
-	if len(bsonData) >= 16793600 {
-		data = checkIfDown(data)
-		jsonData1, jsonDataError1 := json.Marshal(data)
-		if jsonDataError1 != nil {
-			err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError1)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
-			}
-			log.Println(err)
-			docker.RemoveContainers(idArray)
-			return
-		}
-		result = base64.StdEncoding.EncodeToString(jsonData1)
-		bsonData = bson.D{
-			{"$set", bson.D{
-				{"nmap_result", result},
-				{"name_info", nameInfo},
-				{"service_url_data", serviceUrlDataInfo},
-				{"status", "SUCCESS"},
-				{"percent", 100}}},
-		}
-
-	}
-	// -------------------------------------------------------
-
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bsonData,
