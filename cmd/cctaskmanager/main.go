@@ -51,7 +51,6 @@ func TaskManagerMain() {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -59,7 +58,6 @@ func TaskManagerMain() {
 	cursor, ConfigurationError := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1))
 	if ConfigurationError != nil {
 		fmt.Println(ConfigurationError.Error(), errorString)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	var results []bson.M
@@ -70,12 +68,10 @@ func TaskManagerMain() {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	if len(results) < 1 {
 		fmt.Println(errorString)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	for {
@@ -87,7 +83,6 @@ func TaskManagerMain() {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
 			return
 		}
 		if ProgressingTasksFindError != nil {
@@ -96,7 +91,6 @@ func TaskManagerMain() {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
 			return
 		}
 		for NewlyAssignedTasks.Next(context.TODO()) {
