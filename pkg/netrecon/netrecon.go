@@ -12,7 +12,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"io/ioutil"
+	"io"
 	"log"
 	"strconv"
 	"time"
@@ -128,7 +128,7 @@ func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskI
 		reader.Close()
 		return
 	}
-	byteValue, ioutilReadAllError := ioutil.ReadAll(reader)
+	byteValue, ioutilReadAllError := io.ReadAll(reader)
 	reader.Close()
 	if ioutilReadAllError != nil {
 		err := fmt.Errorf("netrecon ioutil error %v", ioutilReadAllError)
