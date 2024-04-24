@@ -73,7 +73,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
-	//docker.RemoveContainers(idArray)
+	docker.RemoveContainers(idArray)
 	cli.Close()
 	if update2Error != nil {
 		if update2Error.Error() == "an inserted document is too large" {
@@ -192,8 +192,6 @@ func execute(scriptType *string, content *database.TaskContent, imageName *strin
 
 	tr := tar.NewReader(fileReader)
 	var results []byte
-	//var jsonData []byte
-	//var jsonDataError error
 	for {
 		_, err := tr.Next()
 		if err == io.EOF {
