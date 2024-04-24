@@ -2,6 +2,8 @@ package database
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -147,6 +149,45 @@ func GetCurrentTasks() *[]Task {
 				}
 			}
 		}
+		if task.Status == "SUCCESS" && task.Content.Function == "sast" {
+			if task.SastResult.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
+				openSourceResults, readOpenSourceResultsFileErr := os.ReadFile(task.SastResult.SnykOutput.OpenSourceResultsFile)
+				if readOpenSourceResultsFileErr != nil {
+					fmt.Println(readOpenSourceResultsFileErr.Error())
+					continue
+				}
+				jsonOpenSourceResults := OpenSourceResults{}
+				_ = json.Unmarshal(openSourceResults, &jsonOpenSourceResults)
+				jsonOpenSourceResultsData, jsonOpenSourceResultsDataError := json.Marshal(jsonOpenSourceResults)
+				if jsonOpenSourceResultsDataError != nil {
+					fmt.Println(jsonOpenSourceResultsDataError.Error())
+					continue
+				}
+				SnykOpenSourceResults := base64.StdEncoding.EncodeToString(jsonOpenSourceResultsData)
+				task.SastResult.SnykOutput.OpenSourceResults = SnykOpenSourceResults
+
+			} else {
+				task.SastResult.SnykOutput.OpenSourceResults = "bm8gcmVzdWx0cw=="
+			}
+			if task.SastResult.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
+				codeResults, readCodeResultsFileErr := os.ReadFile(task.SastResult.SnykOutput.CodeResultsFile)
+				if readCodeResultsFileErr != nil {
+					fmt.Println(readCodeResultsFileErr.Error())
+					continue
+				}
+				jsonCodeResultsResults := CodeResults{}
+				_ = json.Unmarshal(codeResults, &jsonCodeResultsResults)
+				jsonCodeResultsResultsData, jsonCodeResultsResultsDataError := json.Marshal(jsonCodeResultsResults)
+				if jsonCodeResultsResultsDataError != nil {
+					fmt.Println(jsonCodeResultsResultsDataError.Error())
+					continue
+				}
+				SnykCodeResults := base64.StdEncoding.EncodeToString(jsonCodeResultsResultsData)
+				task.SastResult.SnykOutput.CodeResults = SnykCodeResults
+			} else {
+				task.SastResult.SnykOutput.CodeResults = "bm8gcmVzdWx0cw=="
+			}
+		}
 		tasks = append(tasks, task)
 	}
 	return &tasks
@@ -169,7 +210,7 @@ func ReassignTask(tasksCollection *mongo.Collection, task *Task) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("Update Error: %s", updateError)
+		log.Println(updateError)
 	}
 }
 
@@ -181,9 +222,40 @@ func DeleteTaskById(taskId int64) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("MongoClient Error: %s", MongoClientError)
+		log.Println(MongoClientError)
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
+	var task Task
+	findErr := tasksCollection.FindOne(context.TODO(), bson.D{{"task_id", &taskId}}).Decode(&task)
+	if findErr != nil {
+		err := fmt.Errorf("database find task error %v", findErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+	}
+	if task.Content.Function == "sast" {
+		if task.SastResult.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
+			rerr1 := os.Remove(task.SastResult.SnykOutput.OpenSourceResultsFile)
+			if rerr1 != nil {
+				err1 := fmt.Errorf("database delete-file error %v", rerr1)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err1)
+				}
+				log.Println(err1)
+			}
+		}
+		if task.SastResult.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
+			rerr2 := os.Remove(task.SastResult.SnykOutput.CodeResultsFile)
+			if rerr2 != nil {
+				err2 := fmt.Errorf("database delete-file error %v", rerr2)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err2)
+				}
+				log.Println(err2)
+			}
+		}
+	}
 	_, updateError := tasksCollection.DeleteOne(context.TODO(),
 		bson.D{{"task_id", taskId}},
 	)
@@ -192,7 +264,7 @@ func DeleteTaskById(taskId int64) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("Update Error: %s", updateError)
+		log.Println(updateError)
 	}
 }
 
@@ -204,7 +276,7 @@ func UpdateTaskById(taskId int64, status string) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("MongoClient Error: %s", MongoClientError)
+		log.Println(MongoClientError)
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	_, updateError := tasksCollection.UpdateOne(context.TODO(),
@@ -216,7 +288,7 @@ func UpdateTaskById(taskId int64, status string) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("Update Error: %s", updateError)
+		log.Println(updateError)
 	}
 }
 
@@ -228,7 +300,7 @@ func GetOwaspZapResultById(taskId int64) *[]ZapResults {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("MongoClient Error: %s", MongoClientError)
+		log.Println(MongoClientError)
 	}
 	var task Task
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -244,7 +316,7 @@ func GetTaskStatusByTaskId(taskId int64) (*string, *int) {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("MongoClient Error: %s", MongoClientError)
+		log.Println(MongoClientError)
 	}
 	var task Task
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -274,7 +346,7 @@ func GetCurrentMode() *string {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
-		log.Fatalf("MongoClient Error: %s", MongoClientError)
+		log.Println(MongoClientError)
 	}
 	opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
 	systemCollection := MongoClient.Database("core").Collection("system")
@@ -291,7 +363,7 @@ func GetCurrentMode() *string {
 	if len(results) < 1 {
 		fmt.Println(errorString)
 		time.Sleep(30 * time.Second)
-		log.Fatalf("Configuraton Error: %s", errorString)
+		log.Println(errorString)
 	}
 	notmode := results[0]["mode"]
 	if notmode != nil {
