@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/bitBucket"
@@ -17,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"io"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -64,8 +64,8 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 	idArray = append(idArray, *snykSastContainerID)
 	scaResults, snykScaContainerID := execute(&scaScriptType, content, &imageName, secretData, &repoUrl, cli, tasksCollection, taskId, 90)
 	idArray = append(idArray, *snykScaContainerID)
-	SastResults.SnykOutput.CodeResults = *sastResults
-	SastResults.SnykOutput.OpenSourceResults = *scaResults
+	SastResults.SnykOutput.CodeResultsFile = *sastResults
+	SastResults.SnykOutput.OpenSourceResultsFile = *scaResults
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
@@ -73,15 +73,34 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
-	docker.RemoveContainers(idArray)
+	//docker.RemoveContainers(idArray)
 	cli.Close()
 	if update2Error != nil {
+		if update2Error.Error() == "an inserted document is too large" {
+			var NewSastResults database.SastResults
+			NewSastResults.Error = "an inserted document is too large"
+			_, updateError := tasksCollection.UpdateOne(context.TODO(),
+				bson.D{{"_id", taskId}},
+				bson.D{{"$set", bson.D{
+					{"sast_result", NewSastResults},
+					{"status", "SUCCESS"},
+					{"percent", 100}}}},
+			)
+			if updateError != nil {
+				err := fmt.Errorf("sast scan error 2 %v", updateError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Println(err)
+				return
+			}
+			return
+		}
 		err := fmt.Errorf("sast scan error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	return
@@ -170,10 +189,11 @@ func execute(scriptType *string, content *database.TaskContent, imageName *strin
 		}
 		return &noResults, &snykContainer.ID
 	}
+
 	tr := tar.NewReader(fileReader)
 	var results []byte
-	var jsonData []byte
-	var jsonDataError error
+	//var jsonData []byte
+	//var jsonDataError error
 	for {
 		_, err := tr.Next()
 		if err == io.EOF {
@@ -190,26 +210,37 @@ func execute(scriptType *string, content *database.TaskContent, imageName *strin
 		}
 	}
 	fileReader.Close()
+	var resultsFilePath string
+	ts := time.Now().Unix()
+	fullPath := fmt.Sprintf("/tmp/ccscanner/%s/", taskId.Hex())
+	fullPathErr := os.MkdirAll(fullPath, 0775)
+	if fullPathErr != nil {
+		err := fmt.Errorf("sast write-full-path error %v", fullPathErr)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Println(err)
+		return &noResults, &snykContainer.ID
+	}
 	if *scriptType == "sast" {
-		jsonResults := &CodeResults{}
-		_ = json.Unmarshal(results, &jsonResults)
-		jsonData, jsonDataError = json.Marshal(jsonResults)
-		if jsonDataError != nil {
-			// do I really want to know about all of these?
-			err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError)
+		fileName := fmt.Sprintf("CodeResults.%d.json", ts)
+		resultsFilePath = fmt.Sprintf("%s%s", fullPath, fileName)
+		writeFileErr := os.WriteFile(resultsFilePath, results, 0775)
+		if writeFileErr != nil {
+			err := fmt.Errorf("sast code-results write-file error %v", writeFileErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
 			return &noResults, &snykContainer.ID
 		}
+
 	} else {
-		jsonResults := OpenSourceResults{}
-		_ = json.Unmarshal(results, &jsonResults)
-		jsonData, jsonDataError = json.Marshal(jsonResults)
-		if jsonDataError != nil {
-			// do I really want to know about all of these?
-			err := fmt.Errorf("nmap scan json-marshal error %v", jsonDataError)
+		fileName := fmt.Sprintf("OpenSourceResults.%d.json", ts)
+		resultsFilePath = fmt.Sprintf("%s%s", fullPath, fileName)
+		writeFileErr := os.WriteFile(resultsFilePath, results, 0775)
+		if writeFileErr != nil {
+			err := fmt.Errorf("sast open-source-results write-file error %v", writeFileErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -217,6 +248,5 @@ func execute(scriptType *string, content *database.TaskContent, imageName *strin
 			return &noResults, &snykContainer.ID
 		}
 	}
-	SnykOutputResult := base64.StdEncoding.EncodeToString(jsonData)
-	return &SnykOutputResult, &snykContainer.ID
+	return &resultsFilePath, &snykContainer.ID
 }

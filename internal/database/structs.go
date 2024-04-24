@@ -133,6 +133,7 @@ type FinalLocationUrlData struct {
 }
 
 type SastResults struct {
+	Error           string          `bson:"error,omitempty" json:"error,omitempty"`
 	SonarQubeOutput SonarQubeOutput `bson:"sonar_qube_output" json:"sonar_qube_output"`
 	SnykOutput      SnykOutput      `bson:"snyk_output" json:"snyk_output"`
 }
@@ -144,8 +145,10 @@ type SonarQubeOutput struct {
 }
 
 type SnykOutput struct {
-	CodeResults       string `bson:"code_results" json:"code_results"`
-	OpenSourceResults string `bson:"open_source_results" json:"open_source_results"`
+	CodeResults           string `bson:"code_results" json:"code_results"`
+	OpenSourceResults     string `bson:"open_source_results" json:"open_source_results"`
+	CodeResultsFile       string `bson:"code_results_file" json:"code_results_file"`
+	OpenSourceResultsFile string `bson:"open_source_results_file" json:"open_source_results_file"`
 }
 
 type DastConfig struct {
