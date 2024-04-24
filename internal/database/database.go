@@ -234,6 +234,7 @@ func DeleteTaskById(taskId int64) {
 		}
 		log.Println(err)
 	}
+
 	if task.Content.Function == "sast" {
 		if task.SastResult.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
 			rerr1 := os.Remove(task.SastResult.SnykOutput.OpenSourceResultsFile)
