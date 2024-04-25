@@ -10,25 +10,13 @@ services:
 
   owaspZap:
     restart: "no"
-    image: docker.io/owasp/zap2docker-stable
-    profiles:
-      - disable
-
-  sastScanner:
-    restart: "no"
-    image: docker.io/trolleye/sast-scanner:2022-Q3
+    image: ghcr.io/zaproxy/zaproxy:stable
     profiles:
       - disable
 
   kaliLinux:
     restart: "no"
     image: docker.io/trolleye/kali-linux:latest
-    profiles:
-      - disable
-
-  dnsRecon:
-    restart: "no"
-    image: docker.io/trolleye/dnsrecon:latest
     profiles:
       - disable
 
@@ -41,12 +29,6 @@ services:
   snyk-cli:
     restart: "no"
     image: docker.io/trolleye/snyk-cli:latest
-    profiles:
-      - disable
-
-  dnstwist:
-    restart: "no"
-    image: docker.io/elceef/dnstwist:latest
     profiles:
       - disable
 
