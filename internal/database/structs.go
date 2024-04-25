@@ -28,7 +28,6 @@ type Task struct {
 	SastResult       SastResults        `bson:"sast_result" json:"sast_result"`
 	NetReconResult   string             `bson:"net_recon_result" json:"net_recon_result"`
 	OpenvasTaskId    string             `bson:"openvas_task_id" json:"openvas_task_id"`
-	DnsResult        []DnsResults       `bson:"dns_result" json:"dns_result"`
 	UrlInsResult     []UrlData          `bson:"url_ins_result" json:"url_ins_result"`
 	ScreenShotResult []string           `bson:"screen_shot_result" json:"screen_shot_result"`
 	NameInfo         string             `bson:"name_info" json:"name_info"`
@@ -60,20 +59,14 @@ type TaskContent struct {
 }
 
 type TaskSecret struct {
-	Repouser      string      `bson:"repouser" json:"repouser"`
-	SonarSecret   SonarSecret `bson:"sonar_secret" json:"sonar_secret"`
-	SnykSecret    SnykSecret  `bson:"snyk_secret" json:"snyk_secret"`
-	Username      string      `bson:"username" json:"username"`
-	Password      string      `bson:"password" json:"password"`
-	Token         string      `bson:"token" json:"token"`
-	Key           string      `bson:"key" json:"key"`
-	Secret        string      `bson:"secret" json:"secret"`
-	FortiosApiKey string      `bson:"fortios_api_key" json:"fortios_api_key"`
-}
-
-type SonarSecret struct {
-	Sonarhosturl string `bson:"sonarhosturl" json:"sonarhosturl"`
-	Sonarlogin   string `bson:"sonarlogin" json:"sonarlogin"`
+	Repouser      string     `bson:"repouser" json:"repouser"`
+	SnykSecret    SnykSecret `bson:"snyk_secret" json:"snyk_secret"`
+	Username      string     `bson:"username" json:"username"`
+	Password      string     `bson:"password" json:"password"`
+	Token         string     `bson:"token" json:"token"`
+	Key           string     `bson:"key" json:"key"`
+	Secret        string     `bson:"secret" json:"secret"`
+	FortiosApiKey string     `bson:"fortios_api_key" json:"fortios_api_key"`
 }
 
 type SnykSecret struct {
@@ -102,15 +95,6 @@ type Result struct {
 	Result string `json:"result"`
 }
 
-type DnsResults struct {
-	DomainName   string   `bson:"domain_name" json:"domain_name"`
-	DnsReconList string   `bson:"dns_recon_list" json:"dns_recon_list"`
-	Dmarc        []string `bson:"dmarc" json:"dmarc"`
-	Spf          []string `bson:"spf" json:"spf"`
-	DnsSec       bool     `json:"dns_sec"`
-	Dnstwist     string   `bson:"dnstwist" json:"dnstwist"`
-}
-
 type UrlData struct {
 	FinalLocation string   `bson:"final_location" json:"final_location"`
 	UrlList       []string `bson:"url_list" json:"url_list"`
@@ -133,15 +117,8 @@ type FinalLocationUrlData struct {
 }
 
 type SastResults struct {
-	Error           string          `bson:"error,omitempty" json:"error,omitempty"`
-	SonarQubeOutput SonarQubeOutput `bson:"sonar_qube_output" json:"sonar_qube_output"`
-	SnykOutput      SnykOutput      `bson:"snyk_output" json:"snyk_output"`
-}
-
-type SonarQubeOutput struct {
-	SonarScanId              string `bson:"sonar_scan_id" json:"sonar_scan_id"`
-	DependencyCheckerResults string `bson:"dependency_checker_results" json:"dependency_checker_results"`
-	SonarOutput              string `bson:"sonar_output" json:"sonar_output"`
+	Error      string     `bson:"error,omitempty" json:"error,omitempty"`
+	SnykOutput SnykOutput `bson:"snyk_output" json:"snyk_output"`
 }
 
 type SnykOutput struct {

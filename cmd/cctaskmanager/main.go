@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/config"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/dns"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/fortinet"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/netrecon"
@@ -14,7 +13,6 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/pkg/owaspzap"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/screenshots"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/snyk"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/sonarqube"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/urlinspection"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
@@ -113,14 +111,8 @@ func TaskManagerMain() {
 				go fortinet.Discovery(&task.Content, &task.SecretData, &task.ID)
 				break
 			case task.Content.Function == "sast":
-				if task.SecretData.SonarSecret != (database.SonarSecret{}) {
-					go sonarqube.Scan(&task.Content, &task.SecretData, &task.ID)
-					break
-				}
-				if task.SecretData.SnykSecret != (database.SnykSecret{}) {
-					go snyk.Scan(&task.Content, &task.SecretData, &task.ID)
-					break
-				}
+				go snyk.Scan(&task.Content, &task.SecretData, &task.ID)
+				break
 			case task.Content.Function == "dast":
 				go owaspzap.Scan(task.Content.DastConfigList, &task.ID)
 				break
@@ -129,9 +121,6 @@ func TaskManagerMain() {
 				break
 			case task.Content.Function == "url_inspection":
 				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID)
-				break
-			case task.Content.Function == "dns_check":
-				go dns.AnalyzeDomainNames(&task.Content.Args.Dns, &task.ID)
 				break
 			case task.Content.Function == "nmap_host_discovery":
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
