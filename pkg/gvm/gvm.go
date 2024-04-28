@@ -16,10 +16,13 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-func StopVulnerabilityScan(ScanTaskId int64) {
+func StopVulnerabilityScan(ScanTaskId int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -57,7 +60,9 @@ func StopVulnerabilityScan(ScanTaskId int64) {
 	}
 }
 
-func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string) {
+func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primitive.ObjectID, configuration *string, disabledNvts *map[string][]string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -207,7 +212,9 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 	return
 }
 
-func CheckVulnerabilityScan(taskId *primitive.ObjectID) {
+func CheckVulnerabilityScan(taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {

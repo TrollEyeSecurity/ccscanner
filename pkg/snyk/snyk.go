@@ -19,10 +19,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
+func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	SastResults := database.SastResults{}
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())

@@ -15,10 +15,13 @@ import (
 	"io"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 )
 
-func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
+func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()

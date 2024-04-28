@@ -13,10 +13,13 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
-func Discovery(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID) {
+func Discovery(content *database.TaskContent, secretData *database.TaskSecret, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	var status string
 	var percent int
 	status = "PROGRESS"

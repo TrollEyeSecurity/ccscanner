@@ -28,7 +28,9 @@ import (
 	"time"
 )
 
-func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID) {
+func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {

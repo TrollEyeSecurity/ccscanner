@@ -18,10 +18,13 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()

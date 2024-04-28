@@ -17,10 +17,13 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
-func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID) {
+func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	var ScreenShotDataList []string
 	var uniqueRespBody map[string]string
 	var idArray []string

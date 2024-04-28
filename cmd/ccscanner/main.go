@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -69,6 +70,7 @@ func main() {
 }
 
 func ScannerMain() {
+	var wg sync.WaitGroup
 	errorString := "\n\nHave you linked the scanner to Command Center?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -114,21 +116,28 @@ func ScannerMain() {
 		newTasks := &response.NewTasks
 		allowedUsers := &response.AllowedUsers
 		Ovpn := &response.Ovpn
-		go users.ProcessUsers(*allowedUsers)
-		go ovpn.ProcessOvpnConfig(*Ovpn)
+		wg.Add(1)
+		go users.ProcessUsers(*allowedUsers, &wg)
+
+		wg.Add(1)
+		go ovpn.ProcessOvpnConfig(*Ovpn, &wg)
 		tasksCollection := MongoClient.Database("core").Collection("tasks")
 		for _, taskResult := range *taskResults {
 			if taskResult.Result == "DONE" {
-				go database.DeleteTaskById(taskResult.TaskId)
+				wg.Add(1)
+				go database.DeleteTaskById(taskResult.TaskId, &wg)
 			} else if taskResult.Result == "STOP_SCAN" {
-				go gvm.StopVulnerabilityScan(taskResult.TaskId)
+				wg.Add(1)
+				go gvm.StopVulnerabilityScan(taskResult.TaskId, &wg)
 			} else {
-				go database.UpdateTaskById(taskResult.TaskId, taskResult.Result)
+				wg.Add(1)
+				go database.UpdateTaskById(taskResult.TaskId, taskResult.Result, &wg)
 			}
 		}
 		for _, task := range *newTasks {
 			if task.TaskType == "maintenance" {
-				go common.Maintenance()
+				wg.Add(1)
+				go common.Maintenance(&wg)
 				continue
 			}
 			_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
@@ -162,10 +171,12 @@ func ScannerMain() {
 			}
 		}
 		time.Sleep(30 * time.Second)
+		wg.Wait()
 	}
 }
 
 func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, maxChildren *int, urlList *string) {
+	var wg sync.WaitGroup
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -242,7 +253,10 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 		fmt.Println("")
 		fmt.Println(*results)
 	}
-	database.DeleteTaskById(taskId)
+
+	wg.Add(1)
+	go database.DeleteTaskById(taskId, &wg)
+	wg.Wait()
 	os.Exit(0)
 }
 

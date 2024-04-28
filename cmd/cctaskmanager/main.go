@@ -19,6 +19,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -40,6 +41,7 @@ func main() {
 }
 
 func TaskManagerMain() {
+	var wg sync.WaitGroup
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -104,32 +106,41 @@ func TaskManagerMain() {
 			}
 			switch {
 			case task.Content.Function == "infrastructure_discovery" && task.Content.Ssh == true:
-				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID)
+				wg.Add(1)
+				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID, &wg)
 				break
 
 			case task.Content.Function == "infrastructure_discovery" && task.Content.Api == true && task.Content.IntegrationType == "fortios":
-				go fortinet.Discovery(&task.Content, &task.SecretData, &task.ID)
+				wg.Add(1)
+				go fortinet.Discovery(&task.Content, &task.SecretData, &task.ID, &wg)
 				break
 			case task.Content.Function == "sast":
-				go snyk.Scan(&task.Content, &task.SecretData, &task.ID)
+				wg.Add(1)
+				go snyk.Scan(&task.Content, &task.SecretData, &task.ID, &wg)
 				break
 			case task.Content.Function == "dast":
-				go owaspzap.Scan(task.Content.DastConfigList, &task.ID)
+				wg.Add(1)
+				go owaspzap.Scan(task.Content.DastConfigList, &task.ID, &wg)
 				break
 			case task.Content.Function == "get_screen_shot":
-				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID)
+				wg.Add(1)
+				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID, &wg)
 				break
 			case task.Content.Function == "url_inspection":
-				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID)
+				wg.Add(1)
+				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID, &wg)
 				break
 			case task.Content.Function == "nmap_host_discovery":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				wg.Add(1)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
 				break
 			case task.Content.Function == "openvas_vulnerability_scan":
-				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts)
+				wg.Add(1)
+				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts, &wg)
 				break
 			case task.Content.Function == "nmap_port_scan":
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID)
+				wg.Add(1)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
 				break
 			}
 		}
@@ -146,10 +157,12 @@ func TaskManagerMain() {
 			}
 			switch {
 			case task.Content.Function == "openvas_vulnerability_scan":
-				go gvm.CheckVulnerabilityScan(&task.ID)
+				wg.Add(1)
+				go gvm.CheckVulnerabilityScan(&task.ID, &wg)
 				break
 			}
 		}
 		time.Sleep(15 * time.Second)
+		wg.Wait()
 	}
 }

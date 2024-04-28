@@ -6,9 +6,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sync"
+	"time"
 )
 
-func ProcessOvpnConfig(ovpnConfig phonehome.OvpnConfig) {
+func ProcessOvpnConfig(ovpnConfig phonehome.OvpnConfig, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	cmd := exec.Command("systemctl", "status", "--no-pager", "openvpn@client.service")
 	_, err := cmd.CombinedOutput()
 	status := 0

@@ -17,6 +17,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -214,7 +215,9 @@ func ReassignTask(tasksCollection *mongo.Collection, task *Task) {
 	}
 }
 
-func DeleteTaskById(taskId int64) {
+func DeleteTaskById(taskId int64, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -269,7 +272,9 @@ func DeleteTaskById(taskId int64) {
 	}
 }
 
-func UpdateTaskById(taskId int64, status string) {
+func UpdateTaskById(taskId int64, status string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
