@@ -21,10 +21,13 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
-func RunInspection(urls *database.Urls, taskId *primitive.ObjectID) {
+func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	SuccessCodes := map[int]bool{
 		200: true,
 		201: true,

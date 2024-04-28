@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -210,7 +211,9 @@ func getIpData() *[]IpData {
 	return &IntList
 }
 
-func Maintenance() {
+func Maintenance(wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {

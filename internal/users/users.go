@@ -9,9 +9,13 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
-func ProcessUsers(allowedUsers [][]string) {
+func ProcessUsers(allowedUsers [][]string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 
 	currentUsers, currentUsersError := getCurrentUsers()
 	if currentUsersError != nil {

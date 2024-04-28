@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/docker"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/names"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/getsentry/sentry-go"
@@ -19,10 +18,13 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
-func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID) {
+func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
+	defer wg.Done()
+	defer time.Sleep(time.Millisecond * 4)
 	var idArray []string
 	ctx := context.Background()
 	cli, NewEnvClientErr := client.NewClientWithOpts()
@@ -167,7 +169,7 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 		return
 	}
 	result := base64.StdEncoding.EncodeToString(jsonData)
-	nameInfoMap := make(map[string]names.NameData)
+	nameInfoMap := make(map[string]NameData)
 	UrlInfoMap := make(map[string][]string)
 	for _, host := range data.Host {
 		ip := ""
