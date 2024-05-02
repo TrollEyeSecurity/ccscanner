@@ -85,8 +85,7 @@ type TaskArg struct {
 }
 
 type Urls struct {
-	PortId   int64    `bson:"port_id" json:"port_id"`
-	WebappId int64    `bson:"webapp_id" json:"webapp_id"`
+	WebappId string   `bson:"webapp_id" json:"webapp_id"`
 	UrlList  []string `bson:"url_list" json:"url_list"`
 }
 
