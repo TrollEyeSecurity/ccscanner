@@ -28,6 +28,8 @@ import (
 func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer time.Sleep(time.Millisecond * 4)
+	var percent int
+	percent = 0
 	SuccessCodes := map[int]bool{
 		200: true,
 		201: true,
@@ -42,18 +44,8 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 		304: true,
 		// unoffical
 		218: true,
-	}
-	RedirectCodes := map[int]bool{
-		300: true,
-		301: true,
-		302: true,
-		303: true,
-		305: true,
-		306: true,
-		307: true,
-		308: true,
-	}
-	ClientErrorCodes := map[int]bool{
+
+		// Client error codes but something is there
 		400: true,
 		401: true,
 		402: true,
@@ -100,6 +92,16 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 		460: true,
 		463: true,
 	}
+	RedirectCodes := map[int]bool{
+		300: true,
+		301: true,
+		302: true,
+		303: true,
+		305: true,
+		306: true,
+		307: true,
+		308: true,
+	}
 	ServerErrorCodes := map[int]bool{
 		500: true,
 		501: true,
@@ -134,7 +136,6 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -148,21 +149,21 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	idx := 0
+	count := 0
+	length := len(urls.UrlList)
 	for _, u := range urls.UrlList {
-		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ClientErrorCodes, ServerErrorCodes)
+		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ServerErrorCodes)
 		if InspectUrlError != nil {
 			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
 			log.Println(err)
-			idx += 1
-			value := PercentageChange(len(urls.UrlList), idx)
+			count += 1
+			percent = count * 100 / length
 			_, updatePercentError := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", taskId}},
 				bson.D{{"$set", bson.D{
-					{"percent", value}}}},
+					{"percent", percent}}}},
 			)
 			if updatePercentError != nil {
 				err1 := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
@@ -178,12 +179,12 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 		if SuccessCodes[InspectionResults.StatusCode] {
 			results = append(results, *InspectionResults)
 		}
-		idx += 1
-		value := PercentageChange(len(urls.UrlList), idx)
+		count += 1
+		percent = count * 100 / length
 		_, updatePercentError := tasksCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", taskId}},
 			bson.D{{"$set", bson.D{
-				{"percent", value}}}},
+				{"percent", percent}}}},
 		)
 		if updatePercentError != nil {
 			err := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
@@ -214,7 +215,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	return
 }
 
-func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]bool, ClientErrorCodes map[int]bool, ServerErrorCodes map[int]bool) (*database.UrlData, error) {
+func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]bool, ServerErrorCodes map[int]bool) (*database.UrlData, error) {
 	urlData := database.UrlData{}
 	//proxyStr := "http://127.0.0.1:8080"
 	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
@@ -268,9 +269,9 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 		if nl != "" {
 			newUrl = *myUrl + strings.TrimLeft(nl, "/")
 		}
-		hm := extractMeta(respBody)
-		if hm.ApplicationRedirect != "" {
-			appRedirect := hm.ApplicationRedirect
+		hm1 := extractMeta(respBody)
+		if hm1.ApplicationRedirect != "" {
+			appRedirect := hm1.ApplicationRedirect
 			res1 := strings.ToLower(appRedirect)
 			res2 := strings.Replace(res1, " ", "", -1)
 			res3 := strings.Split(res2, "url=")
@@ -302,12 +303,14 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 			if DiscardErr != nil {
 				return nil, DiscardErr
 			}
+			urlList = append(urlList, *myUrl)
 		case SuccessCodes[response.StatusCode] && newUrl == "":
 			finalLocation = response.Request.URL.String()
 			urlData.Data.Server = response.Header.Get("Server")
 			urlData.Data.XPoweredBy = response.Header.Get("X-Powered-By")
 			urlData.Data.ContentType = response.Header.Get("Content-Type")
 			urlData.StatusCode = response.StatusCode
+			urlData.UrlList = urlList
 			plainXml := strings.Contains(urlData.Data.ContentType, "text/xml")
 			appXml := strings.Contains(urlData.Data.ContentType, "application/xml")
 			switch {
@@ -380,25 +383,7 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 			response.Body.Close()
 			urlData.FinalLocation = finalLocation
 			return &urlData, nil
-		case ClientErrorCodes[response.StatusCode]:
-			switch {
-			case len(urlCodesList) > 0:
-				index, success := findSuccess(urlCodesList, SuccessCodes)
-				if success {
-					*myUrl = urlList[index]
-					newUrl = ""
-					jsAttempt = 2
-					response.Body.Close()
-				} else {
-					urlData.StatusCode = response.StatusCode
-					response.Body.Close()
-					return &urlData, nil
-				}
-			default:
-				urlData.StatusCode = response.StatusCode
-				response.Body.Close()
-				return &urlData, nil
-			}
+
 		case ServerErrorCodes[response.StatusCode]:
 			switch {
 			case len(urlCodesList) > 0:
@@ -681,10 +666,4 @@ func extractJavascriptLocation(HTMLString string) string {
 			}
 		}
 	}
-}
-
-func PercentageChange(old, new int) (delta int32) {
-	diff := int32(new - old)
-	delta = (diff / int32(old)) * 100
-	return
 }
