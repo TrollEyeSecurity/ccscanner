@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/common"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -96,8 +97,9 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	NewDecoderError := json.NewDecoder(response.Body).Decode(&cr)
 	if NewDecoderError != nil {
 		response.Body.Close()
-		fmt.Println("Can\"t decode response. (If using a proxy the host could be down)")
-		return nil, NewDecoderError
+		err := fmt.Errorf("can't decode response. %v - %v", NewDecoderError, response.StatusCode)
+		log.Println(err)
+		return nil, err
 	}
 	response.Body.Close()
 	return &cr, nil
