@@ -450,10 +450,6 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID, wg *
 			activeScanPct = intStrconvActiveScanStatusResp
 			pct := float64(numberOfAppsComplete) / float64(totalNumberOfApps)
 			percent := float64(spiderScanPct+activeScanPct) / float64(200) * 100 * pct
-			fmt.Println(spiderScanPct)
-			fmt.Println(activeScanPct)
-			fmt.Println(pct)
-			fmt.Println(percent)
 			_, activeScanPctUpdateError := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", taskId}},
 				bson.D{{"$set", bson.D{
