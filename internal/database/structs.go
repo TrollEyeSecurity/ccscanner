@@ -37,7 +37,7 @@ type Task struct {
 }
 
 type ZapResults struct {
-	AppId int    `bson:"app_id" json:"app_id"`
+	AppId string `bson:"app_id" json:"app_id"`
 	Data  string `bson:"data" json:"data"`
 }
 
@@ -172,7 +172,7 @@ type DastConfig struct {
 	WebappLoggedoutindicatorregex string   `bson:"webapp_loggedoutindicatorregex" json:"webapp_loggedoutindicatorregex"`
 	WebappUsers                   []string `bson:"webapp_users" json:"webapp_users"`
 	SecretList                    []string `bson:"secret_list" json:"secret_list"`
-	ID                            int      `bson:"id" json:"id"`
+	ID                            string   `bson:"id" json:"id"`
 	MaxChildren                   int      `bson:"max_children" json:"max_children"`
 	UrlList                       []string `bson:"url_list" json:"url_list"`
 }
