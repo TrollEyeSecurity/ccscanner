@@ -58,12 +58,12 @@ func Scan(dastConfigList []database.DastConfig, taskId *primitive.ObjectID, wg *
 	for {
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		minPort := 8080
-		maxPort := 8090
+		maxPort := 8120
 		proxyPort = strconv.Itoa(r.Intn(maxPort-minPort+1) + minPort)
 		listenPort, listenPortErr := net.Listen("tcp", ":"+proxyPort)
 		if listenPortErr != nil {
 			attempts++
-			if attempts > 9 {
+			if attempts > maxPort-minPort {
 				err := fmt.Errorf("owaspzap listen-port error %v: %v", listenPortErr, "ZapScan listenPortErr - Cannot find an open port for the proxy")
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
