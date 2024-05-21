@@ -104,7 +104,7 @@ type LinkData struct {
 }
 
 func GetOutboundIP() *net.IP {
-	conn, netDialErr := net.Dial("udp", "255.255.255.255:80")
+	conn, netDialErr := net.Dial("udp", "1.1.1.1:80")
 	if netDialErr != nil {
 		err := fmt.Errorf("common get-outbound-ip error %v", netDialErr)
 		if sentry.CurrentHub().Client() != nil {
@@ -112,8 +112,8 @@ func GetOutboundIP() *net.IP {
 		}
 		log.Println(err)
 	}
+	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	conn.Close()
 	return &localAddr.IP
 }
 
