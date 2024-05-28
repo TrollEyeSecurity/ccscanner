@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/TrollEyeSecurity/ccscanner/internal/auth"
 	"github.com/TrollEyeSecurity/ccscanner/internal/common"
 	"github.com/TrollEyeSecurity/ccscanner/internal/config"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
@@ -14,7 +15,6 @@ import (
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"log"
 	"net/url"
 	"os"
@@ -83,22 +83,28 @@ func ScannerMain() {
 		return
 	}
 	for {
-		opts := options.Find().SetSort(bson.D{{"_id", -1}}).SetLimit(1)
 		systemCollection := MongoClient.Database("core").Collection("system")
-		cursor, ConfigurationError := systemCollection.Find(context.TODO(), bson.D{{"_id", "configuration"}}, opts)
+		var configuration database.ConfigFields
+		ConfigurationError := systemCollection.FindOne(context.TODO(), bson.D{{"_id", "configuration"}}).Decode(&configuration)
 		if ConfigurationError != nil {
 			fmt.Println(ConfigurationError.Error(), errorString)
 			time.Sleep(30 * time.Second)
 			continue
 		}
-		var results []bson.M
-		cursor.All(context.TODO(), &results)
-		if len(results) < 1 {
-			fmt.Println(errorString)
-			time.Sleep(30 * time.Second)
-			continue
+		authurl := configuration.Auth.AuthUrl
+		secret := configuration.Auth.Secret
+		clientId := configuration.Auth.ClientId
+		baseurl := configuration.BaseURL
+		accessToken, accessTokenErr := auth.GetToken(&authurl, &secret, &clientId)
+		if accessTokenErr != nil {
+			err := fmt.Errorf("access-token error %v", accessTokenErr)
+			if sentry.CurrentHub().Client() != nil {
+				sentry.CaptureException(err)
+			}
+			log.Println(err)
+			return
 		}
-		response, CommunicateError := phonehome.Communicate(results[0]["baseurl"].(string), results[0]["token"].(string))
+		response, CommunicateError := phonehome.Communicate(&baseurl, accessToken)
 		if CommunicateError != nil {
 			err := fmt.Errorf("scanner-main communicate error %v: %v", CommunicateError, response)
 			if sentry.CurrentHub().Client() != nil {
