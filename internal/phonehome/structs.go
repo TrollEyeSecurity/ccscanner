@@ -1,6 +1,8 @@
 package phonehome
 
-import "github.com/TrollEyeSecurity/ccscanner/internal/database"
+import (
+	"github.com/TrollEyeSecurity/ccscanner/internal/database"
+)
 
 type CommunicateResp struct {
 	NewTasks     []database.Task   `json:"new_tasks"`
@@ -10,9 +12,9 @@ type CommunicateResp struct {
 }
 
 type LinkResp struct {
-	Token  string `json:"token"`
-	Shodan string `json:"shodan"`
-	Otx    string `json:"otx"`
+	Secret   string `json:"secret"`
+	AuthUrl  string `json:"authUrl"`
+	ClientId string `json:"clientId"`
 }
 
 type OvpnConfig struct {

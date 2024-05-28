@@ -6,11 +6,16 @@ import (
 )
 
 type ConfigFields struct {
-	ID             primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	BaseURL        string             `json:"baseurl"`
-	Token          string             `json:"token"`
-	Mode           string             `json:"mode"`
-	GvmInitialized bool               `json:"gvm_initialized"`
+	ID      string `bson:"_id" json:"id,omitempty"`
+	BaseURL string `json:"baseurl"`
+	Auth    Auth   `json:"auth"`
+	Mode    string `json:"mode"`
+}
+
+type Auth struct {
+	Secret   string `bson:"secret" json:"secret"`
+	AuthUrl  string `bson:"authUrl" json:"authUrl"`
+	ClientId string `bson:"clientId" json:"clientId"`
 }
 
 type Task struct {
