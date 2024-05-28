@@ -343,7 +343,11 @@ func dontReassign(category string) bool {
 	return true
 }
 
-func GetCurrentMode() *string {
+func GetCurrentMode(link bool) *string {
+	if link {
+		mode := "running"
+		return &mode
+	}
 	errorString := "\n\nHave you linked the scanner to Command Center?"
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
