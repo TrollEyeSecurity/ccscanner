@@ -1,32 +1,28 @@
 package phonehome
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/common"
+	"github.com/TrollEyeSecurity/ccscanner/internal/httpclient"
 	"log"
-	"net/http"
-	"net/url"
 	"os"
-	"time"
 )
 
 func Link(baseURL string, linkToken string) (*LinkResp, error) {
-	ld := common.LinkData{
-		Token:    linkToken,
-		Uuid:     *common.GetUuid(),
-		Hostname: *common.GetFqdn(),
-		Version:  common.Version,
+	ScannerData, ScannerDataErr := common.GetScannerData(true)
+	if ScannerDataErr != nil {
+		return nil, ScannerDataErr
 	}
 	lr := LinkResp{}
-	bytesRepresentation, BytesRepresentationErr := json.Marshal(&ld)
+	bytesRepresentation, BytesRepresentationErr := json.Marshal(&ScannerData)
 	if BytesRepresentationErr != nil {
 		return &lr, BytesRepresentationErr
 	}
 	path := "api/ccscanner/link"
 	method := "POST"
-	response, linkError := HttpClientRequest(&baseURL, &path, bytesRepresentation, &method, &linkToken)
+	contentType := "application/json"
+	response, linkError := httpclient.Request(&baseURL, &path, &bytesRepresentation, &method, &contentType, &linkToken)
 	if linkError != nil {
 		fmt.Println(linkError)
 		os.Exit(1)
@@ -37,6 +33,10 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	}
 	if response.Status == "403 Forbidden" {
 		fmt.Println("403 Forbidden, likely a bad key.")
+		os.Exit(1)
+	} else if response.Status == "401 Unauthorized" {
+		response.Body.Close()
+		fmt.Println("401 Unauthorized.")
 		os.Exit(1)
 	} else if response.Status == "500 Internal Server Error" {
 		response.Body.Close()
@@ -56,9 +56,9 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	return &lr, nil
 }
 
-func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
+func Communicate(baseUrl *string, token *string) (*CommunicateResp, error) {
 	cr := CommunicateResp{}
-	ScannerData, ScannerDataErr := common.GetScannerData()
+	ScannerData, ScannerDataErr := common.GetScannerData(false)
 	if ScannerDataErr != nil {
 		return nil, ScannerDataErr
 	}
@@ -68,7 +68,8 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	}
 	path := "api/ccscanner/communicate"
 	method := "POST"
-	response, linkError := HttpClientRequest(&baseUrl, &path, bytesRepresentation, &method, &token)
+	contentType := "application/json"
+	response, linkError := httpclient.Request(baseUrl, &path, &bytesRepresentation, &method, &contentType, token)
 	if linkError != nil {
 		fmt.Println(linkError)
 		return nil, nil
@@ -103,48 +104,4 @@ func Communicate(baseUrl string, token string) (*CommunicateResp, error) {
 	}
 	response.Body.Close()
 	return &cr, nil
-}
-
-func HttpClientRequest(baseURL *string, path *string, data []byte, method *string, token *string) (*http.Response, error) {
-	//proxyStr := "http://127.0.0.1:8080"
-	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
-	//if ProxyURLErr != nil {
-	//	return &http.Response{}, ProxyURLErr
-	//}
-	//creating the URL to be loaded through the proxy
-	urlStr := *baseURL + *path
-	scannersUrl, ScannersUrlErr := url.Parse(urlStr)
-	if ScannersUrlErr != nil {
-		return nil, ScannersUrlErr
-	}
-	//adding the proxy settings to the Transport object
-	transport := &http.Transport{
-		//Proxy: http.ProxyURL(proxyURL),
-		//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	//adding the Transport object to the http Client
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   time.Second * 20,
-	}
-	//generating the HTTP GET request
-	request, RequestErr := http.NewRequest(
-		*method,
-		scannersUrl.String(),
-		bytes.NewBuffer(data),
-	)
-	if RequestErr != nil {
-		return nil, RequestErr
-	}
-	if *token != "" {
-		var authToken = "Token " + *token
-		request.Header.Add("Authorization", authToken)
-		request.Header.Set("Connection", "close")
-		request.Close = true
-	}
-	response, ClientErr := client.Do(request)
-	if ClientErr != nil {
-		return nil, ClientErr
-	}
-	return response, nil
 }

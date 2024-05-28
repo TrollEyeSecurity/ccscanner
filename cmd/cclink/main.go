@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
@@ -17,7 +18,7 @@ import (
 func main() {
 	baseUrl := flag.String("url", "", "Enter the base url for your instance of Command Center.")
 	linkingToken := flag.String("token", "", "The linking token can be found in the Scanner Group you are trying to join.")
-	fakeLink := flag.Bool("fakeLink", false, "This flag is used to fake a link to Command Center for stanalone use.")
+	//fakeLink := flag.Bool("fakeLink", false, "This flag is used to fake a link to Command Center for stanalone use.")
 	flag.Parse()
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -51,31 +52,52 @@ func main() {
 			}
 		}
 	}
-	var token *string
-	var shodan *string
-	if *fakeLink {
-		*baseUrl = "https://www.trolleyesecurity.com/cybersecurity-risk-management/"
-		t := "info@trolleyesecurity.com"
-		s := "info@trolleyesecurity.com"
-		token = &t
-		shodan = &s
+	var auth database.Auth
+	/*
+		if *fakeLink {
+			*baseUrl = "https://www.trolleyesecurity.com/cybersecurity-risk-management/"
+			t := "info@trolleyesecurity.com"
+			token = &t
 
-	} else {
-		lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
-		if lrError != nil {
-			err := fmt.Errorf("link error %v", lrError)
-			if sentry.CurrentHub().Client() != nil {
-				sentry.CaptureException(err)
+		} else {
+			lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
+			if lrError != nil {
+				err := fmt.Errorf("link error %v", lrError)
+				if sentry.CurrentHub().Client() != nil {
+					sentry.CaptureException(err)
+				}
+				log.Fatalf("Link Error: %s", lrError)
 			}
-			log.Fatalf("Link Error: %s", lrError)
+			token = &lr
 		}
-		token = &lr.Token
-		shodan = &lr.Shodan
+	*/
+	lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
+	if lrError != nil {
+		err := fmt.Errorf("link error %v", lrError)
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(err)
+		}
+		log.Fatalf("Link Error: %s", lrError)
+	}
+	b, be := json.Marshal(lr)
+	if be != nil {
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(be)
+		}
+		log.Fatalf("Bytes Error: %s", be)
+	}
+
+	te := json.Unmarshal(b, &auth)
+	if be != nil {
+		if sentry.CurrentHub().Client() != nil {
+			sentry.CaptureException(te)
+		}
+		log.Fatalf("Token Error: %s", te)
 	}
 	if len(results) > 0 {
 		_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", "configuration"}},
-			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"token", token}, {"shodan", shodan}, {"mode", "running"}}}},
+			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"auth", auth}, {"mode", "running"}}}},
 		)
 		if ConfigurationError != nil {
 			err := fmt.Errorf("link error %v", ConfigurationError)
@@ -88,7 +110,7 @@ func main() {
 		_, ConfigurationError := systemCollection.InsertOne(context.TODO(), bson.D{
 			{"_id", "configuration"},
 			{"baseurl", *baseUrl},
-			{"token", token},
+			{"auth", auth},
 			{"mode", "running"}},
 		)
 		if ConfigurationError != nil {
