@@ -46,7 +46,7 @@ func GetCpuStatus() (*[]float64, error) {
 	return &cpuStats, nil
 }
 
-func GetScannerData() (*ScannerData, error) {
+func GetScannerData(link bool) (*ScannerData, error) {
 	uuid := GetUuid()
 	cpuStatus, GetCpuStatusError := GetCpuStatus()
 	if GetCpuStatusError != nil {
@@ -68,7 +68,7 @@ func GetScannerData() (*ScannerData, error) {
 		Version:  Version,
 		Uuid:     *uuid,
 		Load:     *cpuStatus,
-		Mode:     *database.GetCurrentMode(),
+		Mode:     *database.GetCurrentMode(link),
 		Gvm:      gvm.IsGvmReady(),
 		Hostname: *GetFqdn(),
 		CpuCors:  runtime.NumCPU(),
@@ -94,13 +94,6 @@ type ScannerData struct {
 	Tasks    []database.Task  `json:"tasks"`
 	Mode     string           `json:"mode"`
 	Gvm      bool             `json:"gvm"`
-}
-
-type LinkData struct {
-	Token    string `json:"token"`
-	Uuid     string `json:"uuid"`
-	Hostname string `json:"hostname"`
-	Version  string `json:"version"`
 }
 
 func GetOutboundIP() *net.IP {
