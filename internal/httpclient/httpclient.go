@@ -2,7 +2,6 @@ package httpclient
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,11 +9,11 @@ import (
 )
 
 func Request(baseURL *string, path *string, data *[]byte, method *string, contentType *string, token *string) (*http.Response, error) {
-	proxyStr := "http://127.0.0.1:8081"
-	proxyURL, ProxyURLErr := url.Parse(proxyStr)
-	if ProxyURLErr != nil {
-		return &http.Response{}, ProxyURLErr
-	}
+	//proxyStr := "http://127.0.0.1:8081"
+	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
+	//if ProxyURLErr != nil {
+	//	return &http.Response{}, ProxyURLErr
+	//}
 	//creating the URL to be loaded through the proxy
 	urlStr := *baseURL + *path
 	scannersUrl, ScannersUrlErr := url.Parse(urlStr)
@@ -23,8 +22,8 @@ func Request(baseURL *string, path *string, data *[]byte, method *string, conten
 	}
 	//adding the proxy settings to the Transport object
 	transport := &http.Transport{
-		Proxy:           http.ProxyURL(proxyURL),
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		//Proxy:           http.ProxyURL(proxyURL),
+		//TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 	}
 	//adding the Transport object to the http Client
 	client := &http.Client{
