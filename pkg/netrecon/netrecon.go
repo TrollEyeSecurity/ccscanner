@@ -148,7 +148,7 @@ func Recon(content *database.TaskContent, secretData *database.TaskSecret, taskI
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"net_recon_result", result},
+			{"net_recon_results", result},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)

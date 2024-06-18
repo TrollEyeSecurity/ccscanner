@@ -241,7 +241,7 @@ func Scan(nmapParams *string, hosts *string, excludes *string, taskId *primitive
 
 	bsonData := bson.D{
 		{"$set", bson.D{
-			{"nmap_result", result},
+			{"nmap_results", result},
 			{"name_info", nameInfo},
 			{"service_url_data", serviceUrlDataInfo},
 			{"status", "SUCCESS"},

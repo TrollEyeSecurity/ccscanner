@@ -85,7 +85,7 @@ func Scan(content *database.TaskContent, secretData *database.TaskSecret, taskId
 			_, updateError := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", taskId}},
 				bson.D{{"$set", bson.D{
-					{"sast_result", NewSastResults},
+					{"sast_results", NewSastResults},
 					{"status", "SUCCESS"},
 					{"percent", 100}}}},
 			)

@@ -179,7 +179,7 @@ func StartVulnerabilityScan(hosts *string, excludedHosts *string, taskId *primit
 			_, updateTaskIdError := tasksCollection.UpdateOne(context.TODO(),
 				bson.D{{"_id", *taskId}},
 				bson.D{
-					{"openvas_result", "COULD NOT CREATE TASK"},
+					{"openvas_results", "COULD NOT CREATE TASK"},
 					{"status", "FAILURE"},
 					{"percent", 100}},
 			)
@@ -253,7 +253,7 @@ func CheckVulnerabilityScan(taskId *primitive.ObjectID, wg *sync.WaitGroup) {
 		result := base64.StdEncoding.EncodeToString(jsonData)
 		_, updateTaskIdError := MongoClient.Database("core").Collection("tasks").UpdateOne(context.TODO(),
 			bson.D{{"_id", *taskId}},
-			bson.D{{"$set", bson.D{{"openvas_result", result}, {"status", "SUCCESS"}, {"percent", 100}}}},
+			bson.D{{"$set", bson.D{{"openvas_results", result}, {"status", "SUCCESS"}, {"percent", 100}}}},
 		)
 		if updateTaskIdError != nil {
 			err := fmt.Errorf("gvm status mongo-update error %v", updateTaskIdError)

@@ -135,7 +135,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID, wg *sync
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"screen_shot_result", ScreenShotDataList},
+			{"screen_shot_results", ScreenShotDataList},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)

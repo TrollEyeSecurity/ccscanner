@@ -189,7 +189,7 @@ func Discovery(content *database.TaskContent, secretData *database.TaskSecret, t
 	result := base64.StdEncoding.EncodeToString(firewallBytes)
 	_, updateError7 := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", *taskId}},
-		bson.D{{"$set", bson.D{{"percent", percent}, {"status", status}, {"net_recon_result", result}}}},
+		bson.D{{"$set", bson.D{{"percent", percent}, {"status", status}, {"net_recon_results", result}}}},
 	)
 	if updateError7 != nil {
 		err := fmt.Errorf("fortios task-update error %v", updateError7)

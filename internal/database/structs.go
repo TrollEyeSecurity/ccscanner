@@ -19,26 +19,26 @@ type Auth struct {
 }
 
 type Task struct {
-	ID               primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	Name             string             `json:"name"`
-	TaskId           int64              `bson:"task_id" json:"task_id"`
-	TaskType         string             `bson:"task_type" json:"task_type"`
-	Status           string             `json:"status"`
-	ContainerId      string             `bson:"container_id" json:"container_id"`
-	Content          TaskContent        `json:"content"`
-	SecretData       TaskSecret         `bson:"secret_data" json:"secret_data"`
-	NmapResult       string             `bson:"nmap_result" json:"nmap_result"`
-	OpenvasResult    string             `bson:"openvas_result" json:"openvas_result"`
-	OwaspZapResults  []ZapResults       `bson:"owasp_zap_results" json:"owasp_zap_results"`
-	SastResult       SastResults        `bson:"sast_result" json:"sast_result"`
-	NetReconResult   string             `bson:"net_recon_result" json:"net_recon_result"`
-	OpenvasTaskId    string             `bson:"openvas_task_id" json:"openvas_task_id"`
-	UrlInsResult     []UrlData          `bson:"url_ins_result" json:"url_ins_result"`
-	ScreenShotResult []string           `bson:"screen_shot_result" json:"screen_shot_result"`
-	NameInfo         string             `bson:"name_info" json:"name_info"`
-	ServiceUrlData   string             `bson:"service_url_data" json:"service_url_data"`
-	Percent          int                `json:"percent"`
-	SshPort          string             `bson:"ssh_port" json:"ssh_port"`
+	ID                primitive.ObjectID `bson:"_id" json:"id,omitempty"`
+	Name              string             `json:"name"`
+	TaskId            int64              `bson:"task_id" json:"task_id"`
+	TaskType          string             `bson:"task_type" json:"task_type"`
+	Status            string             `json:"status"`
+	ContainerId       string             `bson:"container_id" json:"container_id"`
+	Content           TaskContent        `json:"content"`
+	SecretData        TaskSecret         `bson:"secret_data" json:"secret_data"`
+	NmapResults       string             `bson:"nmap_results" json:"nmap_results"`
+	OpenvasResults    string             `bson:"openvas_results" json:"openvas_results"`
+	OwaspZapResults   []ZapResults       `bson:"owasp_zap_results" json:"owasp_zap_results"`
+	SastResults       SastResults        `bson:"sast_results" json:"sast_results"`
+	NetReconResults   string             `bson:"net_recon_results" json:"net_recon_results"`
+	OpenvasTaskId     string             `bson:"openvas_task_id" json:"openvas_task_id"`
+	UrlInsResults     []UrlData          `bson:"url_ins_results" json:"url_ins_results"`
+	ScreenShotResults []string           `bson:"screen_shot_results" json:"screen_shot_results"`
+	NameInfo          string             `bson:"name_info" json:"name_info"`
+	ServiceUrlData    string             `bson:"service_url_data" json:"service_url_data"`
+	Percent           int                `json:"percent"`
+	SshPort           string             `bson:"ssh_port" json:"ssh_port"`
 }
 
 type ZapResults struct {

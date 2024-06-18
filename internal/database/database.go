@@ -151,8 +151,8 @@ func GetCurrentTasks() *[]Task {
 			}
 		}
 		if task.Status == "SUCCESS" && task.Content.Function == "sast" {
-			if task.SastResult.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
-				openSourceResults, readOpenSourceResultsFileErr := os.ReadFile(task.SastResult.SnykOutput.OpenSourceResultsFile)
+			if task.SastResults.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
+				openSourceResults, readOpenSourceResultsFileErr := os.ReadFile(task.SastResults.SnykOutput.OpenSourceResultsFile)
 				if readOpenSourceResultsFileErr != nil {
 					fmt.Println(readOpenSourceResultsFileErr.Error())
 					continue
@@ -165,13 +165,13 @@ func GetCurrentTasks() *[]Task {
 					continue
 				}
 				SnykOpenSourceResults := base64.StdEncoding.EncodeToString(jsonOpenSourceResultsData)
-				task.SastResult.SnykOutput.OpenSourceResults = SnykOpenSourceResults
+				task.SastResults.SnykOutput.OpenSourceResults = SnykOpenSourceResults
 
 			} else {
-				task.SastResult.SnykOutput.OpenSourceResults = "bm8gcmVzdWx0cw=="
+				task.SastResults.SnykOutput.OpenSourceResults = "bm8gcmVzdWx0cw=="
 			}
-			if task.SastResult.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
-				codeResults, readCodeResultsFileErr := os.ReadFile(task.SastResult.SnykOutput.CodeResultsFile)
+			if task.SastResults.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
+				codeResults, readCodeResultsFileErr := os.ReadFile(task.SastResults.SnykOutput.CodeResultsFile)
 				if readCodeResultsFileErr != nil {
 					fmt.Println(readCodeResultsFileErr.Error())
 					continue
@@ -184,9 +184,9 @@ func GetCurrentTasks() *[]Task {
 					continue
 				}
 				SnykCodeResults := base64.StdEncoding.EncodeToString(jsonCodeResultsResultsData)
-				task.SastResult.SnykOutput.CodeResults = SnykCodeResults
+				task.SastResults.SnykOutput.CodeResults = SnykCodeResults
 			} else {
-				task.SastResult.SnykOutput.CodeResults = "bm8gcmVzdWx0cw=="
+				task.SastResults.SnykOutput.CodeResults = "bm8gcmVzdWx0cw=="
 			}
 		}
 		tasks = append(tasks, task)
@@ -239,8 +239,8 @@ func DeleteTaskById(taskId int64, wg *sync.WaitGroup) {
 	}
 
 	if task.Content.Function == "sast" {
-		if task.SastResult.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
-			rerr1 := os.Remove(task.SastResult.SnykOutput.OpenSourceResultsFile)
+		if task.SastResults.SnykOutput.OpenSourceResultsFile != "bm8gcmVzdWx0cw==" {
+			rerr1 := os.Remove(task.SastResults.SnykOutput.OpenSourceResultsFile)
 			if rerr1 != nil {
 				err1 := fmt.Errorf("database delete-file error %v", rerr1)
 				if sentry.CurrentHub().Client() != nil {
@@ -249,8 +249,8 @@ func DeleteTaskById(taskId int64, wg *sync.WaitGroup) {
 				log.Println(err1)
 			}
 		}
-		if task.SastResult.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
-			rerr2 := os.Remove(task.SastResult.SnykOutput.CodeResultsFile)
+		if task.SastResults.SnykOutput.CodeResultsFile != "bm8gcmVzdWx0cw==" {
+			rerr2 := os.Remove(task.SastResults.SnykOutput.CodeResultsFile)
 			if rerr2 != nil {
 				err2 := fmt.Errorf("database delete-file error %v", rerr2)
 				if sentry.CurrentHub().Client() != nil {
