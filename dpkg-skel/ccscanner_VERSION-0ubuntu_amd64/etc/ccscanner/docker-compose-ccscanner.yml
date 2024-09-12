@@ -9,10 +9,14 @@ services:
       - mongodb_data_vol:/data/db
 
   owaspZap:
-    restart: "no"
+    restart: always
     image: ghcr.io/zaproxy/zaproxy:stable
-    profiles:
-      - disable
+    ports:
+      - 127.0.0.1:8888:8888
+    # -addoninstall
+    command: zap.sh -addonupdate -daemon -host 0.0.0.0 -port 8888 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true -Xmx4096m
+    environment:
+      ZAP_PORT: 8888
 
   kaliLinux:
     restart: "no"
