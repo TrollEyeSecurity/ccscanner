@@ -29,7 +29,6 @@ func main() {
 	setModeRunBool := flag.Bool("mode_running", false, "Change the mode to running")
 	setModeMaintBool := flag.Bool("mode_maintenance", false, "Change the mode to maintenance")
 	dastConfig := flag.String("dast_config", "", "Enter the path to the dast config file.")
-	dastHtml := flag.String("dast_html", "", "Name of the html file to write.")
 	dastRootUrl := flag.String("dast_root_url", "", "Where to start te spider.")
 	maxChildren := flag.Int("max_children", 0, "How deep should the spider go?")
 	urlList := flag.String("url_list", "", "Path to a list of URL's (one per line) to spider and scan.")
@@ -63,7 +62,7 @@ func main() {
 		defer sentry.Flush(2 * time.Second)
 	}
 	if *dastConfig != "" {
-		scannerCli(dastConfig, dastRootUrl, dastHtml, maxChildren, urlList)
+		scannerCli(dastConfig, dastRootUrl, maxChildren, urlList)
 		return
 	}
 	ScannerMain()
@@ -97,7 +96,7 @@ func ScannerMain() {
 		baseurl := configuration.BaseURL
 		accessToken, accessTokenErr := auth.GetToken(&authurl, &secret, &clientId)
 		if accessTokenErr != nil {
-			err := fmt.Errorf("access-token error %v", accessTokenErr)
+			err := fmt.Errorf("access-token error %v", *accessTokenErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -181,7 +180,7 @@ func ScannerMain() {
 	}
 }
 
-func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, maxChildren *int, urlList *string) {
+func scannerCli(dastConfigPath *string, dastRootUrl *string, maxChildren *int, urlList *string) {
 	var wg sync.WaitGroup
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -201,8 +200,8 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 	}
 	taskId := time.Now().Unix()
 	content := database.TaskContent{
-		DastConfigList: []database.DastConfig{*dastConfig},
-		Function:       "dast",
+		DastConfig: *dastConfig,
+		Function:   "dast",
 	}
 	secretData := database.TaskSecret{}
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
@@ -213,10 +212,12 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 		{"content", content},
 		{"secret_data", secretData},
 		{"percent", 0},
-		{"nmap_result", nil},
-		{"openvas_result", nil},
-		{"owasp_zap_results", nil},
-		{"sast_result", nil},
+		{"nmap_results", nil},
+		{"openvas_results", nil},
+		{"owasp_zap_json_results", nil},
+		{"owasp_zap_html_results", nil},
+		{"sast_results", nil},
+		{"net_recon_results", nil},
 		{"container_id", nil},
 		{"service_url_data", nil},
 		{"name_info", nil},
@@ -244,21 +245,10 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, dastHtml *string, m
 		fmt.Println("################\n")
 		time.Sleep(20 * time.Second)
 	}
-	if *dastHtml != "" {
-		results := database.GetOwaspZapResultById(taskId)
-		file1, openErr := os.Create(*dastHtml)
-		defer file1.Close()
-		if openErr != nil {
-			fmt.Println(openErr.Error())
-			return
-		}
-		fmt.Println(results)
-		fmt.Println("OWASPZap Scan is complete.")
-	} else {
-		results := database.GetOwaspZapResultById(taskId)
-		fmt.Println("")
-		fmt.Println(*results)
-	}
+
+	results := database.GetOwaspZapResultById(taskId)
+	fmt.Println("")
+	fmt.Println(*results)
 
 	wg.Add(1)
 	go database.DeleteTaskById(taskId, &wg)
