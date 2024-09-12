@@ -1,6 +1,8 @@
 package owaspzap
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+)
 
 type ContextConfiguration struct {
 	XMLName xml.Name `xml:"configuration"`
@@ -35,6 +37,7 @@ type ContextConfiguration struct {
 			Pollfreq    string `xml:"pollfreq"`
 			Pollunits   string `xml:"pollunits"`
 			Loggedin    string `xml:"loggedin"`
+			Loggedout   string `xml:"loggedout"`
 			Form        struct {
 				Text         string `xml:",chardata"`
 				Loginurl     string `xml:"loginurl"`
@@ -63,6 +66,11 @@ type ContextConfiguration struct {
 			} `xml:"basic"`
 		} `xml:"authorization"`
 	} `xml:"context"`
+}
+
+type User struct {
+	Text string `xml:",chardata"`
+	User string `xml:"user"`
 }
 
 type jsonResponse struct {
