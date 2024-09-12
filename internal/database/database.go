@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -189,6 +190,54 @@ func GetCurrentTasks() *[]Task {
 				task.SastResults.SnykOutput.CodeResults = "bm8gcmVzdWx0cw=="
 			}
 		}
+
+		if task.Status == "SUCCESS" && task.Content.Function == "dast" {
+			if task.DocumentTooLarge {
+				var largeDoc LargDoc
+				lErr := json.Unmarshal([]byte(task.OpenvasResults), &largeDoc)
+				if lErr != nil {
+					err := fmt.Errorf("database get-current-tasks dast unmarshal error %v", lErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err)
+					}
+					log.Println(err)
+					continue
+				}
+				file, openFileErr := os.Open(largeDoc.Path)
+				if openFileErr != nil {
+					err := fmt.Errorf("database get-current-tasks dast open-file error %v", openFileErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err)
+					}
+					log.Println(err)
+					continue
+				}
+				stat, statErr := file.Stat()
+				if statErr != nil {
+					err := fmt.Errorf("database get-current-tasks dast stat error %v", statErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err)
+					}
+					log.Println(err)
+					continue
+				}
+				data := make([]byte, stat.Size())
+				_, buffErr := bufio.NewReader(file).Read(data)
+				if buffErr != nil && buffErr != io.EOF {
+					err := fmt.Errorf("database get-current-tasks dast buff error %v", buffErr)
+					if sentry.CurrentHub().Client() != nil {
+						sentry.CaptureException(err)
+					}
+					log.Println(err)
+					continue
+				}
+				defer file.Close()
+
+				b64data := base64.StdEncoding.EncodeToString(data)
+				report := ZapResults{AppId: fmt.Sprintf("%v", task.Content.DastConfig.ID), Data: b64data}
+				task.OwaspZapResults = report
+			}
+		}
 		tasks = append(tasks, task)
 	}
 	return &tasks
@@ -298,7 +347,7 @@ func UpdateTaskById(taskId int64, status string, wg *sync.WaitGroup) {
 	}
 }
 
-func GetOwaspZapResultById(taskId int64) *[]ZapResults {
+func GetOwaspZapResultById(taskId int64) *ZapResults {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -336,8 +385,7 @@ func dontReassign(category string) bool {
 		"openvas_vulnerability_scan",
 		"dast",
 		"get_screen_shot",
-		"url_inspection",
-		"dns_check":
+		"url_inspection":
 		return false
 	}
 	return true
