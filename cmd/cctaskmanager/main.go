@@ -120,7 +120,7 @@ func TaskManagerMain() {
 				break
 			case task.Content.Function == "dast":
 				wg.Add(1)
-				go owaspzap.Scan(task.Content.DastConfigList, &task.ID, &wg)
+				go owaspzap.StartDASTVulnerabilityScan(task.Content.DastConfig, &task.ID, &wg)
 				break
 			case task.Content.Function == "get_screen_shot":
 				wg.Add(1)
@@ -159,6 +159,10 @@ func TaskManagerMain() {
 			case task.Content.Function == "openvas_vulnerability_scan":
 				wg.Add(1)
 				go gvm.CheckVulnerabilityScan(&task.ID, &wg)
+				break
+			case task.Content.Function == "dast":
+				wg.Add(1)
+				go owaspzap.CheckVulnerabilityScan(&task.ID, &wg)
 				break
 			}
 		}
