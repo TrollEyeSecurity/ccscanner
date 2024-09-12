@@ -199,7 +199,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"url_ins_results", results},
+			{"url_inspection_results", results},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
