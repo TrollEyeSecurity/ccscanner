@@ -169,7 +169,7 @@ func CaptureScreenShot(url *string, taskId *primitive.ObjectID) (*string, *[]str
 	config := &container.Config{
 		Image: imageName,
 		Cmd: []string{
-			"google-chrome",
+			"chromium",
 			"--ignore-certificate-errors",
 			"--enable-features=NetworkService",
 			"--hide-scrollbars",
