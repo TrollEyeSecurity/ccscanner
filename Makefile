@@ -1,4 +1,4 @@
-VERSION=2.0.21
+VERSION=2.0.22
 GOCMD=go
 GOBUILD=$(GOCMD) build
 SCANNER=ccscanner/main.go
@@ -17,7 +17,7 @@ build:
 	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(CMD)$(TASKMANAGER)
 	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINK)
 
-build_dpkg:
+build_amd_dpkg:
 	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
 	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(CMD)$(TASKMANAGER)
 	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINK)
@@ -26,3 +26,13 @@ build_dpkg:
 	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_amd64/* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/
 	dpkg-deb --build dpkg/ccscanner_$(VERSION)-0ubuntu_amd64
 	mv dpkg/ccscanner_$(VERSION)-0ubuntu_amd64.deb .
+
+build_arm_dpkg:
+	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
+	$(GOBUILD) -o bin/$(CCTASKMANAGER_BIN) $(CMD)$(TASKMANAGER)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINK)
+	mkdir -p dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/usr/bin
+	cp bin/cc* dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/usr/bin/
+	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_arm64/* dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/
+	dpkg-deb --build dpkg/ccscanner_$(VERSION)-0ubuntu_arm64
+	mv dpkg/ccscanner_$(VERSION)-0ubuntu_arm64.deb .

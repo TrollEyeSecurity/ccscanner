@@ -1,0 +1,36 @@
+services:
+
+  mongoDB:
+    restart: always
+    image: docker.io/library/mongo:latest
+    ports:
+      - 127.0.0.1:27017:27017
+    volumes:
+      - mongodb_data_vol:/data/db
+
+  owaspZap:
+    restart: "no"
+    image: ghcr.io/zaproxy/zaproxy:stable
+    profiles:
+      - disable
+
+  kaliLinux:
+    restart: "no"
+    image: docker.io/trolleye/kali-linux:latest
+    profiles:
+      - disable
+
+  netRecon:
+    restart: "no"
+    image: docker.io/trolleye/netrecon:latest
+    profiles:
+      - disable
+
+  snyk-cli:
+    restart: "no"
+    image: docker.io/trolleye/snyk-cli:latest
+    profiles:
+      - disable
+
+volumes:
+  mongodb_data_vol:
