@@ -26,16 +26,16 @@ clean:
 
 build_amd_dpkg:
 	mkdir bin/
-	$(GOBUILD) -o $(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
-	$(GOBUILD) -o $(CCLINK_BIN) $(CMD)$(LINKMAIN)
-	$(GOBUILD) -o $(DAST_BIN) $(CMD)$(DASTMAIN)
-	$(GOBUILD) -o $(GVM_BIN) $(CMD)$(GVMMAIN)
-	$(GOBUILD) -o $(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
-	$(GOBUILD) -o $(NMAP_BIN) $(CMD)$(NMAPMAIN)
-	$(GOBUILD) -o $(SAST_BIN) $(CMD)$(SASTMAIN)
-	$(GOBUILD) -o $(URL_BIN) $(CMD)$(URLMAIN)
+	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINKMAIN)
+	$(GOBUILD) -o bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
+	$(GOBUILD) -o bin/$(GVM_BIN) $(CMD)$(GVMMAIN)
+	$(GOBUILD) -o bin/$(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
+	$(GOBUILD) -o bin/$(NMAP_BIN) $(CMD)$(NMAPMAIN)
+	$(GOBUILD) -o bin/$(SAST_BIN) $(CMD)$(SASTMAIN)
+	$(GOBUILD) -o bin/$(URL_BIN) $(CMD)$(URLMAIN)
 	mkdir -p dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin
-	cp cc* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin/
+	cp bin/cc* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin/
 	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_amd64/* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/
 	dpkg-deb --build dpkg/ccscanner_$(VERSION)-0ubuntu_amd64
 	mv dpkg/ccscanner_$(VERSION)-0ubuntu_amd64.deb .
