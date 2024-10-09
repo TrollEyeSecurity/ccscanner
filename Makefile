@@ -22,20 +22,17 @@ URL_BIN=cc-url-taskmanager
 CMD=cmd/
 
 clean:
-	rm -rf arm_bin/cc*
-	rm -rf amd_bin/cc*
-
+	rm -rf bin/cc*
 
 build_amd_dpkg:
-	mkdir amd_bin/
-	$(GOBUILD) -o amd_bin/$(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
-	$(GOBUILD) -o amd_bin/$(CCLINK_BIN) $(CMD)$(LINKMAIN)
-	$(GOBUILD) -o amd_bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
-	$(GOBUILD) -o amd_bin/$(GVM_BIN) $(CMD)$(GVMMAIN)
-	$(GOBUILD) -o amd_bin/$(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
-	$(GOBUILD) -o amd_bin/$(NMAP_BIN) $(CMD)$(NMAPMAIN)
-	$(GOBUILD) -o amd_bin/$(SAST_BIN) $(CMD)$(SASTMAIN)
-	$(GOBUILD) -o amd_bin/$(URL_BIN) $(CMD)$(URLMAIN)
+	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINKMAIN)
+	$(GOBUILD) -o bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
+	$(GOBUILD) -o bin/$(GVM_BIN) $(CMD)$(GVMMAIN)
+	$(GOBUILD) -o bin/$(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
+	$(GOBUILD) -o bin/$(NMAP_BIN) $(CMD)$(NMAPMAIN)
+	$(GOBUILD) -o bin/$(SAST_BIN) $(CMD)$(SASTMAIN)
+	$(GOBUILD) -o bin/$(URL_BIN) $(CMD)$(URLMAIN)
 	mkdir -p dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin
 	cp amd_bin/cc* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/usr/bin/
 	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_amd64/* dpkg/ccscanner_$(VERSION)-0ubuntu_amd64/
@@ -43,15 +40,14 @@ build_amd_dpkg:
 	mv dpkg/ccscanner_$(VERSION)-0ubuntu_amd64.deb .
 
 build_arm_dpkg:
-	mkdir arm_bin/
-	$(GOBUILD) -o arm_bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
-	$(GOBUILD) -o arm_bin/$(CCLINK_BIN) $(CMD)$(CCLINKMAIN)
-	$(GOBUILD) -o arm_bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
-	$(GOBUILD) -o arm_bin/$(GVM_BIN) $(CMD)$(GVMMAIN)
-	$(GOBUILD) -o arm_bin/$(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
-	$(GOBUILD) -o arm_bin/$(NMAP_BIN) $(CMD)$(NMAPMAIN)
-	$(GOBUILD) -o arm_bin/$(SAST_BIN) $(CMD)$(SASTMAIN)
-	$(GOBUILD) -o arm_bin/$(URL_BIN) $(CMD)$(URLMAIN)
+	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
+	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(CCLINKMAIN)
+	$(GOBUILD) -o bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
+	$(GOBUILD) -o bin/$(GVM_BIN) $(CMD)$(GVMMAIN)
+	$(GOBUILD) -o bin/$(INFRASTRUCTURE_BIN) $(CMD)$(INFRASTRUCTUREMAIN)
+	$(GOBUILD) -o bin/$(NMAP_BIN) $(CMD)$(NMAPMAIN)
+	$(GOBUILD) -o bin/$(SAST_BIN) $(CMD)$(SASTMAIN)
+	$(GOBUILD) -o bin/$(URL_BIN) $(CMD)$(URLMAIN)
 	mkdir -p dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/usr/bin
 	cp arm_bin/cc* dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/usr/bin/
 	cp -R  dpkg-skel/ccscanner_VERSION-0ubuntu_arm64/* dpkg/ccscanner_$(VERSION)-0ubuntu_arm64/
