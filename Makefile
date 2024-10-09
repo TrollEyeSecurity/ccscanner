@@ -3,13 +3,13 @@ GOCMD=go
 GOBUILD=$(GOCMD) build
 
 SCANNER=ccscanner/main.go
+CCLINKMAIN=cclink/main.go
 DASTMAIN=cc-dast-taskmanager/main.go
 GVMMAIN=cc-gvm-taskmanager/main.go
 INFRASTRUCTUREMAIN=cc-infrastructure-taskmanager/main.go
 NMAPMAIN=cc-nmap-taskmanager/main.go
 SASTMAIN=cc-sast-taskmanager/main.go
 URLMAIN=cc-url-taskmanager/main.go
-CCLINKMAIN=cclink/main.go
 
 CCSCANNER_BIN=ccscanner
 CCLINK_BIN=cclink
@@ -27,6 +27,7 @@ clean:
 
 
 build_amd_dpkg:
+	mkdir amd_bin/
 	$(GOBUILD) -o amd_bin/$(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
 	$(GOBUILD) -o amd_bin/$(CCLINK_BIN) $(CMD)$(LINKMAIN)
 	$(GOBUILD) -o amd_bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
@@ -42,6 +43,7 @@ build_amd_dpkg:
 	mv dpkg/ccscanner_$(VERSION)-0ubuntu_amd64.deb .
 
 build_arm_dpkg:
+	mkdir arm_bin/
 	$(GOBUILD) -o arm_bin/$(CCSCANNER_BIN) $(CMD)$(SCANNER)
 	$(GOBUILD) -o arm_bin/$(CCLINK_BIN) $(CMD)$(CCLINKMAIN)
 	$(GOBUILD) -o arm_bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
