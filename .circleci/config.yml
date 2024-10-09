@@ -1,22 +1,5 @@
 version: 2.1
 
-jobs:
-  build-and-push-image:
-    environment:
-      PKG_NAME:
-        ccscanner_2.0.22
-    docker:
-      - image: cimg/go:1.23.1
-    steps:
-      - checkout
-      - run:
-          command: echo "Building ccscanner"
-      - run:
-          name: Build and push apt package
-          command: |
-            make build_amd_dpkg
-            curl -F package=@$PKG_NAME-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
-
 workflows:
   version: 2
   build-and-test:
@@ -27,3 +10,21 @@ workflows:
       - build-and-push-image:
           context:
             - furyio
+jobs:
+  build-and-push-image:
+    machine: true
+    resource_class: trolleyesecurity/prod
+    environment:
+      PKG_NAME:
+        ccscanner_2.0.22
+    steps:
+      - checkout
+      - run:
+          command: echo "Building ccscanner"
+      - run:
+          name: Build and push apt package
+          command: |
+            mkdir bin/
+            make build_amd_dpkg
+            curl -F package=@$PKG_NAME-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
+            make clean
