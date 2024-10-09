@@ -17,7 +17,6 @@ jobs:
             make build_amd_dpkg
             make build_arm_dpkg
             curl -F package=@$PKG_NAME-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
-            curl -F package=@$PKG_NAME-0ubuntu_arm64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
 
 workflows:
   version: 2
