@@ -19,7 +19,8 @@
 vendor/
 
 # Build directoty
-bin/*
+amd_bin/*
+arm_bin/*
 dpkg/
 
 # Development configuration
