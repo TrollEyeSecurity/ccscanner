@@ -25,6 +25,7 @@ clean:
 	rm -rf bin/cc*
 
 build_amd_dpkg:
+	mkdir bin/
 	$(GOBUILD) -o bin/$(CCSCANNER_BIN) $(CMD)$(CCLINKMAIN)
 	$(GOBUILD) -o bin/$(CCLINK_BIN) $(CMD)$(LINKMAIN)
 	$(GOBUILD) -o bin/$(DAST_BIN) $(CMD)$(DASTMAIN)
