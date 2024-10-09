@@ -1,5 +1,5 @@
 VERSION=2.0.22
-GOCMD=go
+GOCMD=/usr/local/go/bin/go
 GOBUILD=$(GOCMD) build
 
 SCANNER=ccscanner/main.go
