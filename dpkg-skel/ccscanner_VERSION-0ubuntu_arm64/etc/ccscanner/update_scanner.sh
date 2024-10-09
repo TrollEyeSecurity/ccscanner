@@ -9,12 +9,12 @@ function cleanup_permissions() {
 }
 
 function docker_commands() {
-    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml stop
+    docker compose -f /etc/ccscanner/docker-compose-ccscanner.yml stop
     docker container prune -f
     docker image prune -af
     cleanup_permissions
-    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml --profile disable pull
-    docker-compose -f /etc/ccscanner/docker-compose-ccscanner.yml up -d
+    docker compose -f /etc/ccscanner/docker-compose-ccscanner.yml --profile disable pull
+    docker compose -f /etc/ccscanner/docker-compose-ccscanner.yml up -d
 }
 
 while :
