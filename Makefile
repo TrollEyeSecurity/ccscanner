@@ -1,10 +1,11 @@
 VERSION=2.0.22
 GOCMD=go
 GOBUILD=$(GOCMD) build
+
 SCANNER=ccscanner/main.go
 DASTMAIN=cc-dast-taskmanager/main.go
 GVMMAIN=cc-gvm-taskmanager/main.go
-INFRASTRUCTUREMAIN=cc-infrastrucure-taskmanager/main.go
+INFRASTRUCTUREMAIN=cc-infrastructure-taskmanager/main.go
 NMAPMAIN=cc-nmap-taskmanager/main.go
 SASTMAIN=cc-sast-taskmanager/main.go
 URLMAIN=cc-url-taskmanager/main.go
@@ -14,7 +15,7 @@ CCSCANNER_BIN=ccscanner
 CCLINK_BIN=cclink
 DAST_BIN=cc-dast-taskmanager
 GVM_BIN=cc-gvm-taskmanager
-INFRASTRUCTURE_BIN=cc-infrastrucure-taskmanager
+INFRASTRUCTURE_BIN=cc-infrastructure-taskmanager
 NMAP_BIN=cc-nmap-taskmanager
 SAST_BIN=cc-sast-taskmanager
 URL_BIN=cc-url-taskmanager
