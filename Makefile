@@ -22,8 +22,8 @@ URL_BIN=cc-url-taskmanager
 CMD=cmd/
 
 clean:
-	rm -rf arm_bin/*
-	rm -rf amd_bin/*
+	rm -rf arm_bin/cc*
+	rm -rf amd_bin/cc*
 
 
 build_amd_dpkg:
