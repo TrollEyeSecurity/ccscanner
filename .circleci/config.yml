@@ -24,7 +24,6 @@ jobs:
       - run:
           name: Build and push apt package
           command: |
-            mkdir bin/
             make build_amd_dpkg
             curl -F package=@$PKG_NAME-0ubuntu_amd64.deb https://$TOKEN@push.fury.io/trolleyesecurity/
             make clean
