@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -9,10 +10,12 @@ import (
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -22,6 +25,14 @@ import (
 )
 
 func GetUuid() *string {
+	arch := runtime.GOARCH
+	if arch == "arm64" {
+		pi, s := IsRpi()
+		if pi {
+			return s
+		}
+	}
+
 	cmd := exec.Command("sudo", "dmidecode", "--string", "system-uuid")
 	out, CommandErr := cmd.Output()
 	if CommandErr != nil {
@@ -140,7 +151,7 @@ func CommandMpstat() (*[]float64, error) {
 func GetFqdn() *string {
 	hostname, err := os.Hostname()
 	if err != nil {
-		hostname := "unknown"
+		hostname = "unknown"
 		return &hostname
 	}
 	addrs, err := net.LookupIP(hostname)
@@ -158,7 +169,7 @@ func GetFqdn() *string {
 				return &hostname
 			}
 			fqdn := hosts[0]
-			hostname := strings.TrimSuffix(fqdn, ".")
+			hostname = strings.TrimSuffix(fqdn, ".")
 			return &hostname
 		}
 	}
@@ -330,4 +341,36 @@ func CheckRunningTasks() {
 	tasksCollection := MongoClient.Database("core").Collection("tasks")
 	RunningTasksCount, _ := tasksCollection.CountDocuments(context.TODO(), bson.M{"status": bson.M{"$ne": "DONE"}})
 	fmt.Println(RunningTasksCount)
+}
+
+func IsRpi() (bool, *string) {
+	var pi bool
+	var serialStr string
+	file, ferr := os.Open("/proc/cpuinfo")
+	if ferr != nil {
+		panic(ferr)
+	}
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	r, _ := regexp.Compile("^Serial")
+	for scanner.Scan() {
+		match := r.MatchString(scanner.Text())
+		if match {
+			s := strings.Split(scanner.Text(), ": ")[1]
+			serialStr = strings.TrimSuffix(s, "\n")
+
+			serialStr = serialStr + serialStr
+		}
+		piStr := strings.Contains(scanner.Text(), "Raspberry Pi 5")
+		if piStr {
+			pi = true
+		}
+	}
+	if serr := scanner.Err(); serr != nil {
+		if serr != io.EOF {
+			panic(serr)
+		}
+	}
+
+	return pi, &serialStr
 }
