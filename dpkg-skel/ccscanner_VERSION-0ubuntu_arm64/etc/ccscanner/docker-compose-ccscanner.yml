@@ -32,5 +32,11 @@ services:
     profiles:
       - disable
 
+  nmap:
+    restart: "no"
+    image: docker.io/trolleye/nmap:7.95
+    profiles:
+      - disable
+
 volumes:
   mongodb_data_vol:
