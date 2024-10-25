@@ -113,10 +113,7 @@ func TaskManagerMain() {
 				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID, &wg)
 				break
 			}
-			time.Sleep(15 * time.Second)
-			fmt.Println("Waiting for URL tasks to complete")
-			wg.Wait()
-			fmt.Println("Done with URL tasks")
 		}
+		wg.Wait()
 	}
 }
