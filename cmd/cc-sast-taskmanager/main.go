@@ -107,7 +107,6 @@ func TaskManagerMain() {
 				break
 			}
 		}
-		time.Sleep(15 * time.Second)
 		wg.Wait()
 	}
 }
