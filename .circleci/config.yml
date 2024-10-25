@@ -16,7 +16,7 @@ jobs:
     resource_class: trolleyesecurity/prod
     environment:
       PKG_NAME:
-        ccscanner_2.0.26
+        ccscanner_2.0.25a
     steps:
       - checkout
       - run:
