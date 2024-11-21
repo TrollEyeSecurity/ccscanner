@@ -2,7 +2,7 @@ Package: ccscanner
 Architecture: amd64
 Maintainer: Avery Rozar <avery.rozar@trolleyesecurity.com>
 Priority: optional
-Version: 2.0.26
+Version: 2.0.27
 Description: command center scanner is a client application designed to perform tasks during penetration tests and security audits using Docker containers.
 Depends: docker.io (>=20.10.12-0ubuntu4), docker-compose-v2 (>=2.24.6+ds1-0ubuntu1~22.04.1), sysstat (>=12.5.2-2build2), openvpn (>=2.5.5-1ubuntu3.1), python3 (>=3.10.6-1~22.04), pipx (>=1.0.0-1)
 Bugs: https://github.com/TrollEyeSecurity/ccscanner/issues

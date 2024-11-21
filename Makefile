@@ -1,4 +1,4 @@
-VERSION=2.0.26
+VERSION=2.0.27
 GOCMD=/usr/local/go/bin/go
 GOBUILD=$(GOCMD) build
 
