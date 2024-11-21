@@ -35,6 +35,7 @@ func main() {
 
 func TaskManagerMain() {
 	var wg sync.WaitGroup
+	sleepTime := 10 * time.Second
 	errorString := "\n\nHave you linked the scanner to Command Center yet?"
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -109,5 +110,6 @@ func TaskManagerMain() {
 			}
 		}
 		wg.Wait()
+		time.Sleep(sleepTime)
 	}
 }
