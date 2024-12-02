@@ -41,7 +41,7 @@ func GetCurrentTasks() *[]Task {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
-		err := fmt.Errorf("database get-current-tasks error %v", MongoClient)
+		err := fmt.Errorf("database mongodb client error %v", MongoClient)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -52,7 +52,7 @@ func GetCurrentTasks() *[]Task {
 	cli, NewEnvClientErr := client.NewClientWithOpts()
 	defer cli.Close()
 	if NewEnvClientErr != nil {
-		err := fmt.Errorf("database get-current-tasks error %v", NewEnvClientErr)
+		err := fmt.Errorf("database new-client-with-opts error %v", NewEnvClientErr)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -63,7 +63,7 @@ func GetCurrentTasks() *[]Task {
 		var task Task
 		RunningTasksDecodeErr := RunningTasks.Decode(&task)
 		if RunningTasksDecodeErr != nil {
-			err := fmt.Errorf("database get-current-tasks error %v", RunningTasksDecodeErr)
+			err := fmt.Errorf("database running-task-decode error %v", RunningTasksDecodeErr)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -78,7 +78,7 @@ func GetCurrentTasks() *[]Task {
 				Filters: ContainerFilter,
 			})
 			if TaskContainerErr != nil {
-				err := fmt.Errorf("database get-current-tasks error %v", TaskContainerErr)
+				err := fmt.Errorf("database task-container error %v", TaskContainerErr)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err)
 				}
@@ -90,7 +90,7 @@ func GetCurrentTasks() *[]Task {
 			} else if TaskContainer[0].State == "exited" {
 				info, ContainerInspectErr := cli.ContainerInspect(context.Background(), TaskContainer[0].ID)
 				if ContainerInspectErr != nil {
-					err := fmt.Errorf("database get-current-tasks error %v", ContainerInspectErr)
+					err := fmt.Errorf("database container-inspect error %v", ContainerInspectErr)
 					if sentry.CurrentHub().Client() != nil {
 						sentry.CaptureException(err)
 					}
@@ -98,7 +98,7 @@ func GetCurrentTasks() *[]Task {
 				}
 				t, tpError := time.Parse(time.RFC3339Nano, info.State.FinishedAt)
 				if tpError != nil {
-					err := fmt.Errorf("database get-current-tasks error %v", tpError)
+					err := fmt.Errorf("database time-parse error %v", tpError)
 					if sentry.CurrentHub().Client() != nil {
 						sentry.CaptureException(err)
 					}
@@ -109,7 +109,7 @@ func GetCurrentTasks() *[]Task {
 					ReassignTask(tasksCollection, &task)
 					ContainerRemoveError := cli.ContainerRemove(context.Background(), task.ContainerId, types.ContainerRemoveOptions{})
 					if ContainerRemoveError != nil {
-						err := fmt.Errorf("database get-current-tasks error %v", ContainerRemoveError)
+						err := fmt.Errorf("database container-remove error %v", ContainerRemoveError)
 						if sentry.CurrentHub().Client() != nil {
 							sentry.CaptureException(err)
 						}
@@ -121,7 +121,7 @@ func GetCurrentTasks() *[]Task {
 					ShowStdout: true,
 				})
 				if ContainerLogsErr != nil {
-					err := fmt.Errorf("database get-current-tasks error %v", ContainerLogsErr)
+					err := fmt.Errorf("database container-logs error %v", ContainerLogsErr)
 					if sentry.CurrentHub().Client() != nil {
 						sentry.CaptureException(err)
 					}
@@ -140,7 +140,7 @@ func GetCurrentTasks() *[]Task {
 						bson.D{{"$set", bson.D{{"percent", percent}}}},
 					)
 					if updatePError != nil {
-						err := fmt.Errorf("database get-current-tasks error %v", updatePError)
+						err := fmt.Errorf("database update-pe error %v", updatePError)
 						if sentry.CurrentHub().Client() != nil {
 							sentry.CaptureException(err)
 						}

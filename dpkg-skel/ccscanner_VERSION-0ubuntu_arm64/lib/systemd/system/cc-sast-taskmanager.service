@@ -1,0 +1,13 @@
+[Unit]
+Description=command center sast task-manager service
+After=network.target
+
+[Service]
+Restart=always
+RestartSec=1
+User=ccscanner
+ExecStart=/usr/bin/cc-sast-taskmanager --config=/etc/ccscanner/config.json
+
+[Install]
+WantedBy=multi-user.target
+

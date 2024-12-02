@@ -154,6 +154,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	count := 0
 	length := len(urls.UrlList)
 	for _, u := range urls.UrlList {
+		fmt.Println(u)
 		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ServerErrorCodes)
 		if InspectUrlError != nil {
 			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
@@ -171,8 +172,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 					sentry.CaptureException(err1)
 				}
 				log.Println(err1)
-				MongoClient.Disconnect(context.TODO())
-				return
+				continue
 			}
 			continue
 		}
@@ -192,8 +192,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 				sentry.CaptureException(err)
 			}
 			log.Println(err)
-			MongoClient.Disconnect(context.TODO())
-			return
+			continue
 		}
 	}
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
@@ -209,7 +208,6 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 			sentry.CaptureException(err)
 		}
 		log.Println(err)
-		MongoClient.Disconnect(context.TODO())
 		return
 	}
 	return
