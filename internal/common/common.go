@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"io"
 	"log"
+	"math"
 	"net"
 	"os"
 	"os/exec"
@@ -47,8 +48,8 @@ func GetUuid() *string {
 	return &r
 }
 
-func GetCpuStatus() (*[]float64, error) {
-	var cpuStats []float64
+func GetCpuStatus() (*float64, error) {
+	var cpuStats float64
 	CommandMpstatStats, CommandMpstatError := CommandMpstat()
 	if CommandMpstatError != nil {
 		return nil, CommandMpstatError
@@ -93,18 +94,20 @@ func GetScannerData(link bool) (*ScannerData, error) {
 }
 
 type ScannerData struct {
-	Version  string           `json:"version"`
-	Uuid     string           `json:"uuid"`
-	Load     []float64        `json:"load"`
-	Hostname string           `json:"hostname"`
-	CpuCors  int              `json:"cores"`
-	Ram      uint64           `json:"ram"`
-	Disk     syscall.Statfs_t `json:"disk"`
-	IpData   []IpData         `json:"ip_data"`
-	IpAddr   net.IP           `json:"ip_addr"`
-	Tasks    []database.Task  `json:"tasks"`
-	Mode     string           `json:"mode"`
-	Gvm      bool             `json:"gvm"`
+	OrgId          string           `json:"org_id"`
+	ScannerGroupId string           `json:"scanner_group_id"`
+	Version        string           `json:"version"`
+	Uuid           string           `json:"uuid"`
+	Load           float64          `json:"load"`
+	Hostname       string           `json:"hostname"`
+	CpuCors        int              `json:"cores"`
+	Ram            uint64           `json:"ram"`
+	Disk           syscall.Statfs_t `json:"disk"`
+	IpData         []IpData         `json:"ip_data"`
+	IpAddr         net.IP           `json:"ip_addr"`
+	Tasks          []database.Task  `json:"tasks"`
+	Mode           string           `json:"mode"`
+	Gvm            bool             `json:"gvm"`
 }
 
 func GetOutboundIP() *net.IP {
@@ -121,7 +124,7 @@ func GetOutboundIP() *net.IP {
 	return &localAddr.IP
 }
 
-func CommandMpstat() (*[]float64, error) {
+func CommandMpstat() (*float64, error) {
 	cmd := exec.Command("mpstat")
 	out, CommandErr := cmd.Output()
 	if CommandErr != nil {
@@ -132,13 +135,16 @@ func CommandMpstat() (*[]float64, error) {
 	result := bytes.Split(out, []byte("\n"))
 	validLine := bytes.Split(result[3], []byte("all"))
 	testArray := strings.Fields(string(validLine[len(validLine)-1]))
-	var t2 = []float64{}
+	var t2 []float64
 	for _, v := range testArray {
 		if n, err := strconv.ParseFloat(v, 64); err == nil {
 			t2 = append(t2, n)
 		}
 	}
-	return &t2, nil
+	idle := t2[len(t2)-1]
+	load := 100 - idle
+	rounded := math.Round(load*100) / 100
+	return &rounded, nil
 }
 
 func GetFqdn() *string {
