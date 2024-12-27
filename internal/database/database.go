@@ -264,7 +264,7 @@ func ReassignTask(tasksCollection *mongo.Collection, task *Task) {
 	}
 }
 
-func DeleteTaskById(taskId int64, wg *sync.WaitGroup) {
+func DeleteTaskById(taskId string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := GetMongoClient()
@@ -321,7 +321,7 @@ func DeleteTaskById(taskId int64, wg *sync.WaitGroup) {
 	}
 }
 
-func UpdateTaskById(taskId int64, status string, wg *sync.WaitGroup) {
+func UpdateTaskById(taskId string, status string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := GetMongoClient()
@@ -347,7 +347,7 @@ func UpdateTaskById(taskId int64, status string, wg *sync.WaitGroup) {
 	}
 }
 
-func GetOwaspZapResultById(taskId int64) *ZapResults {
+func GetOwaspZapResultById(taskId string) *ZapResults {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
@@ -363,7 +363,7 @@ func GetOwaspZapResultById(taskId int64) *ZapResults {
 	return &task.OwaspZapResults
 }
 
-func GetTaskStatusByTaskId(taskId int64) (*string, *int) {
+func GetTaskStatusByTaskId(taskId string) (*string, *int) {
 	MongoClient, MongoClientError := GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
