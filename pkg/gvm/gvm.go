@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-func StopVulnerabilityScan(ScanTaskId int64, wg *sync.WaitGroup) {
+func StopVulnerabilityScan(ScanTaskId string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer time.Sleep(time.Millisecond * 4)
 	MongoClient, MongoClientError := database.GetMongoClient()
