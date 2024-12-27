@@ -6,10 +6,12 @@ import (
 )
 
 type ConfigFields struct {
-	ID      string `bson:"_id" json:"id,omitempty"`
-	BaseURL string `json:"baseurl"`
-	Auth    Auth   `json:"auth"`
-	Mode    string `json:"mode"`
+	ID             string `bson:"_id" json:"id,omitempty"`
+	BaseURL        string `json:"baseurl"`
+	Auth           Auth   `json:"auth"`
+	Mode           string `json:"mode"`
+	OrgId          string `bson:"org_id" json:"org_id"`
+	ScannerGroupId string `bson:"scanner_group_id" json:"scanner_group_id"`
 }
 
 type Auth struct {
@@ -21,12 +23,12 @@ type Auth struct {
 type Task struct {
 	ID                   primitive.ObjectID `bson:"_id" json:"id,omitempty"`
 	Name                 string             `json:"name"`
-	TaskId               int64              `bson:"task_id" json:"task_id"`
-	TaskType             string             `bson:"task_type" json:"task_type"`
+	TaskId               string             `bson:"task_id" json:"task_id"`
 	Status               string             `json:"status"`
 	ContainerId          string             `bson:"container_id" json:"container_id"`
 	Content              TaskContent        `json:"content"`
 	SecretData           TaskSecret         `bson:"secret_data" json:"secret_data"`
+	Zone                 ZoneObj            `json:"zone"`
 	NmapResults          string             `bson:"nmap_results" json:"nmap_results"`
 	OpenvasResults       string             `bson:"openvas_results" json:"openvas_results"`
 	OwaspZapResults      ZapResults         `bson:"owasp_zap_results" json:"owasp_zap_results"`
@@ -98,7 +100,7 @@ type Urls struct {
 }
 
 type Result struct {
-	TaskId int64  `bson:"task_id" json:"task_id"`
+	TaskId string `bson:"task_id" json:"task_id"`
 	Result string `json:"result"`
 }
 
@@ -192,4 +194,13 @@ type LargDoc struct {
 type AppSecret struct {
 	Username string `bson:"username" json:"username"`
 	Password string `bson:"password" json:"password"`
+}
+
+type ZoneObj struct {
+	Index       string `json:"_index"`
+	Id          string `json:"_id"`
+	Version     int    `json:"_version"`
+	SeqNo       int    `json:"_seq_no"`
+	PrimaryTerm int    `json:"_primary_term"`
+	Found       bool   `json:"found"`
 }
