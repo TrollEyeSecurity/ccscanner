@@ -9,20 +9,23 @@ import (
 	"os"
 )
 
-func Link(baseURL string, linkToken string) (*LinkResp, error) {
+func Link(baseURL string, scannerGroupId string, orgId string) (*LinkResp, error) {
 	ScannerData, ScannerDataErr := common.GetScannerData(true)
 	if ScannerDataErr != nil {
 		return nil, ScannerDataErr
 	}
+	ScannerData.ScannerGroupId = scannerGroupId
+	ScannerData.OrgId = orgId
 	lr := LinkResp{}
 	bytesRepresentation, BytesRepresentationErr := json.Marshal(&ScannerData)
 	if BytesRepresentationErr != nil {
 		return &lr, BytesRepresentationErr
 	}
-	path := "api/ccscanner/link"
+	path := fmt.Sprintf("api/scanners/link")
+	nilStr := ""
 	method := "POST"
 	contentType := "application/json"
-	response, linkError := httpclient.Request(&baseURL, &path, &bytesRepresentation, &method, &contentType, &linkToken)
+	response, linkError := httpclient.Request(&baseURL, &path, &bytesRepresentation, &method, &contentType, &nilStr)
 	if linkError != nil {
 		fmt.Println(linkError)
 		os.Exit(1)
@@ -56,17 +59,19 @@ func Link(baseURL string, linkToken string) (*LinkResp, error) {
 	return &lr, nil
 }
 
-func Communicate(baseUrl *string, token *string) (*CommunicateResp, error) {
+func Communicate(baseUrl *string, token *string, scannerGroupId string, orgId string) (*CommunicateResp, error) {
 	cr := CommunicateResp{}
 	ScannerData, ScannerDataErr := common.GetScannerData(false)
 	if ScannerDataErr != nil {
 		return nil, ScannerDataErr
 	}
+	ScannerData.OrgId = orgId
+	ScannerData.ScannerGroupId = scannerGroupId
 	bytesRepresentation, BytesRepresentationErr := json.Marshal(*ScannerData)
 	if BytesRepresentationErr != nil {
 		return nil, BytesRepresentationErr
 	}
-	path := "api/ccscanner/communicate"
+	path := "api/scanners/communicate"
 	method := "POST"
 	contentType := "application/json"
 	response, linkError := httpclient.Request(baseUrl, &path, &bytesRepresentation, &method, &contentType, token)
