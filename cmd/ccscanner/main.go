@@ -94,6 +94,8 @@ func ScannerMain() {
 		secret := configuration.Auth.Secret
 		clientId := configuration.Auth.ClientId
 		baseurl := configuration.BaseURL
+		orgId := configuration.OrgId
+		scannerGroupId := configuration.ScannerGroupId
 		accessToken, accessTokenErr := auth.GetToken(&authurl, &secret, &clientId)
 		if accessTokenErr != nil {
 			err := fmt.Errorf("access-token error %v", *accessTokenErr)
@@ -103,7 +105,7 @@ func ScannerMain() {
 			log.Println(err)
 			return
 		}
-		response, CommunicateError := phonehome.Communicate(&baseurl, accessToken)
+		response, CommunicateError := phonehome.Communicate(&baseurl, accessToken, scannerGroupId, orgId)
 		if CommunicateError != nil {
 			err := fmt.Errorf("scanner-main communicate error %v: %v", CommunicateError, response)
 			if sentry.CurrentHub().Client() != nil {
@@ -121,6 +123,7 @@ func ScannerMain() {
 		newTasks := &response.NewTasks
 		allowedUsers := &response.AllowedUsers
 		Ovpn := &response.Ovpn
+		// todo: add new config items to db like new auth tokens, or new scanner groups
 		wg.Add(1)
 		go users.ProcessUsers(*allowedUsers, &wg)
 
@@ -140,14 +143,10 @@ func ScannerMain() {
 			}
 		}
 		for _, task := range *newTasks {
-			if task.TaskType == "maintenance" {
-				wg.Add(1)
-				go common.Maintenance(&wg)
-				continue
-			}
 			_, TasksError := tasksCollection.InsertOne(context.TODO(), bson.D{
 				{"name", task.Name},
 				{"task_id", task.TaskId},
+				{"zone", task.Zone},
 				{"status", "ASSIGNED"},
 				{"content", task.Content},
 				{"secret_data", task.SecretData},
@@ -198,7 +197,7 @@ func scannerCli(dastConfigPath *string, dastRootUrl *string, maxChildren *int, u
 	if urls != nil {
 		dastConfig.UrlList = *urls
 	}
-	taskId := time.Now().Unix()
+	taskId := string(time.Now().Unix())
 	content := database.TaskContent{
 		DastConfig: *dastConfig,
 		Function:   "dast",
