@@ -74,8 +74,11 @@ func TaskManagerMain() {
 		{"content.function", bson.D{
 			{"$in",
 				bson.A{
-					"nmap_host_discovery",
-					"nmap_port_scan",
+					"host_discovery",
+					"port_scan",
+					"smb_scan",
+					"tls_scan",
+					"ssh_scan",
 				},
 			},
 		}},
@@ -103,11 +106,23 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
-			case task.Content.Function == "nmap_host_discovery":
+			case task.Content.Function == "host_discovery":
 				wg.Add(1)
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
 				break
-			case task.Content.Function == "nmap_port_scan":
+			case task.Content.Function == "port_scan":
+				wg.Add(1)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
+				break
+			case task.Content.Function == "smb_scan":
+				wg.Add(1)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
+				break
+			case task.Content.Function == "tls_scan":
+				wg.Add(1)
+				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
+				break
+			case task.Content.Function == "ssh_scan":
 				wg.Add(1)
 				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
 				break
