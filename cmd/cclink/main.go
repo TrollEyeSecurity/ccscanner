@@ -17,8 +17,8 @@ import (
 
 func main() {
 	baseUrl := flag.String("url", "", "Enter the base url for your instance of Command Center.")
-	linkingToken := flag.String("token", "", "The linking token can be found in the Scanner Group you are trying to join.")
-	//fakeLink := flag.Bool("fakeLink", false, "This flag is used to fake a link to Command Center for stanalone use.")
+	scannerGroupId := flag.String("scanner_group_id", "", "The ID of the scanner group to link to.")
+	orgId := flag.String("org_id", "", "The organization id found in CyberOptix.")
 	flag.Parse()
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
@@ -53,25 +53,7 @@ func main() {
 		}
 	}
 	var auth database.Auth
-	/*
-		if *fakeLink {
-			*baseUrl = "https://www.trolleyesecurity.com/cybersecurity-risk-management/"
-			t := "info@trolleyesecurity.com"
-			token = &t
-
-		} else {
-			lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
-			if lrError != nil {
-				err := fmt.Errorf("link error %v", lrError)
-				if sentry.CurrentHub().Client() != nil {
-					sentry.CaptureException(err)
-				}
-				log.Fatalf("Link Error: %s", lrError)
-			}
-			token = &lr
-		}
-	*/
-	lr, lrError := phonehome.Link(*baseUrl, *linkingToken)
+	lr, lrError := phonehome.Link(*baseUrl, *scannerGroupId, *orgId)
 	if lrError != nil {
 		err := fmt.Errorf("link error %v", lrError)
 		if sentry.CurrentHub().Client() != nil {
@@ -86,9 +68,8 @@ func main() {
 		}
 		log.Fatalf("Bytes Error: %s", be)
 	}
-
 	te := json.Unmarshal(b, &auth)
-	if be != nil {
+	if te != nil {
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(te)
 		}
@@ -97,7 +78,14 @@ func main() {
 	if len(results) > 0 {
 		_, ConfigurationError := systemCollection.UpdateOne(context.TODO(),
 			bson.D{{"_id", "configuration"}},
-			bson.D{{"$set", bson.D{{"_id", "configuration"}, {"baseurl", *baseUrl}, {"auth", auth}, {"mode", "running"}}}},
+			bson.D{{"$set", bson.D{
+				{"_id", "configuration"},
+				{"baseurl", *baseUrl},
+				{"auth", auth},
+				{"mode", "running"},
+				{"org_id", *orgId},
+				{"scanner_group_id", *scannerGroupId},
+			}}},
 		)
 		if ConfigurationError != nil {
 			err := fmt.Errorf("link error %v", ConfigurationError)
