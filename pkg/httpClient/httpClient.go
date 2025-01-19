@@ -27,7 +27,7 @@ func Request(baseURL *string, path *string, data *[]byte, method *string, conten
 	}
 	myClient := &http.Client{
 		Transport: transport,
-		Timeout:   time.Second * 45,
+		Timeout:   time.Second * 120,
 	}
 	//generating the HTTP GET request
 	if data == nil {
