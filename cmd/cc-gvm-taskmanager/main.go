@@ -6,14 +6,7 @@ import (
 	"fmt"
 	"github.com/TrollEyeSecurity/ccscanner/internal/config"
 	"github.com/TrollEyeSecurity/ccscanner/internal/database"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/fortinet"
 	"github.com/TrollEyeSecurity/ccscanner/pkg/gvm"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/netrecon"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/nmap"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/owaspzap"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/screenshots"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/snyk"
-	"github.com/TrollEyeSecurity/ccscanner/pkg/urlinspection"
 	"github.com/getsentry/sentry-go"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -129,42 +122,10 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
-			case task.Content.Function == "infrastructure_discovery" && task.Content.Ssh == true:
-				wg.Add(1)
-				go netrecon.Recon(&task.Content, &task.SecretData, &task.ID, &wg)
-				break
 
-			case task.Content.Function == "infrastructure_discovery" && task.Content.Api == true && task.Content.IntegrationType == "fortios":
-				wg.Add(1)
-				go fortinet.Discovery(&task.Content, &task.SecretData, &task.ID, &wg)
-				break
-			case task.Content.Function == "sast":
-				wg.Add(1)
-				go snyk.Scan(&task.Content, &task.SecretData, &task.ID, &wg)
-				break
-			case task.Content.Function == "dast":
-				wg.Add(1)
-				go owaspzap.Scan(task.Content.DastConfigList, &task.ID, &wg)
-				break
-			case task.Content.Function == "get_screen_shot":
-				wg.Add(1)
-				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID, &wg)
-				break
-			case task.Content.Function == "url_inspection":
-				wg.Add(1)
-				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID, &wg)
-				break
-			case task.Content.Function == "nmap_host_discovery":
-				wg.Add(1)
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
-				break
 			case task.Content.Function == "openvas_vulnerability_scan":
 				wg.Add(1)
 				go gvm.StartVulnerabilityScan(&task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &task.Content.Args.Configuration, &task.Content.Args.DisabledNvts, &wg)
-				break
-			case task.Content.Function == "nmap_port_scan":
-				wg.Add(1)
-				go nmap.Scan(&task.Content.Args.NmapParams, &task.Content.Args.Hosts, &task.Content.Args.Excludes, &task.ID, &wg)
 				break
 			}
 		}
@@ -183,10 +144,6 @@ func TaskManagerMain() {
 			case task.Content.Function == "openvas_vulnerability_scan":
 				wg.Add(1)
 				go gvm.CheckVulnerabilityScan(&task.ID, &wg)
-				break
-			case task.Content.Function == "dast":
-				wg.Add(1)
-				go owaspzap.CheckVulnerabilityScan(&task.ID, &wg)
 				break
 			}
 		}

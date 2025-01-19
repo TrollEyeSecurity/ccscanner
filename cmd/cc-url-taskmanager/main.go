@@ -75,8 +75,8 @@ func TaskManagerMain() {
 		{"content.function", bson.D{
 			{"$in",
 				bson.A{
-					"get_screen_shot",
-					"url_inspection",
+					"screen_shot",
+					"web_discovery",
 				},
 			},
 		}},
@@ -105,11 +105,11 @@ func TaskManagerMain() {
 				continue
 			}
 			switch {
-			case task.Content.Function == "get_screen_shot":
+			case task.Content.Function == "screen_shot":
 				wg.Add(1)
 				go screenshots.RunScreenShotTask(&task.Content.Args.Urls, &task.ID, &wg)
 				break
-			case task.Content.Function == "url_inspection":
+			case task.Content.Function == "web_discovery":
 				wg.Add(1)
 				go urlinspection.RunInspection(&task.Content.Args.Urls, &task.ID, &wg)
 				break
