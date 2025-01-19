@@ -16,7 +16,7 @@ func GetToken(secretData *database.TaskSecret) *string {
 	b := []byte("grant_type=client_credentials")
 	auth := base64.StdEncoding.EncodeToString([]byte(secretData.Key + ":" + secretData.Secret))
 	httpClient := &http.Client{
-		Timeout: time.Second * 10,
+		Timeout: time.Second * 120,
 	}
 	req, NewRequestErr := http.NewRequest("POST", "https://bitbucket.org/site/oauth2/access_token", bytes.NewReader(b))
 	if NewRequestErr != nil {
