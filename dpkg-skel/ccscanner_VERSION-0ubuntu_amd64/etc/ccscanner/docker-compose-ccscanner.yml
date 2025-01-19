@@ -18,6 +18,17 @@ services:
     environment:
       ZAP_PORT: 8888
 
+  metasploit:
+    image: metasploitframework/metasploit-framework:latest
+    #environment:
+    #  DATABASE_URL: postgres://postgres@db:5432/msf?pool=200&timeout=5
+    #links:
+    #  - db
+    ports:
+      - 127.0.0.1:55553:55553
+    volumes:
+      - metasploit_data_vol:/data/metasploit
+
   kaliLinux:
     restart: "no"
     image: docker.io/trolleye/kali-linux:latest
@@ -36,6 +47,12 @@ services:
     profiles:
       - disable
 
+  nmap:
+    restart: "no"
+    image: docker.io/trolleye/nmap:7.95
+    profiles:
+      - disable
+
 volumes:
   mongodb_data_vol:
-
+  metasploit_data_vol:

@@ -9,10 +9,25 @@ services:
       - mongodb_data_vol:/data/db
 
   owaspZap:
-    restart: "no"
+    restart: always
     image: ghcr.io/zaproxy/zaproxy:stable
-    profiles:
-      - disable
+    ports:
+      - 127.0.0.1:8888:8888
+    # -addoninstall
+    command: zap.sh -addonupdate -daemon -host 0.0.0.0 -port 8888 -config api.addrs.addr.name=.* -config api.addrs.addr.regex=true -config api.disablekey=true -Xmx4096m
+    environment:
+      ZAP_PORT: 8888
+
+  metasploit:
+    image: metasploitframework/metasploit-framework:latest
+    #environment:
+    #  DATABASE_URL: postgres://postgres@db:5432/msf?pool=200&timeout=5
+    #links:
+    #  - db
+    ports:
+      - 127.0.0.1:55553:55553
+    volumes:
+      - metasploit_data_vol:/data/metasploit
 
   kaliLinux:
     restart: "no"
@@ -40,3 +55,4 @@ services:
 
 volumes:
   mongodb_data_vol:
+  metasploit_data_vol:
