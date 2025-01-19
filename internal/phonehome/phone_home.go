@@ -10,7 +10,7 @@ import (
 )
 
 func Link(baseURL string, scannerGroupId string, orgId string) (*LinkResp, error) {
-	ScannerData, ScannerDataErr := common.GetScannerData(true)
+	ScannerData, ScannerDataErr := common.GetScannerDataWithoutTasks(true)
 	if ScannerDataErr != nil {
 		return nil, ScannerDataErr
 	}
@@ -59,9 +59,9 @@ func Link(baseURL string, scannerGroupId string, orgId string) (*LinkResp, error
 	return &lr, nil
 }
 
-func Communicate(baseUrl *string, token *string, scannerGroupId string, orgId string) (*CommunicateResp, error) {
+func NewTasks(baseUrl *string, token *string, scannerGroupId string, orgId string) (*CommunicateResp, error) {
 	cr := CommunicateResp{}
-	ScannerData, ScannerDataErr := common.GetScannerData(false)
+	ScannerData, ScannerDataErr := common.GetScannerDataWithoutTasks(false)
 	if ScannerDataErr != nil {
 		return nil, ScannerDataErr
 	}
@@ -71,7 +71,7 @@ func Communicate(baseUrl *string, token *string, scannerGroupId string, orgId st
 	if BytesRepresentationErr != nil {
 		return nil, BytesRepresentationErr
 	}
-	path := "api/scanners/communicate"
+	path := "api/scanners/new_tasks"
 	method := "POST"
 	contentType := "application/json"
 	response, linkError := httpclient.Request(baseUrl, &path, &bytesRepresentation, &method, &contentType, token)
@@ -109,4 +109,57 @@ func Communicate(baseUrl *string, token *string, scannerGroupId string, orgId st
 	}
 	response.Body.Close()
 	return &cr, nil
+}
+
+func CompletedTasks(baseUrl *string, token *string, scannerGroupId string, orgId string) (*CompletedTasksResp, *[]string, error) {
+	cr := CompletedTasksResp{}
+	ScannerData, ScannerDataErr := common.GetScannerDataWithTasks(false)
+	if ScannerDataErr != nil {
+		return nil, nil, ScannerDataErr
+	}
+	ScannerData.OrgId = orgId
+	ScannerData.ScannerGroupId = scannerGroupId
+	bytesRepresentation, BytesRepresentationErr := json.Marshal(*ScannerData)
+	if BytesRepresentationErr != nil {
+		return nil, nil, BytesRepresentationErr
+	}
+	path := "api/scanners/completed_tasks"
+	method := "POST"
+	contentType := "application/json"
+	response, responseErr := httpclient.Request(baseUrl, &path, &bytesRepresentation, &method, &contentType, token)
+	if responseErr != nil {
+		fmt.Println(responseErr)
+		return nil, nil, responseErr
+	}
+	if response == nil {
+		fmt.Println("No response from server.")
+		return nil, nil, nil
+	}
+	defer response.Body.Close()
+	if response.Status == "403 Forbidden" {
+		fmt.Println("403 Forbidden, likely a bad key.")
+		return nil, nil, nil
+	} else if response.Status == "500 Internal Server Error" {
+		fmt.Println("500 Internal Server Error.")
+		return nil, nil, nil
+	} else if response.Status == "404 Not Found" {
+		fmt.Println("404 Not Found.")
+		return nil, nil, nil
+	} else if response.Status == "401 Unauthorized" {
+		fmt.Println("401 Unauthorized - You may want to re-link to Command Center")
+		return nil, nil, nil
+	}
+	NewDecoderError := json.NewDecoder(response.Body).Decode(&cr)
+	if NewDecoderError != nil {
+		err := fmt.Errorf("can't decode response. %v - %v", NewDecoderError, response.StatusCode)
+		log.Println(err)
+		return nil, nil, err
+	}
+	var doneTasks []string
+	for _, task := range ScannerData.Tasks {
+		if task.Status == "SUCCESS" {
+			doneTasks = append(doneTasks, task.TaskId)
+		}
+	}
+	return &cr, &doneTasks, nil
 }
