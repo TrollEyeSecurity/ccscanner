@@ -131,7 +131,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	MongoClient, MongoClientError := database.GetMongoClient()
 	defer MongoClient.Disconnect(context.TODO())
 	if MongoClientError != nil {
-		err := fmt.Errorf("urlinspection mongo-client error %v", MongoClientError)
+		err := fmt.Errorf("web discovery mongo-client error %v", MongoClientError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -144,7 +144,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 		bson.D{{"$set", bson.D{{"status", "PROGRESS"}}}},
 	)
 	if updateError != nil {
-		err := fmt.Errorf("urlinspection task-update error %v", updateError)
+		err := fmt.Errorf("web discovery task-update error %v", updateError)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -154,10 +154,9 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	count := 0
 	length := len(urls.UrlList)
 	for _, u := range urls.UrlList {
-		fmt.Println(u)
 		InspectionResults, InspectUrlError := InspectUrl(&u, SuccessCodes, RedirectCodes, ServerErrorCodes)
 		if InspectUrlError != nil {
-			err := fmt.Errorf("urlinspection run-inspection error %v: %v", InspectUrlError, u)
+			err := fmt.Errorf("web discovery run-inspection error %v: %v", InspectUrlError, u)
 			log.Println(err)
 			count += 1
 			percent = count * 100 / length
@@ -167,7 +166,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 					{"percent", percent}}}},
 			)
 			if updatePercentError != nil {
-				err1 := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
+				err1 := fmt.Errorf("web discovery updatePercentError %v", updatePercentError)
 				if sentry.CurrentHub().Client() != nil {
 					sentry.CaptureException(err1)
 				}
@@ -187,7 +186,7 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 				{"percent", percent}}}},
 		)
 		if updatePercentError != nil {
-			err := fmt.Errorf("urlinspection updatePercentError %v", updatePercentError)
+			err := fmt.Errorf("web discovery updatePercentError %v", updatePercentError)
 			if sentry.CurrentHub().Client() != nil {
 				sentry.CaptureException(err)
 			}
@@ -198,12 +197,12 @@ func RunInspection(urls *database.Urls, taskId *primitive.ObjectID, wg *sync.Wai
 	_, update2Error := tasksCollection.UpdateOne(context.TODO(),
 		bson.D{{"_id", taskId}},
 		bson.D{{"$set", bson.D{
-			{"url_inspection_results", results},
+			{"web_discovery_results", results},
 			{"status", "SUCCESS"},
 			{"percent", 100}}}},
 	)
 	if update2Error != nil {
-		err := fmt.Errorf("urlinspection task-update error %v", update2Error)
+		err := fmt.Errorf("web discovery task-update error %v", update2Error)
 		if sentry.CurrentHub().Client() != nil {
 			sentry.CaptureException(err)
 		}
@@ -220,7 +219,7 @@ func InspectUrl(myUrl *string, SuccessCodes map[int]bool, RedirectCodes map[int]
 	//if ProxyURLErr != nil {
 	//	return &urlData, ProxyURLErr
 	//}
-	timeout := 20 * time.Second
+	timeout := 120 * time.Second
 	transport := &http.Transport{
 		//Proxy:             http.ProxyURL(proxyURL),
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
