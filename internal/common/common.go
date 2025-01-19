@@ -58,7 +58,7 @@ func GetCpuStatus() (*float64, error) {
 	return &cpuStats, nil
 }
 
-func GetScannerData(link bool) (*ScannerData, error) {
+func GetScannerDataWithTasks(link bool) (*ScannerData, error) {
 	uuid := GetUuid()
 	cpuStatus, GetCpuStatusError := GetCpuStatus()
 	if GetCpuStatusError != nil {
@@ -89,6 +89,40 @@ func GetScannerData(link bool) (*ScannerData, error) {
 		IpData:   *getIpData(),
 		IpAddr:   *GetOutboundIP(),
 		Tasks:    *database.GetCurrentTasks(),
+	}
+	return &sd, nil
+}
+
+func GetScannerDataWithoutTasks(link bool) (*ScannerData, error) {
+	uuid := GetUuid()
+	cpuStatus, GetCpuStatusError := GetCpuStatus()
+	if GetCpuStatusError != nil {
+		return nil, GetCpuStatusError
+	}
+	s := syscall.Statfs_t{}
+	syscall1Err := syscall.Statfs("/", &s)
+	if syscall1Err != nil {
+		return nil, syscall1Err
+	}
+	m := runtime.MemStats{}
+	runtime.ReadMemStats(&m)
+	fs := syscall.Statfs_t{}
+	syscall2Err := syscall.Statfs("/", &fs)
+	if syscall2Err != nil {
+		return nil, syscall2Err
+	}
+	sd := ScannerData{
+		Version:  Version,
+		Uuid:     *uuid,
+		Load:     *cpuStatus,
+		Mode:     *database.GetCurrentMode(link),
+		Gvm:      gvm.IsGvmReady(),
+		Hostname: *GetFqdn(),
+		CpuCors:  runtime.NumCPU(),
+		Ram:      m.TotalAlloc,
+		Disk:     s,
+		IpData:   *getIpData(),
+		IpAddr:   *GetOutboundIP(),
 	}
 	return &sd, nil
 }
