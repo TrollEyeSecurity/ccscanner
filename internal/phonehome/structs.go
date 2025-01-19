@@ -11,6 +11,10 @@ type CommunicateResp struct {
 	Ovpn         OvpnConfig        `json:"ovpn"`
 }
 
+type CompletedTasksResp struct {
+	Results string `json:"results"`
+}
+
 type LinkResp struct {
 	Secret   string `json:"secret"`
 	AuthUrl  string `json:"authUrl"`
