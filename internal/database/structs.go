@@ -21,29 +21,29 @@ type Auth struct {
 }
 
 type Task struct {
-	ID                   primitive.ObjectID `bson:"_id" json:"id,omitempty"`
-	Name                 string             `json:"name"`
-	TaskId               string             `bson:"task_id" json:"task_id"`
-	Status               string             `json:"status"`
-	ContainerId          string             `bson:"container_id" json:"container_id"`
-	Content              TaskContent        `json:"content"`
-	SecretData           TaskSecret         `bson:"secret_data" json:"secret_data"`
-	Zone                 ZoneObj            `json:"zone"`
-	NmapResults          string             `bson:"nmap_results" json:"nmap_results"`
-	OpenvasResults       string             `bson:"openvas_results" json:"openvas_results"`
-	OwaspZapResults      ZapResults         `bson:"owasp_zap_results" json:"owasp_zap_results"`
-	SastResults          SastResults        `bson:"sast_results" json:"sast_results"`
-	NetReconResults      string             `bson:"net_recon_results" json:"net_recon_results"`
-	OpenvasTaskId        string             `bson:"openvas_task_id" json:"openvas_task_id"`
-	UrlInspectionResults []UrlData          `bson:"url_inspection_results" json:"url_inspection_results"`
-	ScreenShotResults    []string           `bson:"screen_shot_results" json:"screen_shot_results"`
-	NameInfo             string             `bson:"name_info" json:"name_info"`
-	ServiceUrlData       string             `bson:"service_url_data" json:"service_url_data"`
-	Percent              int                `json:"percent"`
-	OwaspZapContextName  string             `bson:"owasp_zap_context_name" json:"owasp_zap_context_name"`
-	OwaspZapContextId    string             `bson:"owasp_zap_context_id" json:"owasp_zap_context_id"`
-	OwaspZapAscanId      string             `bson:"owasp_zap_ascan_id" json:"owasp_zap_ascan_id"`
-	DocumentTooLarge     bool               `bson:"document_too_large" json:"document_too_large"`
+	ID                  primitive.ObjectID `bson:"_id" json:"id,omitempty"`
+	Name                string             `json:"name"`
+	TaskId              string             `bson:"task_id" json:"task_id"`
+	Status              string             `json:"status"`
+	ContainerId         string             `bson:"container_id" json:"container_id"`
+	Content             TaskContent        `json:"content"`
+	SecretData          TaskSecret         `bson:"secret_data" json:"secret_data"`
+	Zone                ZoneObj            `json:"zone"`
+	NmapResults         string             `bson:"nmap_results" json:"nmap_results"`
+	OpenvasResults      string             `bson:"openvas_results" json:"openvas_results"`
+	OwaspZapResults     ZapResults         `bson:"owasp_zap_results" json:"owasp_zap_results"`
+	SastResults         SastResults        `bson:"sast_results" json:"sast_results"`
+	NetReconResults     string             `bson:"net_recon_results" json:"net_recon_results"`
+	OpenvasTaskId       string             `bson:"openvas_task_id" json:"openvas_task_id"`
+	WebDiscoveryResults []UrlData          `bson:"web_discovery_results" json:"web_discovery_results"`
+	ScreenShotResults   []string           `bson:"screen_shot_results" json:"screen_shot_results"`
+	NameInfo            string             `bson:"name_info" json:"name_info"`
+	ServiceUrlData      string             `bson:"service_url_data" json:"service_url_data"`
+	Percent             int                `json:"percent"`
+	OwaspZapContextName string             `bson:"owasp_zap_context_name" json:"owasp_zap_context_name"`
+	OwaspZapContextId   string             `bson:"owasp_zap_context_id" json:"owasp_zap_context_id"`
+	OwaspZapAscanId     string             `bson:"owasp_zap_ascan_id" json:"owasp_zap_ascan_id"`
+	DocumentTooLarge    bool               `bson:"document_too_large" json:"document_too_large"`
 }
 
 type ZapResults struct {
@@ -95,8 +95,16 @@ type TaskArg struct {
 }
 
 type Urls struct {
-	WebappId string   `bson:"webapp_id" json:"webapp_id"`
-	UrlList  []string `bson:"url_list" json:"url_list"`
+	WebappId                 string   `bson:"webapp_id" json:"webapp_id"`
+	UrlList                  []string `bson:"url_list" json:"url_list"`
+	CloudfrontDistributionId string   `bson:"cloudfront_distribution_id" json:"cloudfront_distribution_id"`
+	GlobalAcceleratorId      string   `bson:"global_accelerator_id" json:"global_accelerator_id"`
+	Elbv2Id                  string   `bson:"elbv2_id" json:"elbv2_id"`
+	ActiveDiscoveryHostId    string   `bson:"active_discovery_host_id" json:"active_discovery_host_id"`
+	AzureFrontDoorId         string   `bson:"azure_front_door_id" json:"azure_front_door_id"`
+	AzureVmId                string   `bson:"azure_vm_id" json:"azure_vm_id"`
+	AwsEc2Id                 string   `json:"aws_ec2_id" bson:"aws_ec2_id"`
+	DnsId                    string   `bson:"dns_id" json:"dns_id"`
 }
 
 type Result struct {
@@ -105,10 +113,12 @@ type Result struct {
 }
 
 type UrlData struct {
-	FinalLocation string   `bson:"final_location" json:"final_location"`
-	UrlList       []string `bson:"url_list" json:"url_list"`
-	StatusCode    int      `bson:"status_code" json:"status_code"`
-	Data          Data     `bson:"data" json:"data"`
+	FinalLocation string            `bson:"final_location" json:"final_location"`
+	UrlList       []string          `bson:"url_list" json:"url_list"`
+	StatusCode    int               `bson:"status_code" json:"status_code"`
+	Data          Data              `bson:"data" json:"data"`
+	Url           string            `bson:"url" json:"url"`
+	Headers       map[string]string `bson:"headers" json:"headers"`
 }
 
 type Data struct {
@@ -182,7 +192,7 @@ type DastConfig struct {
 	WebappLoggedoutindicatorregex string   `bson:"webapp_loggedoutindicatorregex" json:"webapp_loggedoutindicatorregex"`
 	WebappUsers                   []string `bson:"webapp_users" json:"webapp_users"`
 	SecretList                    []string `bson:"secret_list" json:"secret_list"`
-	ID                            int      `bson:"id" json:"id"`
+	ID                            string   `bson:"id" json:"id"`
 	MaxChildren                   int      `bson:"max_children" json:"max_children"`
 	UrlList                       []string `bson:"url_list" json:"url_list"`
 }
