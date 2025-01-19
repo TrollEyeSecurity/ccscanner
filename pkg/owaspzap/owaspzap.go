@@ -716,7 +716,7 @@ func HttpClientRequest(baseURL *string, path *string, data *[]byte, method *stri
 	}
 	myClient := &http.Client{
 		Transport: transport,
-		Timeout:   time.Second * 60,
+		Timeout:   time.Second * 120,
 	}
 	//generating the HTTP GET request
 	if data == nil {

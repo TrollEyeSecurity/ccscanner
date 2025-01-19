@@ -63,7 +63,7 @@ func RunScreenShotTask(urls *database.Urls, taskId *primitive.ObjectID, wg *sync
 		MongoClient.Disconnect(context.TODO())
 		return
 	}
-	timeout := 2 * time.Second
+	timeout := 120 * time.Second
 	transport := &http.Transport{
 		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
 		DisableKeepAlives: true,
