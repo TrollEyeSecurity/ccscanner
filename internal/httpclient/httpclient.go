@@ -9,7 +9,7 @@ import (
 )
 
 func Request(baseURL *string, path *string, data *[]byte, method *string, contentType *string, token *string) (*http.Response, error) {
-	//proxyStr := "http://127.0.0.1:8081"
+	//proxyStr := "http://127.0.0.1:8080"
 	//proxyURL, ProxyURLErr := url.Parse(proxyStr)
 	//if ProxyURLErr != nil {
 	//	return &http.Response{}, ProxyURLErr
@@ -28,7 +28,7 @@ func Request(baseURL *string, path *string, data *[]byte, method *string, conten
 	//adding the Transport object to the http Client
 	client := &http.Client{
 		Transport: transport,
-		Timeout:   time.Second * 20,
+		Timeout:   time.Second * 120,
 	}
 	//generating the HTTP GET request
 	request, RequestErr := http.NewRequest(
